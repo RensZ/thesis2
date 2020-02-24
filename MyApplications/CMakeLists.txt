@@ -179,4 +179,4 @@ include(tudatLinkLibraries)
 # Add thesis_v1 application.
 add_executable(application_Thesis "${SRCROOT}/thesis_v1.cpp")
 setup_executable_target(application_Thesis "${SRCROOT}")
-target_link_libraries(application_Thesis ${TUDAT_ESTIMATION_LIBRARIES} ${Boost_LIBRARIES} )
+target_link_libraries(application_Thesis tudat_observation_models ${TUDAT_ESTIMATION_LIBRARIES} ${TUDAT_APPLICATION_ESTIMATION_LIBRARIES} ${Boost_LIBRARIES} )
