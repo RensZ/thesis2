@@ -70,6 +70,12 @@ int main( )
     using namespace tudat::basic_mathematics;
     using namespace tudat::unit_conversions;
 
+    // Load spice kernels.
+    std::string kernelsPath = input_output::getSpiceKernelPath( );
+    spice_interface::loadStandardSpiceKernels( );
+
+
+
     /////////////////////
     //// USER INPUTS ////
     /////////////////////
@@ -80,24 +86,28 @@ int main( )
     finalTime   << 2020, 7, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
 
     // Planet propagation choices
-    bool propogatePlanets = false; // Propogate the other planets besides Mercury
+    bool propogatePlanets = false; // Propogate the other planets besides Mercury (NOTE: need observations as well of the other planets in order to do a viable state estimation)
     bool useDirectSpice = false; // Use direct SPICE (more accurate than tabulated Spice)
 
-    // Sun inputs
-    double sunRadius = 695.7E6; //m, from nasa fact sheet
-    double sunJ2 = 2.0E-7; //from Hamid
-    double sunGravitationalParameter = 132712E6; //km3/s2, from nasa fact sheet
+    // Observation settings
+    bool simulateObservationNoise = false;
 
     // ABM integrator settings
     double initialTimeStep = 3600;
-    double minimumStepSize = 3600/8;
-    double maximumStepSize = 3600*8;
+    double minimumStepSize = 3600/2;
+    double maximumStepSize = 3600*2;
     double relativeErrorTolerence = 10E-12;
     double absoluteErrorTolerence = 10E-12;
     int minimumOrder = 6;
     int maximumOrder = 12;
 
+    // Parameter estimation settings
+    int maximumNumberOfIterations = 10;
 
+    // Parameter inputs
+    double sunRadius = 695.7E6; //m, from nasa fact sheet
+    double sunJ2 = 2.0E-7; //from Hamid
+    double sunGravitationalParameter = 132712E15; //m3/s2, from nasa fact sheet
 
 
     /////////////////////
@@ -109,10 +119,6 @@ int main( )
     // initial and final time to Julian
     double initialSimulationTime = secondsAfterJ2000(initialTime);
     double finalSimulationTime = secondsAfterJ2000(finalTime);
-
-    // Load spice kernels.
-    std::string kernelsPath = input_output::getSpiceKernelPath( );
-    spice_interface::loadStandardSpiceKernels( );
 
     // Define bodies
     unsigned int totalNumberOfBodies = 8;
@@ -168,11 +174,26 @@ int main( )
     std::cout << "creating ground stations..." << std::endl;
 
 
-    // At centre of Earth
-    std::vector< std::string > EarthStationNames;
-    EarthStationNames.push_back( "Earth1" );
-    createGroundStation( bodyMap.at( "Earth" ), "Earth1",
+    // Create ground stations from geodetic positions.
+    std::vector< std::string > groundStationNames;
+    groundStationNames.push_back( "Station1" );
+    groundStationNames.push_back( "Station2" );
+    groundStationNames.push_back( "Station3" );
+
+    createGroundStation( bodyMap.at( "Earth" ), "Station1",
                          ( Eigen::Vector3d( ) << 0.0, 1.25, 0.0 ).finished( ), geodetic_position );
+    createGroundStation( bodyMap.at( "Earth" ), "Station2",
+                         ( Eigen::Vector3d( ) << 0.0, -1.55, 2.0 ).finished( ), geodetic_position );
+    createGroundStation( bodyMap.at( "Earth" ), "Station3",
+                         ( Eigen::Vector3d( ) << 0.0, 0.8, 4.0 ).finished( ), geodetic_position );
+
+
+
+//    // At centre of Earth
+//    std::vector< std::string > EarthStationNames;
+//    EarthStationNames.push_back( "Earth1" );
+//    createGroundStation( bodyMap.at( "Earth" ), "Earth1",
+//                         ( Eigen::Vector3d( ) << 0.0, 1.25, 0.0 ).finished( ), geodetic_position );
 
     // At centre of Mercury
     createGroundStation( bodyMap.at( "Mercury" ), "Mercury0",
@@ -197,22 +218,6 @@ int main( )
     }
     unsigned int numberOfNumericalBodies = bodiesToPropagate.size( );
 
-    // Set accelerations between bodies that are to be taken into account (mutual point mass gravity between all bodies).
-    SelectedAccelerationMap accelerationMap;
-    for( unsigned int i = 0; i < numberOfNumericalBodies; i++ )
-    {
-        std::map< std::string, std::vector< std::shared_ptr< AccelerationSettings > > > currentAccelerations;
-        for( unsigned int j = 0; j < numberOfNumericalBodies; j++ )
-        {
-            // Create central gravity acceleration between each 2 bodies.
-            if( i != j )
-            {
-                currentAccelerations[ bodiesToPropagate.at( j ) ].push_back(
-                            std::make_shared< AccelerationSettings >( central_gravity ) );
-            }
-        }
-        accelerationMap[ bodiesToPropagate.at( i ) ] = currentAccelerations;
-    }
 
     // Define central bodies to use in propagation.
     std::vector< std::string > centralBodies;
@@ -227,6 +232,32 @@ int main( )
             centralBodies[i] = "SSB";
         }
     }
+
+
+    // Set accelerations between bodies that are to be taken into account (mutual point mass gravity between all bodies).
+    SelectedAccelerationMap accelerationMap;
+    for( unsigned int i = 0; i < numberOfNumericalBodies; i++ )
+    {
+        std::map< std::string, std::vector< std::shared_ptr< AccelerationSettings > > > currentAccelerations;
+        for( unsigned int j = 0; j < totalNumberOfBodies; j++ )
+        {
+            if( bodiesToPropagate.at( i ) != bodyNames.at( j ) )
+            {
+                if (bodyNames.at( j ) == "Sun"){
+                    currentAccelerations[ bodyNames.at( j ) ].push_back(
+                                std::make_shared< AccelerationSettings >( central_gravity ) );
+                    currentAccelerations[ bodyNames.at( j ) ].push_back(
+                                std::make_shared< SphericalHarmonicAccelerationSettings > (2,0));
+                }
+                else{
+                    currentAccelerations[ bodyNames.at( j ) ].push_back(
+                                std::make_shared< AccelerationSettings >( central_gravity ) );
+                }
+            }
+        }
+        accelerationMap[ bodiesToPropagate.at( i ) ] = currentAccelerations;
+    }
+
 
     // Create acceleration models and propagation settings.
     AccelerationMap accelerationModelMap = createAccelerationModelsMap(
@@ -268,28 +299,62 @@ int main( )
 
     std::cout << "defining link ends for observations..." << std::endl;
 
+
     // Create list of link ends in which station is receiver and in which station is transmitter (with spacecraft other link end).
     std::vector< LinkEnds > stationReceiverLinkEnds;
     std::vector< LinkEnds > stationTransmitterLinkEnds;
 
-    for( unsigned int i = 0; i < EarthStationNames.size( ); i++ )
+    for( unsigned int i = 0; i < groundStationNames.size( ); i++ )
     {
         LinkEnds linkEnds;
-        linkEnds[ transmitter ] = std::make_pair( "Earth", EarthStationNames.at( i ) );
+        linkEnds[ transmitter ] = std::make_pair( "Earth", groundStationNames.at( i ) );
         linkEnds[ receiver ] = std::make_pair( "Mercury", "Mercury0" );
         stationTransmitterLinkEnds.push_back( linkEnds );
 
         linkEnds.clear( );
-        linkEnds[ receiver ] = std::make_pair( "Earth", EarthStationNames.at( i ) );
+        linkEnds[ receiver ] = std::make_pair( "Earth", groundStationNames.at( i ) );
         linkEnds[ transmitter ] = std::make_pair( "Mercury", "Mercury0" );
         stationReceiverLinkEnds.push_back( linkEnds );
     }
 
-
-    // Define perfect Mercury observables
+    // Define (arbitrarily) link ends to be used for 1-way range, 1-way doppler and angular position observables
     std::map< ObservableType, std::vector< LinkEnds > > linkEndsPerObservable;
     linkEndsPerObservable[ one_way_range ].push_back( stationReceiverLinkEnds[ 0 ] );
     linkEndsPerObservable[ one_way_range ].push_back( stationTransmitterLinkEnds[ 0 ] );
+    linkEndsPerObservable[ one_way_range ].push_back( stationReceiverLinkEnds[ 1 ] );
+
+    linkEndsPerObservable[ one_way_doppler ].push_back( stationReceiverLinkEnds[ 1 ] );
+    linkEndsPerObservable[ one_way_doppler ].push_back( stationTransmitterLinkEnds[ 2 ] );
+
+    linkEndsPerObservable[ angular_position ].push_back( stationReceiverLinkEnds[ 2 ] );
+    linkEndsPerObservable[ angular_position ].push_back( stationTransmitterLinkEnds[ 1 ] );
+
+
+
+//    // Create list of link ends in which station is receiver and in which station is transmitter (with spacecraft other link end).
+//    std::vector< LinkEnds > stationReceiverLinkEnds;
+//    std::vector< LinkEnds > stationTransmitterLinkEnds;
+
+//    for( unsigned int i = 0; i < EarthStationNames.size( ); i++ )
+//    {
+//        LinkEnds linkEnds;
+//        linkEnds[ transmitter ] = std::make_pair( "Earth", EarthStationNames.at( i ) );
+//        linkEnds[ receiver ] = std::make_pair( "Mercury", "Mercury0" );
+//        stationTransmitterLinkEnds.push_back( linkEnds );
+
+//        linkEnds.clear( );
+//        linkEnds[ receiver ] = std::make_pair( "Earth", EarthStationNames.at( i ) );
+//        linkEnds[ transmitter ] = std::make_pair( "Mercury", "Mercury0" );
+//        stationReceiverLinkEnds.push_back( linkEnds );
+//    }
+
+
+//    // Define perfect Mercury observables
+//    std::map< ObservableType, std::vector< LinkEnds > > linkEndsPerObservable;
+//    linkEndsPerObservable[ one_way_range ].push_back( stationReceiverLinkEnds[ 0 ] );
+//    linkEndsPerObservable[ one_way_range ].push_back( stationTransmitterLinkEnds[ 0 ] );
+
+
 
 
 
@@ -334,6 +399,7 @@ int main( )
         parameterNames.push_back( std::make_shared< InitialTranslationalStateEstimatableParameterSettings< double > >(
                                       bodiesToPropagate[i], systemInitialState.segment(j,6), centralBodies[i] ) );
     }
+
 
 
     // Add additional parameters to be estimated
@@ -428,18 +494,30 @@ int main( )
 
     std::cout << "Estimating parameters..." << std::endl;
 
-    // Perturb parameter estimate (not needed when noise is present)
+
     Eigen::Matrix< double, Eigen::Dynamic, 1 > initialParameterEstimate =
             parametersToEstimate->template getFullParameterValues< double >( );
     Eigen::Matrix< double, Eigen::Dynamic, 1 > truthParameters = initialParameterEstimate;
-    Eigen::Matrix< double, Eigen::Dynamic, 1 > parameterPerturbation =
-            Eigen::Matrix< double, Eigen::Dynamic, 1 >::Zero( truthParameters.rows( ) );
-    parameterPerturbation.segment( 0, 3 ) = Eigen::Vector3d::Constant( 10.0 );
-    parameterPerturbation.segment( 3, 3 ) = Eigen::Vector3d::Constant( 1.0E-2 );
-    parameterPerturbation( 6 ) = 0.1*sunGravitationalParameter;
-    parameterPerturbation( 7 ) = 0.1*sunJ2;
-    initialParameterEstimate += parameterPerturbation;
 
+
+    if (simulateObservationNoise == false){
+
+        // If no observation noise is simulated, we need to perturb initial parameter estimates to create an offset with the true solution
+        Eigen::Matrix< double, Eigen::Dynamic, 1 > parameterPerturbation =
+                Eigen::Matrix< double, Eigen::Dynamic, 1 >::Zero( truthParameters.rows( ) );
+
+        for( unsigned int i = 0; i < truthParameters.size(); i++ ){
+            double randomPercentage = ((rand()%200) - 100.0) / 10000.0; //random percentage between -1% and +1% to add to initial guess
+            parameterPerturbation( i ) = initialParameterEstimate[i]*randomPercentage;
+        }
+        initialParameterEstimate += parameterPerturbation;
+    }
+
+    std::cout << "True parameter values:" << std::endl;
+    std::cout << truthParameters << std::endl;
+
+    std::cout << "Initial guesses:" << std::endl;
+    std::cout << initialParameterEstimate << std::endl;
 
     // Define estimation input
     std::shared_ptr< PodInput< double, double > > podInput =
@@ -458,7 +536,7 @@ int main( )
 
     // Perform estimation
     std::shared_ptr< PodOutput< double > > podOutput = orbitDeterminationManager.estimateParameters(
-                podInput, std::make_shared< EstimationConvergenceChecker >( 4 ) );
+                podInput, std::make_shared< EstimationConvergenceChecker >( maximumNumberOfIterations ) );
 
 
 
@@ -468,7 +546,7 @@ int main( )
 
     std::cout << "Writing output to files..." << std::endl;
 
-    std::string outputSubFolder = "Output/";
+    std::string outputSubFolder = tudat_applications::getOutputPath( ) + "Output/";
 
     // Print true estimation error, limited mostly by numerical error
     Eigen::VectorXd estimationError = podOutput->parameterEstimate_ - truthParameters;
@@ -482,51 +560,38 @@ int main( )
                 orbitDeterminationManager.getStateTransitionAndSensitivityMatrixInterface( ),
                 60.0, initialSimulationTime + 3600.0, finalSimulationTime - 3600.0 );
     input_output::writeDataMapToTextFile( propagatedErrors,
-                                          "earthOrbitBasicEstimationPropagatedErrors.dat",
+                                          "EstimationPropagatedErrors.dat",
                                           tudat_applications::getOutputPath( ) + outputSubFolder );
 
     input_output::writeMatrixToFile( podOutput->getUnnormalizedCovarianceMatrix( ),
-                                     "EstimationCovariance.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+                                     "EstimationCovariance.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( podOutput->normalizedInformationMatrix_,
-                                     "EstimationInformationMatrix.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+                                     "EstimationInformationMatrix.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( podOutput->weightsMatrixDiagonal_,
-                                     "EstimationWeightsDiagonal.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+                                     "EstimationWeightsDiagonal.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( podOutput->residuals_,
-                                     "EstimationResiduals.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+                                     "EstimationResiduals.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ),
-                                     "EstimationCorrelations.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+                                     "EstimationCorrelations.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( podOutput->getResidualHistoryMatrix( ),
-                                     "ResidualHistory.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+                                     "ResidualHistory.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( podOutput->getParameterHistoryMatrix( ),
-                                     "ParameterHistory.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+                                     "ParameterHistory.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
-                                     "ObservationMeasurements.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+                                     "ObservationMeasurements.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
                                          getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
-                                     "ObservationTimes.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+                                     "ObservationTimes.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
                                          getConcatenatedGroundStationIndex( podInput->getObservationsAndTimes( ) ).first ),
-                                     "ObservationLinkEnds.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+                                     "ObservationLinkEnds.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
                                          getConcatenatedObservableTypes( podInput->getObservationsAndTimes( ) ) ),
-                                     "ObservationObservableTypes.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+                                     "ObservationObservableTypes.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( estimationError,
-                                     "ObservationTrueEstimationError.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+                                     "ObservationTrueEstimationError.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( podOutput->getFormalErrorVector( ),
-                                     "ObservationFormalEstimationError.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+                                     "ObservationFormalEstimationError.dat", 16, outputSubFolder );
 
 
     // Final statement.
