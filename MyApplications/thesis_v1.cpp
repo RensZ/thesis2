@@ -245,8 +245,6 @@ int main( )
             {
                 if (bodyNames.at( j ) == "Sun"){
                     currentAccelerations[ bodyNames.at( j ) ].push_back(
-                                std::make_shared< AccelerationSettings >( central_gravity ) );
-                    currentAccelerations[ bodyNames.at( j ) ].push_back(
                                 std::make_shared< SphericalHarmonicAccelerationSettings > (2,0));
                 }
                 else{
