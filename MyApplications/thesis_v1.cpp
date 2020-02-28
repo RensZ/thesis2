@@ -82,10 +82,21 @@ int main( )
 
     // Specify start and end time
     Eigen::Vector6i initialTime, finalTime;
-    initialTime << 2020, 1, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
-    finalTime   << 2020, 7, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
+    initialTime << 2010, 1, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
+    finalTime   << 2011, 1, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
 
-    // Planet propagation choices
+    // Acceleration settings
+    bool calculateSchwarzschildCorrection = true;
+    bool calculateLenseThirringCorrection = false;
+    bool calculateDeSitterCorrection = false;
+
+    // Parameter inputs
+    double sunRadius = 695.7E6; //m, from nasa fact sheet
+    double sunJ2 = 2.0E-7; //from Hamid
+    double sunGravitationalParameter = 132712.0E15; //m3/s2, from nasa fact sheet
+    double sunAngularMomentum = 190.0E39; //kgm2/s, from Pijpers 1998
+
+    // Planet propagation settings
     bool propogatePlanets = false; // Propogate the other planets besides Mercury (NOTE: need observations as well of the other planets in order to do a viable state estimation)
     bool useDirectSpice = false; // Use direct SPICE (more accurate than tabulated Spice)
 
@@ -102,12 +113,7 @@ int main( )
     int maximumOrder = 12;
 
     // Parameter estimation settings
-    int maximumNumberOfIterations = 10;
-
-    // Parameter inputs
-    double sunRadius = 695.7E6; //m, from nasa fact sheet
-    double sunJ2 = 2.0E-7; //from Hamid
-    double sunGravitationalParameter = 132712E15; //m3/s2, from nasa fact sheet
+    int maximumNumberOfIterations = 20;
 
 
     /////////////////////
@@ -188,13 +194,6 @@ int main( )
                          ( Eigen::Vector3d( ) << 0.0, 0.8, 4.0 ).finished( ), geodetic_position );
 
 
-
-//    // At centre of Earth
-//    std::vector< std::string > EarthStationNames;
-//    EarthStationNames.push_back( "Earth1" );
-//    createGroundStation( bodyMap.at( "Earth" ), "Earth1",
-//                         ( Eigen::Vector3d( ) << 0.0, 1.25, 0.0 ).finished( ), geodetic_position );
-
     // At centre of Mercury
     createGroundStation( bodyMap.at( "Mercury" ), "Mercury0",
                          ( Eigen::Vector3d( ) << 0.0, 0.0, 0.0 ).finished( ), spherical_position );
@@ -234,6 +233,11 @@ int main( )
     }
 
 
+    // Prepare angular momentum vector Sun
+    Eigen::Vector3d sunAngularMomentumVector;
+    sunAngularMomentumVector << 0.0, 0.0, sunAngularMomentum;
+
+
     // Set accelerations between bodies that are to be taken into account (mutual point mass gravity between all bodies).
     SelectedAccelerationMap accelerationMap;
     for( unsigned int i = 0; i < numberOfNumericalBodies; i++ )
@@ -246,11 +250,20 @@ int main( )
                 if (bodyNames.at( j ) == "Sun"){
                     currentAccelerations[ bodyNames.at( j ) ].push_back(
                                 std::make_shared< SphericalHarmonicAccelerationSettings > (2,0));
+                    currentAccelerations[ bodyNames.at( j ) ].push_back(
+                                std::make_shared< RelativisticAccelerationCorrectionSettings >(
+                                    calculateSchwarzschildCorrection,
+                                    calculateLenseThirringCorrection,
+                                    calculateDeSitterCorrection,
+                                    "Jupiter",
+                                    sunAngularMomentumVector));
                 }
                 else{
                     currentAccelerations[ bodyNames.at( j ) ].push_back(
                                 std::make_shared< AccelerationSettings >( central_gravity ) );
                 }
+
+
             }
         }
         accelerationMap[ bodiesToPropagate.at( i ) ] = currentAccelerations;
@@ -399,12 +412,11 @@ int main( )
     }
 
 
-
     // Add additional parameters to be estimated
-//    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-//                             ("global_metric", ppn_parameter_gamma ) );
-//    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-//                             ("global_metric", ppn_parameter_beta ) );
+    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                             ("global_metric", ppn_parameter_gamma ) );
+    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                             ("global_metric", ppn_parameter_beta ) );
     parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                              ("Sun", gravitational_parameter));
     parameterNames.push_back(std::make_shared<SphericalHarmonicEstimatableParameterSettings>
@@ -446,7 +458,7 @@ int main( )
     double observationTimeEnd = finalSimulationTime;
 
     // Define time between two observations
-    double observationInterval = 60.0*60.0*24.0;
+    double observationInterval = 60.0*60.0*12.0;
 
     // Generate list of observation times
     std::vector< double > baseTimeList;
@@ -505,7 +517,7 @@ int main( )
                 Eigen::Matrix< double, Eigen::Dynamic, 1 >::Zero( truthParameters.rows( ) );
 
         for( unsigned int i = 0; i < truthParameters.size(); i++ ){
-            double randomPercentage = ((rand()%200) - 100.0) / 10000.0; //random percentage between -1% and +1% to add to initial guess
+            double randomPercentage = ((rand()%200) - 100.0) / 100000.0; //random percentage between -0.1% and +0.1% to add to initial guess
             parameterPerturbation( i ) = initialParameterEstimate[i]*randomPercentage;
         }
         initialParameterEstimate += parameterPerturbation;
@@ -560,7 +572,8 @@ int main( )
     input_output::writeDataMapToTextFile( propagatedErrors,
                                           "EstimationPropagatedErrors.dat",
                                           tudat_applications::getOutputPath( ) + outputSubFolder );
-
+    input_output::writeMatrixToFile( truthParameters,
+                                     "TruthParameters.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( podOutput->getUnnormalizedCovarianceMatrix( ),
                                      "EstimationCovariance.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( podOutput->normalizedInformationMatrix_,
