@@ -6,13 +6,16 @@ Purpose: to plot the parameter history along the iterations
 """
 
 
-def f(dir_output, parameters, dir_plots, no_bodies):
+
+
+def f(dir_output, dir_plots, parameters, bodies):
 
     import numpy as np
     import matplotlib.pyplot as plt
     from math import ceil
-    from matplotlib.ticker import MaxNLocator
+    from ToolKit import Knm
 
+    no_bodies = len(bodies)
     no_parameters = (len(parameters) - no_bodies * 6)
 
     subplotcolumns = 2
@@ -36,28 +39,37 @@ def f(dir_output, parameters, dir_plots, no_bodies):
         veltruth = np.linalg.norm(truth[j+3:j+6])
 
         plt.subplot(subplotrows,subplotcolumns,k)
+        plt.yscale('log')
         plt.axhline(y=postruth, color='orange', linewidth=0.75, linestyle='--')
         plt.plot(posnorm)
-        plt.yscale('log')
         plt.ylabel('norm(r) body'+ str(i+1))
 
         plt.subplot(subplotrows,subplotcolumns,k+1)
+        plt.yscale('log')
         plt.axhline(y=veltruth, color='orange', linewidth=0.75, linestyle='--')
         plt.plot(velnorm)
-        plt.yscale('log')
         plt.ylabel('norm(V) body'+ str(i+1))
 
     # Estimatable parameter history
     for i in range(6*no_bodies,len(parameters)):
         par = data[i]
         k = no_bodies*2+1 + i-6*no_bodies
+
         plt.subplot(subplotrows,subplotcolumns,k)
         plt.axhline(y=truth[i],color='orange',linewidth=0.75, linestyle='--')
         plt.plot(par)
-        plt.yscale('log')
+        plt.yscale('symlog')
         plt.ylabel(str(parameters[i]))
+
         if i >= len(parameters)-subplotcolumns:
             plt.xlabel('number of iterations')
+
+        if parameters[i] == "J2_Sun":
+            J2 = par[-1]*Knm(2,0)
+            print("  unnormalized J2 result: ", J2)
+        elif parameters[i] == "J4_Sun":
+            J4 = par[-1]*Knm(4,0)
+            print("  unnormalized J4 result: ", J4)
 
     plt.tight_layout()
     plt.savefig(dir_plots + 'paremeter_history.png')

@@ -39,8 +39,8 @@ namespace tudat_applications
 double secondsAfterJ2000(Eigen::Vector6i datetime){
     using namespace tudat;
     using namespace tudat::basic_astrodynamics;
-    int secondsPerDay = 60*60*24;
-    int julianDayJ2000 = 2451545;
+    const unsigned int secondsPerDay = 60*60*24;
+    const unsigned int julianDayJ2000 = 2451545;
     double julianDay = basic_astrodynamics::convertCalendarDateToJulianDay(datetime[0],datetime[1],datetime[2],datetime[3],datetime[4],datetime[5]);
     return (julianDay - julianDayJ2000)*secondsPerDay;
 }
@@ -82,38 +82,47 @@ int main( )
 
     // Specify start and end time
     Eigen::Vector6i initialTime, finalTime;
-    initialTime << 2010, 1, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
-    finalTime   << 2011, 1, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
+    initialTime << 2011, 3, 18, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
+    finalTime   << 2015, 4, 28, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
 
     // Acceleration settings
-    bool calculateSchwarzschildCorrection = true;
-    bool calculateLenseThirringCorrection = false;
-    bool calculateDeSitterCorrection = false;
+    const bool calculateSchwarzschildCorrection = true;
+    const bool calculateLenseThirringCorrection = false;
+    const bool calculateDeSitterCorrection = false;
+    const bool estimateJ4 = false;
 
     // Parameter inputs
-    double sunRadius = 695.7E6; //m, from nasa fact sheet
-    double sunJ2 = 2.0E-7; //from Hamid
-    double sunGravitationalParameter = 132712.0E15; //m3/s2, from nasa fact sheet
-    double sunAngularMomentum = 190.0E39; //kgm2/s, from Pijpers 1998
+    const double sunRadius = 695.7E6; //m, from nasa fact sheet
+    const double sunJ2 = 2.1890E-7; //from Genova 2018
+    const double sunJ4 = -4.34E-9; //from Antia 2008
+    const double sunGravitationalParameter = 132712440041.9394E9; //m3/s2, from Genova 2018
+    const double sunAngularMomentum = 190.0E39; //kgm2/s, from Pijpers 1998
 
     // Planet propagation settings
-    bool propogatePlanets = false; // Propogate the other planets besides Mercury (NOTE: need observations as well of the other planets in order to do a viable state estimation)
-    bool useDirectSpice = false; // Use direct SPICE (more accurate than tabulated Spice)
+    const bool propogatePlanets = false; // Propogate the other planets besides Mercury (NOTE: need observations for other planets, or LS can't find solutions for other planets)
+    const bool useDirectSpice = false; // Use direct SPICE (more accurate than tabulated Spice)
 
     // Observation settings
-    bool simulateObservationNoise = false;
+    const bool simulateObservationNoise = true;
+    double rangeNoise = 2.0;
+    double angularPositionNoise = 1.0E-7;
+    double dopplerNoise = 1.0E-12;
+    double positionObservableNoise = 2.0;
 
     // ABM integrator settings
-    double initialTimeStep = 3600;
-    double minimumStepSize = 3600/2;
-    double maximumStepSize = 3600*2;
-    double relativeErrorTolerence = 10E-12;
-    double absoluteErrorTolerence = 10E-12;
-    int minimumOrder = 6;
-    int maximumOrder = 12;
+    const double initialTimeStep = 3600;
+    const double minimumStepSize = 3600/4;
+    const double maximumStepSize = 3600*4;
+    const double relativeErrorTolerence = 10E-12;
+    const double absoluteErrorTolerence = 10E-12;
+    const unsigned int minimumOrder = 6;
+    const unsigned int maximumOrder = 12;
 
     // Parameter estimation settings
-    int maximumNumberOfIterations = 20;
+    const unsigned int maximumNumberOfIterations = 20;
+
+    // Output location
+    std::string outputSubFolder = tudat_applications::getOutputPath( ) + "Output/";
 
 
     /////////////////////
@@ -156,48 +165,34 @@ int main( )
 
     // Custom settings Sun
     double sunNormalizedJ2 = sunJ2 / calculateLegendreGeodesyNormalizationFactor(2,0);
+    double sunNormalizedJ4 = sunJ4 / calculateLegendreGeodesyNormalizationFactor(4,0);
 
-    Eigen::Matrix3d normalizedCosineCoefficients;
-    normalizedCosineCoefficients << 1.0,              0.0, 0.0,
-                                    0.0,              0.0, 0.0,
-                                    sunNormalizedJ2 , 0.0, 0.0 ;
-    Eigen::Matrix3d normalizedSineCoefficients = Eigen::Matrix3d::Zero( );
+    Eigen::MatrixXd normalizedSineCoefficients;
+    Eigen::MatrixXd normalizedCosineCoefficients;
+    unsigned int maximumDegree;
+
+    if (estimateJ4 == false){
+        normalizedSineCoefficients   = Eigen::MatrixXd::Zero(3,3);
+        normalizedCosineCoefficients = Eigen::MatrixXd::Zero(3,3);
+        maximumDegree = 2;
+    } else{
+        normalizedSineCoefficients   = Eigen::MatrixXd::Zero(5,5);
+        normalizedCosineCoefficients = Eigen::MatrixXd::Zero(5,5);
+        normalizedCosineCoefficients(4,0) = sunNormalizedJ4;
+        maximumDegree = 4;
+    }
+    normalizedCosineCoefficients(0,0) = 1.0;
+    normalizedCosineCoefficients(2,0) = sunNormalizedJ2;
 
     bodySettings[ "Sun" ] -> gravityFieldSettings = std::make_shared< SphericalHarmonicsGravityFieldSettings >(
                 sunGravitationalParameter, sunRadius,
                 normalizedCosineCoefficients, normalizedSineCoefficients, "IAU_Sun" );
 
+
+
     // Create body map
     NamedBodyMap bodyMap = createBodies( bodySettings );
     setGlobalFrameBodyEphemerides( bodyMap, "SSB", "ECLIPJ2000" );
-
-
-
-    ////////////////////////////////
-    //// CREATE GROUND STATIONS ////
-    ////////////////////////////////
-
-    std::cout << "creating ground stations..." << std::endl;
-
-
-    // Create ground stations from geodetic positions.
-    std::vector< std::string > groundStationNames;
-    groundStationNames.push_back( "Station1" );
-    groundStationNames.push_back( "Station2" );
-    groundStationNames.push_back( "Station3" );
-
-    createGroundStation( bodyMap.at( "Earth" ), "Station1",
-                         ( Eigen::Vector3d( ) << 0.0, 1.25, 0.0 ).finished( ), geodetic_position );
-    createGroundStation( bodyMap.at( "Earth" ), "Station2",
-                         ( Eigen::Vector3d( ) << 0.0, -1.55, 2.0 ).finished( ), geodetic_position );
-    createGroundStation( bodyMap.at( "Earth" ), "Station3",
-                         ( Eigen::Vector3d( ) << 0.0, 0.8, 4.0 ).finished( ), geodetic_position );
-
-
-    // At centre of Mercury
-    createGroundStation( bodyMap.at( "Mercury" ), "Mercury0",
-                         ( Eigen::Vector3d( ) << 0.0, 0.0, 0.0 ).finished( ), spherical_position );
-
 
 
 
@@ -234,9 +229,7 @@ int main( )
 
 
     // Prepare angular momentum vector Sun
-    Eigen::Vector3d sunAngularMomentumVector;
-    sunAngularMomentumVector << 0.0, 0.0, sunAngularMomentum;
-
+    const Eigen::Vector3d sunAngularMomentumVector(0.0, 0.0, sunAngularMomentum);
 
     // Set accelerations between bodies that are to be taken into account (mutual point mass gravity between all bodies).
     SelectedAccelerationMap accelerationMap;
@@ -249,7 +242,7 @@ int main( )
             {
                 if (bodyNames.at( j ) == "Sun"){
                     currentAccelerations[ bodyNames.at( j ) ].push_back(
-                                std::make_shared< SphericalHarmonicAccelerationSettings > (2,0));
+                                std::make_shared< SphericalHarmonicAccelerationSettings > (maximumDegree,0));
                     currentAccelerations[ bodyNames.at( j ) ].push_back(
                                 std::make_shared< RelativisticAccelerationCorrectionSettings >(
                                     calculateSchwarzschildCorrection,
@@ -304,6 +297,77 @@ int main( )
 
 
 
+    ////////////////////////////
+    //// DYNAMICS SIMULATOR ////
+    ////////////////////////////
+
+    std::cout << "running dynamics simulator...";
+
+    SingleArcDynamicsSimulator <> dynamicsSimulator (bodyMap,integratorSettings,propagatorSettings,true,false,true);
+
+    std::map< double, Eigen::VectorXd > integrationResult = dynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+
+    // Retrieve numerically integrated state for each body.
+    std::vector< std::map< double, Eigen::VectorXd > > allBodiesPropagationHistory;
+    allBodiesPropagationHistory.resize( bodiesToPropagate.size() );
+    for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = integrationResult.begin( );
+         stateIterator != integrationResult.end( ); stateIterator++ )
+    {
+        for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
+        {
+            allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
+        }
+    }
+
+    for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
+    {
+        // Write propagation history to file.
+        input_output::writeDataMapToTextFile(
+                    allBodiesPropagationHistory[ i ],
+                    "StatePropagationHistory" + bodiesToPropagate.at( i ) + ".dat",
+                    outputSubFolder,
+                    "",
+                    std::numeric_limits< double >::digits10,
+                    std::numeric_limits< double >::digits10,
+                    "," );
+    }
+
+    std::cout << " done, state history saved" << std::endl;
+
+
+
+
+
+    ////////////////////////////////
+    //// CREATE GROUND STATIONS ////
+    ////////////////////////////////
+
+    std::cout << "creating ground stations..." << std::endl;
+
+
+    // Create ground stations from geodetic positions.
+    std::vector< std::string > groundStationNames;
+
+    groundStationNames.push_back( "Station1" );
+    createGroundStation( bodyMap.at( "Earth" ), "Station1",
+                         ( Eigen::Vector3d( ) << 0.0, 1.25, 0.0 ).finished( ), geodetic_position );
+
+//    groundStationNames.push_back( "Station2" );
+//    createGroundStation( bodyMap.at( "Earth" ), "Station2",
+//                         ( Eigen::Vector3d( ) << 0.0, -1.55, 2.0 ).finished( ), geodetic_position );
+
+//    groundStationNames.push_back( "Station3" );
+//    createGroundStation( bodyMap.at( "Earth" ), "Station3",
+//                         ( Eigen::Vector3d( ) << 0.0, 0.8, 4.0 ).finished( ), geodetic_position );
+
+
+    // At centre of Mercury
+    createGroundStation( bodyMap.at( "Mercury" ), "MercuryCenter",
+                         ( Eigen::Vector3d( ) << 0.0, 0.0, 0.0 ).finished( ), geodetic_position );
+
+
+
+
     ///////////////////////////////////////////
     //// DEFINE LINK ENDS FOR OBSERVATIONS ////
     ///////////////////////////////////////////
@@ -315,56 +379,43 @@ int main( )
     std::vector< LinkEnds > stationReceiverLinkEnds;
     std::vector< LinkEnds > stationTransmitterLinkEnds;
 
+    LinkEnds linkEnds;
     for( unsigned int i = 0; i < groundStationNames.size( ); i++ )
     {
-        LinkEnds linkEnds;
-        linkEnds[ transmitter ] = std::make_pair( "Earth", groundStationNames.at( i ) );
-        linkEnds[ receiver ] = std::make_pair( "Mercury", "Mercury0" );
-        stationTransmitterLinkEnds.push_back( linkEnds );
 
+        linkEnds[ transmitter ] = std::make_pair( "Earth", groundStationNames.at( i ) );
+        linkEnds[ receiver ] = std::make_pair( "Mercury", "MercuryCenter" );
+        stationTransmitterLinkEnds.push_back( linkEnds );
         linkEnds.clear( );
+
         linkEnds[ receiver ] = std::make_pair( "Earth", groundStationNames.at( i ) );
-        linkEnds[ transmitter ] = std::make_pair( "Mercury", "Mercury0" );
+        linkEnds[ transmitter ] = std::make_pair( "Mercury", "MercuryCenter" );
         stationReceiverLinkEnds.push_back( linkEnds );
+        linkEnds.clear( );
     }
+
+
+
+//    // Position Observable link ends
+//    std::vector< LinkEnds> positionObservableLinkEnds;
+//    LinkEnds linkEnds2;
+//    linkEnds2[ observed_body ] = std::make_pair( "Mercury", "Mercury0" );
+//    positionObservableLinkEnds.push_back( linkEnds2 );
+
 
     // Define (arbitrarily) link ends to be used for 1-way range, 1-way doppler and angular position observables
     std::map< ObservableType, std::vector< LinkEnds > > linkEndsPerObservable;
+
     linkEndsPerObservable[ one_way_range ].push_back( stationReceiverLinkEnds[ 0 ] );
     linkEndsPerObservable[ one_way_range ].push_back( stationTransmitterLinkEnds[ 0 ] );
-    linkEndsPerObservable[ one_way_range ].push_back( stationReceiverLinkEnds[ 1 ] );
 
-    linkEndsPerObservable[ one_way_doppler ].push_back( stationReceiverLinkEnds[ 1 ] );
-    linkEndsPerObservable[ one_way_doppler ].push_back( stationTransmitterLinkEnds[ 2 ] );
+    linkEndsPerObservable[ one_way_doppler ].push_back( stationReceiverLinkEnds[ 0 ] );
+    linkEndsPerObservable[ one_way_doppler ].push_back( stationTransmitterLinkEnds[ 0 ] );
 
-    linkEndsPerObservable[ angular_position ].push_back( stationReceiverLinkEnds[ 2 ] );
-    linkEndsPerObservable[ angular_position ].push_back( stationTransmitterLinkEnds[ 1 ] );
+//    linkEndsPerObservable[ angular_position ].push_back( stationReceiverLinkEnds[ 2 ] );
+//    linkEndsPerObservable[ angular_position ].push_back( stationTransmitterLinkEnds[ 1 ] );
 
-
-
-//    // Create list of link ends in which station is receiver and in which station is transmitter (with spacecraft other link end).
-//    std::vector< LinkEnds > stationReceiverLinkEnds;
-//    std::vector< LinkEnds > stationTransmitterLinkEnds;
-
-//    for( unsigned int i = 0; i < EarthStationNames.size( ); i++ )
-//    {
-//        LinkEnds linkEnds;
-//        linkEnds[ transmitter ] = std::make_pair( "Earth", EarthStationNames.at( i ) );
-//        linkEnds[ receiver ] = std::make_pair( "Mercury", "Mercury0" );
-//        stationTransmitterLinkEnds.push_back( linkEnds );
-
-//        linkEnds.clear( );
-//        linkEnds[ receiver ] = std::make_pair( "Earth", EarthStationNames.at( i ) );
-//        linkEnds[ transmitter ] = std::make_pair( "Mercury", "Mercury0" );
-//        stationReceiverLinkEnds.push_back( linkEnds );
-//    }
-
-
-//    // Define perfect Mercury observables
-//    std::map< ObservableType, std::vector< LinkEnds > > linkEndsPerObservable;
-//    linkEndsPerObservable[ one_way_range ].push_back( stationReceiverLinkEnds[ 0 ] );
-//    linkEndsPerObservable[ one_way_range ].push_back( stationTransmitterLinkEnds[ 0 ] );
-
+//    linkEndsPerObservable[ position_observable ].push_back( positionObservableLinkEnds[ 0 ] );
 
 
 
@@ -413,14 +464,21 @@ int main( )
 
 
     // Add additional parameters to be estimated
-    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                             ("global_metric", ppn_parameter_gamma ) );
+//    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+//                             ("global_metric", ppn_parameter_gamma ) );
     parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                              ("global_metric", ppn_parameter_beta ) );
     parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                              ("Sun", gravitational_parameter));
+
+    // Add gravitational moments Sun
+    std::vector< std::pair< int, int > > blockIndices;
+    blockIndices.push_back(std::make_pair(2,0));
+    if (estimateJ4 == true){
+        blockIndices.push_back(std::make_pair(4,0));
+    }
     parameterNames.push_back(std::make_shared<SphericalHarmonicEstimatableParameterSettings>
-                             (2,0,2,0,"Sun",spherical_harmonics_cosine_coefficient_block));
+                             (blockIndices,"Sun",spherical_harmonics_cosine_coefficient_block));
 
     // Create parameters
     std::shared_ptr< estimatable_parameters::EstimatableParameterSet< double > > parametersToEstimate =
@@ -432,9 +490,9 @@ int main( )
 
 
 
-    ///////////////////////////////////////////////
-    //// INITIALIZE ORBIT DETERMINATION OBJECT ////
-    ///////////////////////////////////////////////
+    ////////////////////////////////////////
+    //// RUN ORBITDETERMINATION MANAGER ////
+    ////////////////////////////////////////
 
     std::cout << "Running OD manager..." << std::endl;
 
@@ -446,19 +504,19 @@ int main( )
 
 
 
+    ////////////////////////////////////////
+    //// DEFINING OD SIMULATOR SETTINGS ////
+    ////////////////////////////////////////
 
-    ///////////////////////////////
-    //// SIMULATE OBSERVATIONS ////
-    ///////////////////////////////
+    std::cout << "Defining observation settings..." << std::endl;
 
-    std::cout << "Simulating observations..." << std::endl;
 
     // Define start and end of observations
     double observationTimeStart = initialSimulationTime;
     double observationTimeEnd = finalSimulationTime;
 
     // Define time between two observations
-    double observationInterval = 60.0*60.0*12.0;
+    double observationInterval = 60.0*60.0*24.0;
 
     // Generate list of observation times
     std::vector< double > baseTimeList;
@@ -470,7 +528,8 @@ int main( )
 
 
     // Create measurement simulation input
-    std::map< ObservableType, std::map< LinkEnds, std::pair< std::vector< double >, LinkEndType > > > measurementSimulationInput;
+    std::map< ObservableType, std::map< LinkEnds, std::shared_ptr< ObservationSimulationTimeSettings< double > > > >
+            measurementSimulationInput;
     for( std::map< ObservableType, std::vector< LinkEnds > >::iterator linkEndIterator = linkEndsPerObservable.begin( );
          linkEndIterator != linkEndsPerObservable.end( ); linkEndIterator++ )
     {
@@ -482,9 +541,56 @@ int main( )
         for( unsigned int i = 0; i < currentLinkEndsList.size( ); i++ )
         {
             measurementSimulationInput[ currentObservable ][ currentLinkEndsList.at( i ) ] =
-                    std::make_pair( baseTimeList, receiver );
+                    std::make_shared< TabulatedObservationSimulationTimeSettings< double > >( receiver, baseTimeList );
         }
     }
+
+    // Create observation viability settings and calculators
+    std::vector< std::shared_ptr< ObservationViabilitySettings > > observationViabilitySettings;
+    observationViabilitySettings.push_back( std::make_shared< ObservationViabilitySettings >(
+                                                body_avoidance_angle, std::make_pair( "Mercury", "" ), "Sun",
+                                                unit_conversions::convertDegreesToRadians( 35.0 ) ) );
+    PerObservableObservationViabilityCalculatorList viabilityCalculators = createObservationViabilityCalculators(
+                bodyMap, linkEndsPerObservable, observationViabilitySettings );
+
+
+    // Create noise functions per observable
+    if (simulateObservationNoise == false){
+        rangeNoise = 0.0;
+        angularPositionNoise = 0.0;
+        dopplerNoise = 0.0;
+    }
+
+    std::map< ObservableType, std::function< double( const double ) > > noiseFunctions;
+    noiseFunctions[ one_way_range ] =
+            std::bind( &utilities::evaluateFunctionWithoutInputArgumentDependency< double, const double >,
+                       createBoostContinuousRandomVariableGeneratorFunction(
+                           normal_boost_distribution, { 0.0, rangeNoise }, 0.0 ), std::placeholders::_1 );
+
+    noiseFunctions[ angular_position ] =
+            std::bind( &utilities::evaluateFunctionWithoutInputArgumentDependency< double, const double >,
+                       createBoostContinuousRandomVariableGeneratorFunction(
+                           normal_boost_distribution, { 0.0, angularPositionNoise }, 0.0 ), std::placeholders::_1 );
+
+    noiseFunctions[ one_way_doppler ] =
+            std::bind( &utilities::evaluateFunctionWithoutInputArgumentDependency< double, const double >,
+                       createBoostContinuousRandomVariableGeneratorFunction(
+                           normal_boost_distribution, { 0.0, dopplerNoise }, 0.0 ), std::placeholders::_1 );
+
+    noiseFunctions[ position_observable ] =
+            std::bind( &utilities::evaluateFunctionWithoutInputArgumentDependency< double, const double >,
+                       createBoostContinuousRandomVariableGeneratorFunction(
+                           normal_boost_distribution, { 0.0, positionObservableNoise }, 0.0 ), std::placeholders::_1 );
+
+
+
+
+    ///////////////////////////////
+    //// SIMULATE OBSERVATIONS ////
+    ///////////////////////////////
+
+    std::cout << "Simulating observations..." << std::endl;
+
 
     // Set typedefs for POD input (observation types, observation link ends, observation values, associated times with
     // reference link ends.
@@ -494,8 +600,11 @@ int main( )
     typedef std::map< ObservableType, SingleObservablePodInputType > PodInputDataType;
 
     // Simulate observations
-    PodInputDataType observationsAndTimes = simulateObservations< double, double >(
-                measurementSimulationInput, orbitDeterminationManager.getObservationSimulators( ) );
+    PodInputDataType observationsAndTimes = simulateObservationsWithNoise< double, double >(
+                measurementSimulationInput, orbitDeterminationManager.getObservationSimulators( ),
+                noiseFunctions, viabilityCalculators );
+
+
 
 
     /////////////////////////////
@@ -510,18 +619,18 @@ int main( )
     Eigen::Matrix< double, Eigen::Dynamic, 1 > truthParameters = initialParameterEstimate;
 
 
-    if (simulateObservationNoise == false){
 
-        // If no observation noise is simulated, we need to perturb initial parameter estimates to create an offset with the true solution
-        Eigen::Matrix< double, Eigen::Dynamic, 1 > parameterPerturbation =
-                Eigen::Matrix< double, Eigen::Dynamic, 1 >::Zero( truthParameters.rows( ) );
 
-        for( unsigned int i = 0; i < truthParameters.size(); i++ ){
-            double randomPercentage = ((rand()%200) - 100.0) / 100000.0; //random percentage between -0.1% and +0.1% to add to initial guess
-            parameterPerturbation( i ) = initialParameterEstimate[i]*randomPercentage;
-        }
-        initialParameterEstimate += parameterPerturbation;
+    // We need to perturb initial parameter estimates to create an offset with the true solution
+    Eigen::Matrix< double, Eigen::Dynamic, 1 > parameterPerturbation =
+            Eigen::Matrix< double, Eigen::Dynamic, 1 >::Zero( truthParameters.rows( ) );
+
+    for( unsigned int i = 0; i < truthParameters.size(); i++ ){
+        double randomPercentage = ((rand()%200) - 100.0) / 500000.0; //random tiny fraction to offset
+        parameterPerturbation( i ) = initialParameterEstimate[i]*randomPercentage;
     }
+    initialParameterEstimate += parameterPerturbation;
+
 
     std::cout << "True parameter values:" << std::endl;
     std::cout << truthParameters << std::endl;
@@ -542,6 +651,7 @@ int main( )
     weightPerObservable[ one_way_range ] = 1.0 / ( 1.0 * 1.0 );
     weightPerObservable[ angular_position ] = 1.0 / ( 1.0E-5 * 1.0E-5 );
     weightPerObservable[ one_way_doppler ] = 1.0 / ( 1.0E-11 * 1.0E-11 );
+    weightPerObservable[ position_observable ] = 1.0 / ( 1.0 * 1.0 );
     podInput->setConstantPerObservableWeightsMatrix( weightPerObservable );
 
     // Perform estimation
@@ -556,10 +666,13 @@ int main( )
 
     std::cout << "Writing output to files..." << std::endl;
 
-    std::string outputSubFolder = tudat_applications::getOutputPath( ) + "Output/";
-
     // Print true estimation error, limited mostly by numerical error
-    Eigen::VectorXd estimationError = podOutput->parameterEstimate_ - truthParameters;
+    Eigen::VectorXd parameterOutcome = podOutput->parameterEstimate_;
+    std::cout << "Outcome estimation:" << std::endl << ( parameterOutcome ).transpose( ) << std::endl;
+
+//    std::cout << podOutput->getParameterHistoryMatrix( ) << std::endl;
+
+    Eigen::VectorXd estimationError = parameterOutcome - truthParameters;
     std::cout << "True estimation error is:   " << std::endl << ( estimationError ).transpose( ) << std::endl;
     std::cout << "Formal estimation error is: " << std::endl << podOutput->getFormalErrorVector( ).transpose( ) << std::endl;
 

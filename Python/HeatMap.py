@@ -6,7 +6,7 @@ Purpose: to make a heat map of correlation coefficients between parameters
 """
 
 
-def f(dir_output, parameters, dir_plots):
+def f(dir_output, dir_plots, parameters):
 
     import seaborn as sns
     import pandas as pd
