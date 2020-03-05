@@ -46,6 +46,20 @@ double secondsAfterJ2000(Eigen::Vector6i datetime){
 }
 
 
+// Generate a list of observations given some basic inputs
+std::vector<double> makeObservationTimeList(double initialTime,
+                                            double endTime,
+                                            double timeStep,
+                                            std::vector<double> flybyTimes){
+    std::vector< double > observationTimeList = flybyTimes;
+    double currentTime = initialTime;
+    while (currentTime <= endTime){
+        observationTimeList.push_back(currentTime);
+        currentTime += timeStep;
+    }
+    return observationTimeList;
+}
+
 
 int main( )
 {
@@ -82,7 +96,7 @@ int main( )
 
     // Specify start and end time
     Eigen::Vector6i initialTime, finalTime;
-    initialTime << 2011, 3, 18, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
+    initialTime << 2008, 1, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
     finalTime   << 2015, 4, 28, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
 
     // Acceleration settings
@@ -109,6 +123,18 @@ int main( )
     double dopplerNoise = 1.0E-12;
     double positionObservableNoise = 2.0;
 
+    // MESSENGER observation schedule
+    Eigen::Vector6i observationInitialTime, observationFinalTime;
+    observationInitialTime << 2011, 3, 18, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
+    observationFinalTime   << 2015, 4, 28, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
+    double observationTimeStep = 60.0*60.0*24.0; // seconds
+
+    // MESSENGER flyby's
+    Eigen::Vector6i messengerFlyby1, messengerFlyby2, messengerFlyby3;
+    messengerFlyby1 << 2008, 1, 14, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
+    messengerFlyby2 << 2008, 10, 6, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
+    messengerFlyby3 << 2009, 9, 29, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
+
     // ABM integrator settings
     const double initialTimeStep = 3600;
     const double minimumStepSize = 3600/4;
@@ -119,7 +145,7 @@ int main( )
     const unsigned int maximumOrder = 12;
 
     // Parameter estimation settings
-    const unsigned int maximumNumberOfIterations = 20;
+    const unsigned int maximumNumberOfIterations = 25;
 
     // Output location
     std::string outputSubFolder = tudat_applications::getOutputPath( ) + "Output/";
@@ -188,8 +214,6 @@ int main( )
                 sunGravitationalParameter, sunRadius,
                 normalizedCosineCoefficients, normalizedSineCoefficients, "IAU_Sun" );
 
-
-
     // Create body map
     NamedBodyMap bodyMap = createBodies( bodySettings );
     setGlobalFrameBodyEphemerides( bodyMap, "SSB", "ECLIPJ2000" );
@@ -248,15 +272,13 @@ int main( )
                                     calculateSchwarzschildCorrection,
                                     calculateLenseThirringCorrection,
                                     calculateDeSitterCorrection,
-                                    "Jupiter",
+                                    "",
                                     sunAngularMomentumVector));
                 }
                 else{
                     currentAccelerations[ bodyNames.at( j ) ].push_back(
                                 std::make_shared< AccelerationSettings >( central_gravity ) );
                 }
-
-
             }
         }
         accelerationMap[ bodiesToPropagate.at( i ) ] = currentAccelerations;
@@ -407,10 +429,10 @@ int main( )
     std::map< ObservableType, std::vector< LinkEnds > > linkEndsPerObservable;
 
     linkEndsPerObservable[ one_way_range ].push_back( stationReceiverLinkEnds[ 0 ] );
-    linkEndsPerObservable[ one_way_range ].push_back( stationTransmitterLinkEnds[ 0 ] );
+//    linkEndsPerObservable[ one_way_range ].push_back( stationTransmitterLinkEnds[ 0 ] );
 
     linkEndsPerObservable[ one_way_doppler ].push_back( stationReceiverLinkEnds[ 0 ] );
-    linkEndsPerObservable[ one_way_doppler ].push_back( stationTransmitterLinkEnds[ 0 ] );
+//    linkEndsPerObservable[ one_way_doppler ].push_back( stationTransmitterLinkEnds[ 0 ] );
 
 //    linkEndsPerObservable[ angular_position ].push_back( stationReceiverLinkEnds[ 2 ] );
 //    linkEndsPerObservable[ angular_position ].push_back( stationTransmitterLinkEnds[ 1 ] );
@@ -510,22 +532,20 @@ int main( )
 
     std::cout << "Defining observation settings..." << std::endl;
 
+    // generate list of observations
+    std::vector < double > messengerFlybyList;
+    messengerFlybyList.push_back(secondsAfterJ2000(messengerFlyby1));
+    messengerFlybyList.push_back(secondsAfterJ2000(messengerFlyby2));
+    messengerFlybyList.push_back(secondsAfterJ2000(messengerFlyby3));
 
-    // Define start and end of observations
-    double observationTimeStart = initialSimulationTime;
-    double observationTimeEnd = finalSimulationTime;
+    std::vector< double > baseTimeList =
+            makeObservationTimeList(secondsAfterJ2000(observationInitialTime),
+                                    secondsAfterJ2000(observationFinalTime),
+                                    observationTimeStep,
+                                    messengerFlybyList);
 
-    // Define time between two observations
-    double observationInterval = 60.0*60.0*24.0;
 
-    // Generate list of observation times
-    std::vector< double > baseTimeList;
-    double obsTime = observationTimeStart;
-    while (obsTime <= observationTimeEnd){
-        baseTimeList.push_back(obsTime);
-        obsTime += observationInterval;
-    }
-
+    std::cout << "amount of observation times (before implementing viability settings): " << baseTimeList.size() << std::endl;
 
     // Create measurement simulation input
     std::map< ObservableType, std::map< LinkEnds, std::shared_ptr< ObservationSimulationTimeSettings< double > > > >
@@ -562,6 +582,7 @@ int main( )
     }
 
     std::map< ObservableType, std::function< double( const double ) > > noiseFunctions;
+
     noiseFunctions[ one_way_range ] =
             std::bind( &utilities::evaluateFunctionWithoutInputArgumentDependency< double, const double >,
                        createBoostContinuousRandomVariableGeneratorFunction(
@@ -583,6 +604,9 @@ int main( )
                            normal_boost_distribution, { 0.0, positionObservableNoise }, 0.0 ), std::placeholders::_1 );
 
 
+    // MESSENGER noise based on SPE
+//    noiseFunction[ one_way_range ] =
+//            std::bind(  )
 
 
     ///////////////////////////////
@@ -613,21 +637,31 @@ int main( )
 
     std::cout << "Estimating parameters..." << std::endl;
 
-
     Eigen::Matrix< double, Eigen::Dynamic, 1 > initialParameterEstimate =
             parametersToEstimate->template getFullParameterValues< double >( );
     Eigen::Matrix< double, Eigen::Dynamic, 1 > truthParameters = initialParameterEstimate;
 
-
-
-
-    // We need to perturb initial parameter estimates to create an offset with the true solution
+    // Perturb parameter estimate
     Eigen::Matrix< double, Eigen::Dynamic, 1 > parameterPerturbation =
             Eigen::Matrix< double, Eigen::Dynamic, 1 >::Zero( truthParameters.rows( ) );
+    srand(time(NULL));
 
-    for( unsigned int i = 0; i < truthParameters.size(); i++ ){
-        double randomPercentage = ((rand()%200) - 100.0) / 500000.0; //random tiny fraction to offset
-        parameterPerturbation( i ) = initialParameterEstimate[i]*randomPercentage;
+    for( unsigned int i = 0; i < numberOfNumericalBodies; i++ ){
+        // perturb body positions by random value between -10 and 10 meters
+        parameterPerturbation.segment(i*6,3) = Eigen::Vector3d( (rand()%200-100.0)/10.0,
+                                                                (rand()%200-100.0)/10.0,
+                                                                (rand()%200-100.0)/10.0 );
+        // perturb body velocities by random value between -0.01 and 0.01 m/s
+        parameterPerturbation.segment(i*6,3) = Eigen::Vector3d( (rand()%20-10.0)/100.0,
+                                                                (rand()%20-10.0)/100.0,
+                                                                (rand()%20-10.0)/100.0 );
+    }
+
+    // perturb parameters with a value between -100ppm and +100ppm
+    for( unsigned int i = 0; i < truthParameters.size()-6*numberOfNumericalBodies; i++ ){
+        unsigned int j = i + 6*numberOfNumericalBodies;
+        double randomPercentage = (rand()%20-10.0)/100000.0;
+        parameterPerturbation( j ) = initialParameterEstimate[j]*randomPercentage;
     }
     initialParameterEstimate += parameterPerturbation;
 
@@ -637,6 +671,8 @@ int main( )
 
     std::cout << "Initial guesses:" << std::endl;
     std::cout << initialParameterEstimate << std::endl;
+
+
 
     // Define estimation input
     std::shared_ptr< PodInput< double, double > > podInput =

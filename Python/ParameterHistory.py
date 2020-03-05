@@ -25,38 +25,42 @@ def f(dir_output, dir_plots, parameters, bodies):
     truth = np.genfromtxt(dir_output + "TruthParameters.dat")
 
     fig = plt.figure(figsize=(16,10))
+    plt.title("True error vs iterations")
 
     # State history, only look at position and velocity norm
     for i in range(0, no_bodies):
         j = max(i*6-1,0)
         k = 1 + i * 2
 
-        pos = data[j:j+3]
-        vel = data[j+3:j+6]
-        posnorm = np.linalg.norm(pos,axis=0)
-        velnorm = np.linalg.norm(vel,axis=0)
         postruth = np.linalg.norm(truth[j:j+3])
         veltruth = np.linalg.norm(truth[j+3:j+6])
 
+        pos = data[j:j+3]
+        vel = data[j+3:j+6]
+        posnorm = np.linalg.norm(pos,axis=0) - postruth
+        velnorm = np.linalg.norm(vel,axis=0) - veltruth
+
         plt.subplot(subplotrows,subplotcolumns,k)
-        plt.yscale('log')
-        plt.axhline(y=postruth, color='orange', linewidth=0.75, linestyle='--')
+        plt.yscale('symlog')
+        plt.axhline(y=0.0, color='orange', linewidth=0.75, linestyle='--')
         plt.plot(posnorm)
         plt.ylabel('norm(r) body'+ str(i+1))
 
         plt.subplot(subplotrows,subplotcolumns,k+1)
-        plt.yscale('log')
-        plt.axhline(y=veltruth, color='orange', linewidth=0.75, linestyle='--')
+        plt.yscale('symlog')
+        plt.axhline(y=0.0, color='orange', linewidth=0.75, linestyle='--')
         plt.plot(velnorm)
         plt.ylabel('norm(V) body'+ str(i+1))
 
     # Estimatable parameter history
     for i in range(6*no_bodies,len(parameters)):
-        par = data[i]
-        k = no_bodies*2+1 + i-6*no_bodies
+        k = no_bodies * 2 + 1 + i - 6 * no_bodies
+
+        partruth = truth[i]
+        par = data[i] - partruth
 
         plt.subplot(subplotrows,subplotcolumns,k)
-        plt.axhline(y=truth[i],color='orange',linewidth=0.75, linestyle='--')
+        plt.axhline(y=0.0,color='orange',linewidth=0.75, linestyle='--')
         plt.plot(par)
         plt.yscale('symlog')
         plt.ylabel(str(parameters[i]))

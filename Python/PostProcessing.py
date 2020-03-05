@@ -19,6 +19,7 @@ parameters = ["X_Mer", "Y_Mer", "Z_Mer",
               "mu_Sun",
               "J2_Sun",]
 
+
 # Plot propagated bodies
 print("making plots of propagated bodies...")
 import PropagatedBodies
@@ -34,3 +35,5 @@ print("making heat map of parameter correlations...")
 import HeatMap
 HeatMap.f(dir_cpp_output, dir_plots, parameters)
 
+
+print("done!")
