@@ -28,7 +28,6 @@ Eigen::Vector3d calculateTimeVaryingGravitationalParameterAcceleration(
         const double timeSinceJ2000 );
 
 
-
 class TimeVaryingGravitationalParameterAcceleration:
         public basic_astrodynamics::AccelerationModel< Eigen::Vector3d >
 {
@@ -48,8 +47,6 @@ public:
                     timeSinceJ2000_
                     );
     }
-
-
 
 
     //! Update member variables used by the relativistic correction acceleration model.
@@ -78,9 +75,9 @@ public:
                     stateOfAcceleratedBody_ -
                     stateOfCentralBody_;
 
-            positionOfAcceleratedBodyWrtCentralBody_ = stateOfAcceleratedBodyWrtCentralBody_.segment(0,3)
+            positionOfAcceleratedBodyWrtCentralBody_ = stateOfAcceleratedBodyWrtCentralBody_.segment(0,3);
 
-            timeVaryingGravitationalParameter_ = timeVaryingGravitationalParameterFunction_
+            timeVaryingGravitationalParameter_ = timeVaryingGravitationalParameterFunction_( );
 
             timeSinceJ2000_ = currentTime;
 

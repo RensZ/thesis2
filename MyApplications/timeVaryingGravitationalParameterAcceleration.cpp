@@ -1,5 +1,5 @@
 #include <Eigen/Geometry>
-#include "timeVaryingGravitationalParameterAcceleration.h"
+#include <tudatApplications/thesis/MyApplications/timeVaryingGravitationalParameterAcceleration.h>
 
 namespace tudat{
 

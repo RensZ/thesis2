@@ -15,9 +15,10 @@ no_bodies = 1
 bodies     = ["Mercury"]
 parameters = ["X_Mer", "Y_Mer", "Z_Mer",
               "Vx_Mer", "Vy_Mer", "Vz_Mer",
+              "PPN_gamma",
               "PPN_beta",
               "mu_Sun",
-              "J2_Sun",]
+              "J2_Sun"]
 
 
 # Plot propagated bodies

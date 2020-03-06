@@ -11,7 +11,7 @@
 cmake_minimum_required(VERSION 2.6)
 
 # Specify project name.
-project(TemplateApplication)
+project(Thesis)
 
 # Load UserSettings.txt
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
@@ -171,19 +171,18 @@ endif( )
 
 include(tudatLinkLibraries)
 
-## Add helloWorld application.
-#add_executable(application_HelloWorld "${SRCROOT}/helloWorld.cpp")
-#setup_executable_target(application_HelloWorld "${SRCROOT}")
-#target_link_libraries(application_HelloWorld tudat_gravitation tudat_basic_astrodynamics ${Boost_LIBRARIES} )
+
+# Add own classes
+set(SOURCES
+    "${SRCROOT}/timeVaryingGravitationalParameterAcceleration.cpp")
+set(HEADERS
+    "${SRCROOT}/timeVaryingGravitationalParameterAcceleration.h")
+
 
 # Add thesis_v1 application.
 add_executable(application_Thesis "${SRCROOT}/thesis_v1.cpp")
 setup_executable_target(application_Thesis "${SRCROOT}")
 target_link_libraries(application_Thesis ${TUDAT_ESTIMATION_LIBRARIES} ${TUDAT_APPLICATION_ESTIMATION_LIBRARIES} ${Boost_LIBRARIES} )
-
-# Add own classes
-set(SOURCES "${SRCROOT}/timeVaryingGravitationalParameterAcceleration.cpp")
-set(HEADERS "${SRCROOT}/timeVaryingGravitationalParameterAcceleration.h")
 
 
 
