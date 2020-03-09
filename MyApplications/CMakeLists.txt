@@ -174,15 +174,28 @@ include(tudatLinkLibraries)
 
 # Add own classes
 set(SOURCES
-    "${SRCROOT}/timeVaryingGravitationalParameterAcceleration.cpp")
+    "${SRCROOT}/timeVaryingGravitationalParameter.cpp"
+    "${SRCROOT}/timeVaryingGravitationalParameterAcceleration.cpp"
+    "${SRCROOT}/timeVaryingGravitationalParameterAccelerationPartial.cpp"
+    "${SRCROOT}/TVGPInterface.cpp")
 set(HEADERS
-    "${SRCROOT}/timeVaryingGravitationalParameterAcceleration.h")
+    "${SRCROOT}/timeVaryingGravitationalParameter.h"
+    "${SRCROOT}/timeVaryingGravitationalParameterAcceleration.h"
+    "${SRCROOT}/timeVaryingGravitationalParameterAccelerationPartial.h"
+    "${SRCROOT}/TVGPInterface.h")
+
+add_library(timeVaryingGravitationalParameter STATIC ${SOURCES})
+setup_tudat_library_target(timeVaryingGravitationalParameter "${SRCROOT}")
 
 
 # Add thesis_v1 application.
 add_executable(application_Thesis "${SRCROOT}/thesis_v1.cpp")
 setup_executable_target(application_Thesis "${SRCROOT}")
-target_link_libraries(application_Thesis ${TUDAT_ESTIMATION_LIBRARIES} ${TUDAT_APPLICATION_ESTIMATION_LIBRARIES} ${Boost_LIBRARIES} )
+target_link_libraries(application_Thesis
+    timeVaryingGravitationalParameter
+    ${TUDAT_ESTIMATION_LIBRARIES}
+    ${TUDAT_APPLICATION_ESTIMATION_LIBRARIES}
+    ${Boost_LIBRARIES} )
 
 
 

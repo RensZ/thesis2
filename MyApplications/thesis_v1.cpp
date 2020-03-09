@@ -12,7 +12,7 @@
 
 #include <Tudat/SimulationSetup/tudatEstimationHeader.h>
 
-//#include <tudatApplications/thesis/MyApplications/timeVaryingGravitationalParameterAcceleration.h>
+#include <tudatApplications/thesis/MyApplications/timeVaryingGravitationalParameterAcceleration.h>
 
 // Get path for output directory.
 namespace tudat_applications
@@ -114,8 +114,11 @@ int main( )
     const double sunJ4 = -4.34E-9; //from Antia 2008
     const double sunGravitationalParameter = 132712440041.9394E9; //m3/s2, from Genova 2018
     const double sunAngularMomentum = 190.0E39; //kgm2/s, from Pijpers 1998
+    double timeVaryingGravitationalParameter = -1E-13; //PLACEHOLDER
 
-//    // Parameter apriori values
+    // Parameter apriori values and uncertainties
+    const bool useAprioriValues = true;
+
 //    const double aprioriGamma = 1.0;
 //    const double aprioriBeta = 1.0;
 //    const double aprioriSunGM = sunGravitationalParameter;
@@ -123,7 +126,6 @@ int main( )
 //    const double aprioriSunJ4 = sunJ4;
 //    Eigen::VectorXd aprioriParameters(aprioriGamma, aprioriBeta, aprioriSunGM, aprioriSunJ2);
 
-    // Parameter apriori uncertainties
     const double sigmaPosition = 10.0; //educated guess
     const double sigmaVelocity = 10.0E-6; //educated guess
     const double sigmaGamma = 2.3E-5; //Genova 2018
@@ -131,6 +133,7 @@ int main( )
     const double sigmaSunGM = 0.14E9; //Genova 2018
     const double sigmaSunJ2 = 0.03E-7; //Genova 2018
     const double sigmaSunJ4 = 0.1E-9; //PLACEHOLDER
+    const double sigmaTVGP = 1E14; //PLACEHOLDER
 
     // Planet propagation settings
     const bool propogatePlanets = false; // Propogate the other planets besides Mercury (NOTE: need observations for other planets, or LS can't find solutions for other planets)
@@ -295,10 +298,10 @@ int main( )
                                     "",
                                     sunAngularMomentumVector));
 
-//                    double timeVaryingGravitationalParameter = -1E-13;
-//                    currentAccelerations[ bodyNames.at( j ) ].push_back(
-//                                std::make_shared< TimeVaryingGravitationalParameterAccelerationSettings >(
-//                                    timeVaryingGravitationalParameter));
+
+                    currentAccelerations[ bodyNames.at( j ) ].push_back(
+                                std::make_shared< TimeVaryingGravitationalParameterAccelerationSettings >(
+                                    timeVaryingGravitationalParameter));
 
                 }
                 else{
@@ -533,6 +536,10 @@ int main( )
                              ("Sun", gravitational_parameter));
     varianceVector.push_back(sigmaSunGM*sigmaSunGM);
 
+    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                             ("Sun", time_varying_gravitational_parameter));
+    varianceVector.push_back(sigmaTVGP*sigmaTVGP);
+
     // Add gravitational moments Sun
     std::vector< std::pair< int, int > > blockIndices;
     blockIndices.push_back(std::make_pair(2,0));
@@ -694,25 +701,26 @@ int main( )
             Eigen::Matrix< double, Eigen::Dynamic, 1 >::Zero( truthParameters.rows( ) );
 
 ////    srand(time(NULL));  //warning: not reproducable
-//    srand(0);
+    srand(0);
 
-//    for( unsigned int i = 0; i < numberOfNumericalBodies; i++ ){
-//        // perturb body positions by random value between -10 and 10 meters
-//        parameterPerturbation.segment(i*6,3) = Eigen::Vector3d( (rand()%200-100.0)/10.0,
-//                                                                (rand()%200-100.0)/10.0,
-//                                                                (rand()%200-100.0)/10.0 );
-//        // perturb body velocities by random value between -0.01 and 0.01 m/s
-//        parameterPerturbation.segment(i*6,3) = Eigen::Vector3d( (rand()%20-10.0)/100.0,
-//                                                                (rand()%20-10.0)/100.0,
-//                                                                (rand()%20-10.0)/100.0 );
-//    }
+    for( unsigned int i = 0; i < numberOfNumericalBodies; i++ ){
+        // perturb body positions by random value between -10 and 10 meters
+        parameterPerturbation.segment(i*6,3) = Eigen::Vector3d( (rand()%200-100.0)/10.0,
+                                                                (rand()%200-100.0)/10.0,
+                                                                (rand()%200-100.0)/10.0 );
+        // perturb body velocities by random value between -0.01 and 0.01 m/s
+        parameterPerturbation.segment(i*6,3) = Eigen::Vector3d( (rand()%20-10.0)/100.0,
+                                                                (rand()%20-10.0)/100.0,
+                                                                (rand()%20-10.0)/100.0 );
+    }
 
-//    // perturb parameters with a value between -100ppm and +100ppm
-//    for( unsigned int i = 0; i < truthParameters.size()-6*numberOfNumericalBodies; i++ ){
-//        unsigned int j = i + 6*numberOfNumericalBodies;
-//        double randomPercentage = 0; //(rand()%20-10.0)/1000000.0;
-//        parameterPerturbation( j ) = initialParameterEstimate[j]*randomPercentage;
-//    }
+    // perturb parameters with a value between -10ppm and +10ppm
+    for( unsigned int i = 0; i < truthParameters.size()-6*numberOfNumericalBodies; i++ ){
+        unsigned int j = i + 6*numberOfNumericalBodies;
+        double randomPercentage = (rand()%20-10.0)/(1.0E6);
+        std::cout << randomPercentage << std::endl;
+        parameterPerturbation( j ) = initialParameterEstimate[j]*randomPercentage;
+    }
 
     initialParameterEstimate += parameterPerturbation;
 
@@ -727,12 +735,18 @@ int main( )
     // Define a priori covariance matrix
     Eigen::MatrixXd aprioriCovariance =
         Eigen::MatrixXd::Zero( truthParameters.rows( ), truthParameters.rows( ));
-    for( unsigned int i = 0; i < truthParameters.size(); i++ ){
-        aprioriCovariance( i,i ) = varianceVector.at( i );
-    }
 
-    std::cout << "a priori covariance matrix:" << std::endl << aprioriCovariance << std::endl;
-    Eigen::MatrixXd inverseOfAprioriCovariance = aprioriCovariance.inverse();
+    Eigen::MatrixXd inverseOfAprioriCovariance;
+
+    if (useAprioriValues == true){
+        for( unsigned int i = 0; i < truthParameters.size(); i++ ){
+            aprioriCovariance( i,i ) = varianceVector.at( i );
+        }
+        std::cout << "a priori covariance matrix:" << std::endl << aprioriCovariance << std::endl;
+        Eigen::MatrixXd inverseOfAprioriCovariance = aprioriCovariance.inverse();
+    } else{
+        Eigen::MatrixXd inverseOfAprioriCovariance = Eigen::MatrixXd::Zero( truthParameters.rows( ), truthParameters.rows( ));
+    }
 
 
     // Define estimation input
@@ -780,7 +794,7 @@ int main( )
                 60.0, initialSimulationTime + 3600.0, finalSimulationTime - 3600.0 );
     input_output::writeDataMapToTextFile( propagatedErrors,
                                           "EstimationPropagatedErrors.dat",
-                                          tudat_applications::getOutputPath( ) + outputSubFolder );
+                                          outputSubFolder );
     input_output::writeMatrixToFile( truthParameters,
                                      "TruthParameters.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( podOutput->getUnnormalizedCovarianceMatrix( ),

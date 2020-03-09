@@ -4,10 +4,10 @@
 namespace tudat{
 
 Eigen::Vector3d calculateTimeVaryingGravitationalParameterAcceleration(
-        const double centralBodyGravitationalParameter,
-        const Eigen::Vector3d& relativePosition,
-        const double timeVaryingGravitationalParameter,
-        const double timeSinceJ2000 )
+        double centralBodyGravitationalParameter,
+        Eigen::Vector3d& relativePosition,
+        double timeVaryingGravitationalParameter,
+        double timeSinceJ2000 )
 {
     // convert to arrays for easy element-wise multiplication
     Eigen::Array3d relativePositionArray = relativePosition;
@@ -27,7 +27,4 @@ Eigen::Vector3d calculateTimeVaryingGravitationalParameterAcceleration(
 }
 
 
-//timeVaryingGravitationalParameterAcceleration::timeVaryingGravitationalParameterAcceleration()
-//{
 
-//}

@@ -69,10 +69,10 @@ def f(dir_output, dir_plots, parameters, bodies):
             plt.xlabel('number of iterations')
 
         if parameters[i] == "J2_Sun":
-            J2 = par[-1]*Knm(2,0)
+            J2 = data[i,-1]*Knm(2,0)
             print("  unnormalized J2 result: ", J2)
         elif parameters[i] == "J4_Sun":
-            J4 = par[-1]*Knm(4,0)
+            J4 = data[i,-1]*Knm(4,0)
             print("  unnormalized J4 result: ", J4)
 
     plt.tight_layout()

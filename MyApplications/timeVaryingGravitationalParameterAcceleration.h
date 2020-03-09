@@ -13,25 +13,38 @@ namespace tudat
 
 
 //! Function to compute the additional acceleration term due to a dynamic GM of the central body.
-/*!
- *  Function to compute the Schwarzschild term of the relativistic acceleration correction.
- * \param centralBodyGravitationalParameter Gravitational parameter of body exerting acceleration.
- * \param relativeState Cartesian state of body undergoing, w.r.t. body exerting, acceleration.
- * \param timeVaryingGravitationalParameter GM time derivative (d(GM)/dt) divided by GM.
- * \param timeSinceJ2000 Seconds after J2000 when acceleration is calculated
- * \return Schwarzschild term of the relativistic acceleration correction.
- */
 Eigen::Vector3d calculateTimeVaryingGravitationalParameterAcceleration(
-        const double centralBodyGravitationalParameter,
-        const Eigen::Vector3d& relativePosition,
-        const double timeVaryingGravitationalParameter,
-        const double timeSinceJ2000 );
+        double centralBodyGravitationalParameter,
+        Eigen::Vector3d& relativePosition,
+        double timeVaryingGravitationalParameter,
+        double timeSinceJ2000 );
 
 
 class TimeVaryingGravitationalParameterAcceleration:
         public basic_astrodynamics::AccelerationModel< Eigen::Vector3d >
 {
 public:
+
+
+    //! Constructor
+    TimeVaryingGravitationalParameterAcceleration(
+            std::function< Eigen::Vector6d( ) > stateFunctionOfAcceleratedBody,
+            std::function< Eigen::Vector6d( ) > stateFunctionOfCentralBody,
+            std::function< double( ) > gravitationalParameterFunctionOfCentralBody,
+            std::function< double( ) > timeVaryingGravitationalParameterFunction
+            ):
+        AccelerationModel< Eigen::Vector3d >( ),
+        stateFunctionOfAcceleratedBody_( stateFunctionOfAcceleratedBody ),
+        stateFunctionOfCentralBody_( stateFunctionOfCentralBody ),
+        gravitationalParameterFunctionOfCentralBody_( gravitationalParameterFunctionOfCentralBody ),
+        timeVaryingGravitationalParameterFunction_(timeVaryingGravitationalParameterFunction )
+    {
+        this->updateMembers( );
+    }
+
+
+    //! Destructor
+    ~TimeVaryingGravitationalParameterAcceleration( ){ }
 
     //! Function to return the current acceleration
     /*!
@@ -40,12 +53,13 @@ public:
      */
     Eigen::Vector3d getAcceleration( )
     {
-        return calculateTimeVaryingGravitationalParameterAcceleration(
-                    gravitationalParameterOfCentralBody_,
-                    positionOfAcceleratedBodyWrtCentralBody_,
-                    timeVaryingGravitationalParameter_,
-                    timeSinceJ2000_
-                    );
+        return currentAcceleration_;
+//        return calculateTimeVaryingGravitationalParameterAcceleration(
+//                    gravitationalParameterOfCentralBody_,
+//                    positionOfAcceleratedBodyWrtCentralBody_,
+//                    timeVaryingGravitationalParameter_,
+//                    currentTime_
+//                    );
     }
 
 
@@ -61,7 +75,7 @@ public:
     {
         if( !( this->currentTime_ == currentTime ) )
         {
-            this->currentTime_ = currentTime;
+            currentTime_ = currentTime;
 
             // Update common variables
 
@@ -71,17 +85,18 @@ public:
             stateOfAcceleratedBody_ = stateFunctionOfAcceleratedBody_( );
             stateOfCentralBody_ = stateFunctionOfCentralBody_( );
 
-            stateOfAcceleratedBodyWrtCentralBody_ =
-                    stateOfAcceleratedBody_ -
-                    stateOfCentralBody_;
+            stateOfAcceleratedBodyWrtCentralBody_ = stateOfAcceleratedBody_ - stateOfCentralBody_;
 
             positionOfAcceleratedBodyWrtCentralBody_ = stateOfAcceleratedBodyWrtCentralBody_.segment(0,3);
 
             timeVaryingGravitationalParameter_ = timeVaryingGravitationalParameterFunction_( );
 
-            timeSinceJ2000_ = currentTime;
-
-//            currentAcceleration_.setZero( );
+            currentAcceleration_ = calculateTimeVaryingGravitationalParameterAcceleration(
+                    gravitationalParameterOfCentralBody_,
+                    positionOfAcceleratedBodyWrtCentralBody_,
+                    timeVaryingGravitationalParameter_,
+                    currentTime_
+                    );
 
         }
 
@@ -152,8 +167,8 @@ private:
     //! Current gravitational parameter of central body
     double timeVaryingGravitationalParameter_;
 
-    //! Time since J2000
-    double timeSinceJ2000_;
+    //! acceleration, as computed by last call to updateMembers function
+    Eigen::Vector3d currentAcceleration_;
 
 };
 
