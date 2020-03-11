@@ -13,6 +13,8 @@ cmake_minimum_required(VERSION 2.6)
 # Specify project name.
 project(Thesis)
 
+
+
 # Load UserSettings.txt
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
   set(BUILD_STYLE "standalone")
@@ -174,7 +176,6 @@ include(tudatLinkLibraries)
 
 # Add own classes
 set(SOURCES
-    "${SRCROOT}/timeVaryingGravitationalParameter.cpp"
     "${SRCROOT}/timeVaryingGravitationalParameterAcceleration.cpp"
     "${SRCROOT}/timeVaryingGravitationalParameterAccelerationPartial.cpp"
     "${SRCROOT}/TVGPInterface.cpp")

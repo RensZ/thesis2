@@ -8,8 +8,8 @@
  *    http://tudat.tudelft.nl/LICENSE.
  */
 
-#ifndef TUDAT_METRIC_H
-#define TUDAT_METRIC_H
+#ifndef TVGPINTERFACE_H
+#define TVGPINTERFACE_H
 
 #include <memory>
 
@@ -19,46 +19,57 @@ namespace tudat
 {
 
 
-//! Class that stores the PPN parameters, typically used as a 'global' environment property stored in ppnParameterSet variable
 class TVGPInterface
 {
 public:
 
-    //! Constructor
-    TVGPInterface( const double timeVaryingGravitationalParameter):
-        timeVaryingGravitationalParameter_( timeVaryingGravitationalParameter )
+    //! Default constructor.
+    /*!
+     * Default constructor.
+     * \param gravitationalParameter Gravitational parameter associated with gravity field
+     * \param updateInertiaTensor Function that is to be called to update the inertia tensor (typicaly in Body class; default none)
+     */
+    TVGPInterface( const double TimeVaryingGravitationalParameter):
+        TimeVaryingGravitationalParameter_( TimeVaryingGravitationalParameter )
     { }
 
-    //! Destructor
-    ~TVGPInterface( ){ }
+    //! Default destructor.
+    /*!
+     * Default destructor.
+     */
+    virtual ~TVGPInterface( ) { }
 
-    //! Function to retrieve value
-    double getTimeVaryingGravitationalParameter( )
+    //! Set the gravitational parameter.
+    /*!
+     * Define the gravitational parameter in meter^3 per second^2.
+     * \param TimeVaryingGravitationalParameter New gravitational parameter associated with gravity field.
+     */
+    void resetTimeVaryingGravitationalParameter( const double TimeVaryingGravitationalParameter )
     {
-        return timeVaryingGravitationalParameter_;
+        TimeVaryingGravitationalParameter_ = TimeVaryingGravitationalParameter;
     }
 
-
-    //! Function to reset value
-    void setTimeVaryingGravitationalParameter( const double timeVaryingGravitationalParameter )
+    //! Get the gravitational parameter.
+    /*!
+     * Return the gravitational parameter in meter^3 per second^2.
+     * \return Gravitational parameter.
+     */
+    double getTimeVaryingGravitationalParameter( )
     {
-        timeVaryingGravitationalParameter_ = timeVaryingGravitationalParameter;
+        return TimeVaryingGravitationalParameter_;
     }
 
 
 protected:
 
+    //! Gravitational parameter.
+    /*!
+     * The gravitational parameter in meter^3 per second^2.
+     */
+    double TimeVaryingGravitationalParameter_;
 
-    //! Value
-    double timeVaryingGravitationalParameter_;
-
+private:
 };
-
-////! Global PPN parameter set, initialized upon compilation (with values equal to GR).
-//extern std::shared_ptr< PPNParameterSet > ppnParameterSet;
-
-////! Global parameter denoting EP violation in proper time rate, initialized to GR value of 0 upon compilation.
-//extern double equivalencePrincipleLpiViolationParameter;
 
 }
 

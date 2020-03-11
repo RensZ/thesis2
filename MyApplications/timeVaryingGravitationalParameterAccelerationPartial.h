@@ -1,7 +1,7 @@
 #ifndef TIMEVARYINGGRAVITATIONALPARAMETERACCELERATIONPARTIAL_H
 #define TIMEVARYINGGRAVITATIONALPARAMETERACCELERATIONPARTIAL_H
 
-#include <tudatApplications/thesis/MyApplications/timeVaryingGravitationalParameterAcceleration.h>
+#include "tudatApplications/thesis/MyApplications/timeVaryingGravitationalParameterAcceleration.h"
 
 #include "Tudat/Astrodynamics/OrbitDetermination/AccelerationPartials/accelerationPartial.h"
 
@@ -60,7 +60,7 @@ public:
         centralBodyState_  = accelerationModel->getStateFunctionOfCentralBody( );
         acceleratedBodyState_ = accelerationModel->getStateFunctionOfAcceleratedBody( );
         centralBodyGravitationalParameterFunction_ = accelerationModel->getGravitationalParameterFunctionOfCentralBody( );
-        //timeVaryingGravitationalParameterFunction_ = accelerationModel-> ??
+        timeVaryingGravitationalParameterFunction_ = accelerationModel->getTimeVaryingGravitationalParameterFunction( );
 
         currentAccelerationFunction_ = std::bind( &TimeVaryingGravitationalParameterAcceleration::getAcceleration,
                                                     accelerationModel );

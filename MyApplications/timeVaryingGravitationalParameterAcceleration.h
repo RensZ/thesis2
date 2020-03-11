@@ -3,6 +3,8 @@
 
 #include <functional>
 #include <boost/lambda/lambda.hpp>
+#include <memory>
+#include <Eigen/Core>
 
 #include "Tudat/Astrodynamics/BasicAstrodynamics/physicalConstants.h"
 #include "Tudat/Astrodynamics/BasicAstrodynamics/accelerationModel.h"
@@ -13,11 +15,11 @@ namespace tudat
 
 
 //! Function to compute the additional acceleration term due to a dynamic GM of the central body.
-Eigen::Vector3d calculateTimeVaryingGravitationalParameterAcceleration(
-        double centralBodyGravitationalParameter,
-        Eigen::Vector3d& relativePosition,
-        double timeVaryingGravitationalParameter,
-        double timeSinceJ2000 );
+//Eigen::Vector3d calculateTimeVaryingGravitationalParameterAcceleration(
+//        const double centralBodyGravitationalParameter,
+//        const Eigen::Vector3d relativePosition,
+//        const double timeVaryingGravitationalParameter,
+//        const double timeSinceJ2000 );
 
 
 class TimeVaryingGravitationalParameterAcceleration:
@@ -31,14 +33,14 @@ public:
             std::function< Eigen::Vector6d( ) > stateFunctionOfAcceleratedBody,
             std::function< Eigen::Vector6d( ) > stateFunctionOfCentralBody,
             std::function< double( ) > gravitationalParameterFunctionOfCentralBody,
-            std::function< double( ) > timeVaryingGravitationalParameterFunction
+            double timeVaryingGravitationalParameterFunction
             ):
         AccelerationModel< Eigen::Vector3d >( ),
         stateFunctionOfAcceleratedBody_( stateFunctionOfAcceleratedBody ),
         stateFunctionOfCentralBody_( stateFunctionOfCentralBody ),
-        gravitationalParameterFunctionOfCentralBody_( gravitationalParameterFunctionOfCentralBody ),
-        timeVaryingGravitationalParameterFunction_(timeVaryingGravitationalParameterFunction )
+        gravitationalParameterFunctionOfCentralBody_( gravitationalParameterFunctionOfCentralBody )
     {
+        timeVaryingGravitationalParameter_ = timeVaryingGravitationalParameterFunction;
         this->updateMembers( );
     }
 
@@ -54,12 +56,6 @@ public:
     Eigen::Vector3d getAcceleration( )
     {
         return currentAcceleration_;
-//        return calculateTimeVaryingGravitationalParameterAcceleration(
-//                    gravitationalParameterOfCentralBody_,
-//                    positionOfAcceleratedBodyWrtCentralBody_,
-//                    timeVaryingGravitationalParameter_,
-//                    currentTime_
-//                    );
     }
 
 
@@ -89,14 +85,24 @@ public:
 
             positionOfAcceleratedBodyWrtCentralBody_ = stateOfAcceleratedBodyWrtCentralBody_.segment(0,3);
 
-            timeVaryingGravitationalParameter_ = timeVaryingGravitationalParameterFunction_( );
+            relativePositionArray_ = positionOfAcceleratedBodyWrtCentralBody_;
 
-            currentAcceleration_ = calculateTimeVaryingGravitationalParameterAcceleration(
-                    gravitationalParameterOfCentralBody_,
-                    positionOfAcceleratedBodyWrtCentralBody_,
-                    timeVaryingGravitationalParameter_,
-                    currentTime_
-                    );
+            // compute acceleration (equation 11 of Genova et al 2018, Nature communications)
+            currentAcceleration_ =
+                    gravitationalParameterOfCentralBody_ *
+                    timeVaryingGravitationalParameter_ *
+                    currentTime_ *
+                    relativePositionArray_ /
+                    (relativePositionArray_ * relativePositionArray_ * relativePositionArray_);
+
+//            timeVaryingGravitationalParameter_ = timeVaryingGravitationalParameterFunction_( );
+
+//            currentAcceleration_ = calculateTimeVaryingGravitationalParameterAcceleration(
+//                    gravitationalParameterOfCentralBody_,
+//                    positionOfAcceleratedBodyWrtCentralBody_,
+//                    timeVaryingGravitationalParameter_,
+//                    currentTime_
+//                    );
 
         }
 
@@ -127,6 +133,11 @@ public:
     { return gravitationalParameterFunctionOfCentralBody_; }
 
 
+    //! Function to return the current gravitational parameter of central body
+    std::function< double( ) > getTimeVaryingGravitationalParameterFunction( )
+    { return timeVaryingGravitationalParameterFunction_; }
+
+
 private:
 
     // Functions
@@ -142,6 +153,8 @@ private:
 
     //! Function returning the time varying gravitational parameter
     std::function< double( ) > timeVaryingGravitationalParameterFunction_;
+
+
 
 
     // Variables
@@ -169,6 +182,10 @@ private:
 
     //! acceleration, as computed by last call to updateMembers function
     Eigen::Vector3d currentAcceleration_;
+
+    // declare variables needed in the cpp file?
+    Eigen::Array3d relativePositionArray_;
+
 
 };
 

@@ -1,8 +1,8 @@
-#ifndef TIMEVARYINGGRAVITATIONALPARAMETER_H
-#define TIMEVARYINGGRAVITATIONALPARAMETER_H
+#ifndef TimeVaryingGravitationalParameter_H
+#define TimeVaryingGravitationalParameter_H
 
 #include "Tudat/Astrodynamics/OrbitDetermination/EstimatableParameters/estimatableParameter.h"
-#include <tudatApplications/thesis/MyApplications/TVGPInterface.h>
+#include "tudatApplications/thesis/MyApplications/TVGPInterface.h"
 
 namespace tudat
 {
@@ -10,33 +10,47 @@ namespace tudat
 namespace estimatable_parameters{
 
 
+//! Interface class for the estimation of a gravitational parameter
 class TimeVaryingGravitationalParameter: public EstimatableParameter< double >
 {
 
 public:
 
     //! Constructor
+    /*!
+     * Constructor
+     * \param gravityFieldModel Gravity field object containing the gravitational parameter to be estimated.
+     * \param associatedBody Name of body containing the gravityFieldModel object
+     */
     TimeVaryingGravitationalParameter(
-            const std::shared_ptr < TVGPInterface > tvgpInterface,
-            std::string& associatedBody ):
-        EstimatableParameter< double >( time_varying_gravitational_parameter, associatedBody),
-        tvgpInterface_( tvgpInterface )
-    { }
+            const std::shared_ptr< TVGPInterface > tvgpInterface,
+            const std::string& associatedBody ):
+        EstimatableParameter< double >( time_varying_gravitational_parameter, associatedBody ),
+        tvgpInterface_( tvgpInterface ){ }
 
     //! Destructor
-    ~TimeVaryingGravitationalParameter(){}
+    ~TimeVaryingGravitationalParameter( ) { }
 
-    //! Function to get the current value.
-
+    //! Function to get the current value of the gravitational parameter that is to be estimated.
+    /*!
+     * Function to get the current value of the gravitational parameter that is to be estimated.
+     * \return Current value of the gravitational parameter that is to be estimated.
+     */
     double getParameterValue( )
     {
         return tvgpInterface_->getTimeVaryingGravitationalParameter( );
     }
 
-    //! Function to reset the value of the PPN parameter gamma.
+
+
+    //! Function to reset the value of the gravitational parameter that is to be estimated.
+    /*!
+     * Function to reset the value of the gravitational parameter that is to be estimated.
+     * \param parameterValue New value of the gravitational parameter that is to be estimated.
+     */
     void setParameterValue( double parameterValue )
     {
-        tvgpInterface_->setTimeVaryingGravitationalParameter( parameterValue );
+        tvgpInterface_->resetTimeVaryingGravitationalParameter( parameterValue );
     }
 
     //! Function to retrieve the size of the parameter (always 1).
@@ -49,23 +63,25 @@ public:
         return 1;
     }
 
-
 protected:
 
 private:
 
-//! Object containing the radiation pressure coefficient to be estimated.
-std::shared_ptr< TVGPInterface > tvgpInterface_;
-
-
-};
-
+    //! Gravity field object containing the gravitational parameter to be estimated.
+    std::shared_ptr< TVGPInterface > tvgpInterface_;
 
 };
+
 
 
 }
 
 
 
-#endif // TIMEVARYINGGRAVITATIONALPARAMETER_H
+
+
+}
+
+
+
+#endif // TimeVaryingGravitationalParameter_H

@@ -12,7 +12,11 @@
 
 #include <Tudat/SimulationSetup/tudatEstimationHeader.h>
 
-#include <tudatApplications/thesis/MyApplications/timeVaryingGravitationalParameterAcceleration.h>
+#include "tudatApplications/thesis/MyApplications/timeVaryingGravitationalParameterAcceleration.h"
+#include "tudatApplications/thesis/MyApplications/timeVaryingGravitationalParameterAccelerationPartial.h"
+
+
+
 
 // Get path for output directory.
 namespace tudat_applications
@@ -61,6 +65,56 @@ std::vector<double> makeObservationTimeList(double initialTime,
     return observationTimeList;
 }
 
+// Provide a noise level as a function of the SPE angle
+double mercuryMissionNoiseBasedOnSEP(const double time){
+
+    // from NASA fact sheet https://nssdc.gsfc.nasa.gov/planetary/factsheet/
+    const double yearMercury = 88.0  *24.0*60.0*60.0;
+    const double yearEarth   = 365.2 *24.0*60.0*60.0;
+
+    // Get mean motion of planets
+    const double pi = 3.14159265359;
+    const double meanMotionMercury = 2*pi/yearMercury;
+    const double meanMotionEarth   = 2*pi/yearEarth;
+
+    // get time last eclipse, when Mercury and Earth perfectly aligned (SEP = 0)
+    Eigen::Vector6i timeAlignedVector;
+    timeAlignedVector << 2019, 11, 11, 15, 20, 0; // YYYY, MM, DD, hh, mm, ss
+    const double timeAligned = secondsAfterJ2000(timeAlignedVector);
+    const double timeDelta = time-timeAligned;
+
+    // get angular distance traveled since last eclipse (or in the past)
+    const double angleTravelledMercury = timeDelta*meanMotionMercury;
+    const double angleTravelledEarth   = timeDelta*meanMotionEarth;
+
+    // get value between 0-180 degrees
+    double relativeAngle = std::fmod((abs(angleTravelledMercury-angleTravelledEarth)),2*pi);
+    if (relativeAngle > pi){
+        relativeAngle = 2*pi-relativeAngle;
+    }
+
+    // get noise level (linear function between a minimum and maximum point)
+    const double maxAngle = pi;
+    const double minAngle = 35.0*pi/180.0;
+    const double noiseAtMaxAngle = 0.5;
+    const double noiseAtMinAngle = 3.0;
+
+    const double slope = (noiseAtMaxAngle-noiseAtMinAngle)/(maxAngle-minAngle);
+    const double intercept = noiseAtMaxAngle - slope*maxAngle;
+    const double noise = slope*relativeAngle + intercept;
+
+    // create a gaussian sample
+    boost::random::mt19937 rng(time);
+    boost::random::normal_distribution<> nd(0.0,noise);
+    const double sample = nd(rng);
+
+//    std::cout << "SPE (deg): " << relativeAngle*180/pi << " ---- "
+//              << "noise (m): " << noise << " ---- "
+//              << "rng noise sample (m): " << sample << std::endl;
+
+    return sample;
+}
+
 
 
 
@@ -90,8 +144,6 @@ int main( )
     // Load spice kernels.
     std::string kernelsPath = input_output::getSpiceKernelPath( );
     spice_interface::loadStandardSpiceKernels( );
-
-
 
     /////////////////////
     //// USER INPUTS ////
@@ -299,9 +351,9 @@ int main( )
                                     sunAngularMomentumVector));
 
 
-                    currentAccelerations[ bodyNames.at( j ) ].push_back(
-                                std::make_shared< TimeVaryingGravitationalParameterAccelerationSettings >(
-                                    timeVaryingGravitationalParameter));
+//                    currentAccelerations[ bodyNames.at( j ) ].push_back(
+//                                std::make_shared< TimeVaryingGravitationalParameterAccelerationSettings >(
+//                                    timeVaryingGravitationalParameter));
 
                 }
                 else{
@@ -536,9 +588,9 @@ int main( )
                              ("Sun", gravitational_parameter));
     varianceVector.push_back(sigmaSunGM*sigmaSunGM);
 
-    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                             ("Sun", time_varying_gravitational_parameter));
-    varianceVector.push_back(sigmaTVGP*sigmaTVGP);
+//    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+//                             ("Sun", time_varying_gravitational_parameter));
+//    varianceVector.push_back(sigmaTVGP*sigmaTVGP);
 
     // Add gravitational moments Sun
     std::vector< std::pair< int, int > > blockIndices;
@@ -550,6 +602,8 @@ int main( )
     }
     parameterNames.push_back(std::make_shared<SphericalHarmonicEstimatableParameterSettings>
                              (blockIndices,"Sun",spherical_harmonics_cosine_coefficient_block));
+
+
 
 
     // Create parameters
@@ -653,15 +707,19 @@ int main( )
                        createBoostContinuousRandomVariableGeneratorFunction(
                            normal_boost_distribution, { 0.0, dopplerNoise }, 0.0 ), std::placeholders::_1 );
 
-    noiseFunctions[ position_observable ] =
-            std::bind( &utilities::evaluateFunctionWithoutInputArgumentDependency< double, const double >,
-                       createBoostContinuousRandomVariableGeneratorFunction(
-                           normal_boost_distribution, { 0.0, positionObservableNoise }, 0.0 ), std::placeholders::_1 );
+//    noiseFunctions[ position_observable ] =
+//            std::bind( &utilities::evaluateFunctionWithoutInputArgumentDependency< double, const double >,
+//                       createBoostContinuousRandomVariableGeneratorFunction(
+//                           normal_boost_distribution, { 0.0, positionObservableNoise }, 0.0 ), std::placeholders::_1 );
 
+
+    std::function< double( const double ) > testfunction;
+
+    testfunction = [](const double time){
+        return mercuryMissionNoiseBasedOnSEP(time);};
 
     // MESSENGER noise based on SPE
-//    noiseFunction[ one_way_range ] =
-//            std::bind(  )
+    noiseFunctions[ position_observable ] = testfunction;
 
 
     ///////////////////////////////
