@@ -17,7 +17,6 @@
 
 
 
-
 // Get path for output directory.
 namespace tudat_applications
 {
@@ -51,22 +50,10 @@ double secondsAfterJ2000(Eigen::Vector6i datetime){
 }
 
 
-// Generate a list of observations given some basic inputs
-std::vector<double> makeObservationTimeList(double initialTime,
-                                            double endTime,
-                                            double timeStep,
-                                            std::vector<double> flybyTimes){
-    std::vector< double > observationTimeList = flybyTimes;
-    double currentTime = initialTime;
-    while (currentTime <= endTime){
-        observationTimeList.push_back(currentTime);
-        currentTime += timeStep;
-    }
-    return observationTimeList;
-}
-
-// Provide a noise level as a function of the SPE angle
-double mercuryMissionNoiseBasedOnSEP(const double time){
+//! Function to calculate the Sun-Mercury-Earth angle
+//! this is a simplified approach which simply uses the mean motion
+//! w.r.t. an epoch where both planets alligned
+double mercurySunEarthAngle(const double time){
 
     // from NASA fact sheet https://nssdc.gsfc.nasa.gov/planetary/factsheet/
     const double yearMercury = 88.0  *24.0*60.0*60.0;
@@ -77,7 +64,7 @@ double mercuryMissionNoiseBasedOnSEP(const double time){
     const double meanMotionMercury = 2*pi/yearMercury;
     const double meanMotionEarth   = 2*pi/yearEarth;
 
-    // get time last eclipse, when Mercury and Earth perfectly aligned (SEP = 0)
+    // get time since last eclipse, when Mercury and Earth perfectly aligned (MSE = 0)
     Eigen::Vector6i timeAlignedVector;
     timeAlignedVector << 2019, 11, 11, 15, 20, 0; // YYYY, MM, DD, hh, mm, ss
     const double timeAligned = secondsAfterJ2000(timeAlignedVector);
@@ -92,12 +79,53 @@ double mercuryMissionNoiseBasedOnSEP(const double time){
     if (relativeAngle > pi){
         relativeAngle = 2*pi-relativeAngle;
     }
+    return relativeAngle;
+}
+
+
+//! Function to generate a list of observation times between an initial and final time, with a time step in between.
+//! the fourth input can be used to manually add times liek flyby's
+//! the fifth and sixth input can be used to exclude observations in the pattern based on the Mercury-Sun-Earth angle
+std::vector<double> makeObservationTimeList(const double initialTime,
+                                            const double endTime,
+                                            const double timeStep,
+                                            const std::vector<double> flybyTimes,
+                                            const bool useMaxMSEangle,
+                                            const double maxMSEangle) //radians
+{
+    std::vector< double > observationTimeList = flybyTimes;
+    double currentTime = initialTime;
+    while (currentTime <= endTime){
+
+        if (useMaxMSEangle == true){
+            double MSEangle = mercurySunEarthAngle(currentTime);
+            if (MSEangle < maxMSEangle){
+                observationTimeList.push_back(currentTime);
+            }
+
+        } else{
+            observationTimeList.push_back(currentTime);
+        }
+
+        currentTime += timeStep;
+    }
+    return observationTimeList;
+}
+
+
+//! Function to make the noise level dependent on the Mercury-Sun-Earth angle,
+//! based on a linear relation constructed with the minimum and maximum noise.
+double noiseBasedOnMSEangle(const double time){
+
+    // calculate MSE angle with previous function
+    double relativeAngle = mercurySunEarthAngle(time);
 
     // get noise level (linear function between a minimum and maximum point)
-    const double maxAngle = pi;
-    const double minAngle = 35.0*pi/180.0;
-    const double noiseAtMaxAngle = 0.5;
-    const double noiseAtMinAngle = 3.0;
+    const double pi = 3.14159265359;
+    const double maxAngle = pi-35.0*pi/180.0;
+    const double minAngle = 0;
+    const double noiseAtMaxAngle = 3.0;
+    const double noiseAtMinAngle = 0.5;
 
     const double slope = (noiseAtMaxAngle-noiseAtMinAngle)/(maxAngle-minAngle);
     const double intercept = noiseAtMaxAngle - slope*maxAngle;
@@ -108,13 +136,12 @@ double mercuryMissionNoiseBasedOnSEP(const double time){
     boost::random::normal_distribution<> nd(0.0,noise);
     const double sample = nd(rng);
 
-//    std::cout << "SPE (deg): " << relativeAngle*180/pi << " ---- "
-//              << "noise (m): " << noise << " ---- "
-//              << "rng noise sample (m): " << sample << std::endl;
+    std::cout << "SPE (deg): " << relativeAngle*180/pi << " ---- "
+              << "noise level (m): " << noise << " ---- "
+              << "rng noise sample (m): " << sample << std::endl;
 
     return sample;
 }
-
 
 
 
@@ -140,6 +167,7 @@ int main( )
     using namespace tudat::statistics;
     using namespace tudat::basic_mathematics;
     using namespace tudat::unit_conversions;
+    using namespace tudat::physical_constants;
 
     // Load spice kernels.
     std::string kernelsPath = input_output::getSpiceKernelPath( );
@@ -373,6 +401,51 @@ int main( )
 
 
 
+    /////////////////////////////
+    //// DEPENDENT VARIABLES ////
+    /////////////////////////////
+
+    std::vector< std::shared_ptr< SingleDependentVariableSaveSettings > > dependentVariablesList;
+
+    dependentVariablesList.push_back(
+              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                    central_gravity, "Mercury" , "Venus" ) );
+
+    dependentVariablesList.push_back(
+              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                    central_gravity, "Mercury" , "Earth" ) );
+
+    dependentVariablesList.push_back(
+              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                    central_gravity, "Mercury" , "Moon" ) );
+
+    dependentVariablesList.push_back(
+              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                    central_gravity, "Mercury" , "Mars" ) );
+
+    dependentVariablesList.push_back(
+              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                    central_gravity, "Mercury" , "Jupiter" ) );
+
+    dependentVariablesList.push_back(
+              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                    central_gravity, "Mercury" , "Saturn" ) );
+
+    dependentVariablesList.push_back(
+                std::make_shared< SphericalHarmonicAccelerationTermsDependentVariableSaveSettings >(
+                "Mercury", "Sun", maximumDegree, 0 ) );
+
+    dependentVariablesList.push_back(
+              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                    relativistic_correction_acceleration, "Mercury" , "Sun" ) );
+
+    // Create object with list of dependent variables
+    std::shared_ptr< DependentVariableSaveSettings > dependentVariablesToSave =
+    std::make_shared< DependentVariableSaveSettings >( dependentVariablesList );
+
+
+
+
     //////////////////////////////
     //// PROPAGATION SETTINGS ////
     //////////////////////////////
@@ -387,7 +460,7 @@ int main( )
     std::shared_ptr< TranslationalStatePropagatorSettings< double > > propagatorSettings =
             std::make_shared< TranslationalStatePropagatorSettings< double > >
             ( centralBodies, accelerationModelMap, bodiesToPropagate,
-              systemInitialState, finalSimulationTime);
+              systemInitialState, finalSimulationTime, cowell, dependentVariablesToSave);
 
     // Define numerical integrator settings.
     std::shared_ptr< AdamsBashforthMoultonSettings< double > > integratorSettings =
@@ -403,15 +476,22 @@ int main( )
 
 
 
+
+
+
+
     ////////////////////////////
     //// DYNAMICS SIMULATOR ////
     ////////////////////////////
 
-    std::cout << "running dynamics simulator...";
+    std::cout << "running dynamics simulator..." << std::endl;
 
     SingleArcDynamicsSimulator <> dynamicsSimulator (bodyMap,integratorSettings,propagatorSettings,true,false,true);
 
+    std::cout << "saving integration result and dependent variables..." << std::endl;
+
     std::map< double, Eigen::VectorXd > integrationResult = dynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+    std::map< double, Eigen::VectorXd > dependentVariablesHistory = dynamicsSimulator.getDependentVariableHistory();
 
     // Retrieve numerically integrated state for each body.
     std::vector< std::map< double, Eigen::VectorXd > > allBodiesPropagationHistory;
@@ -438,10 +518,16 @@ int main( )
                     "," );
     }
 
-    std::cout << " done, state history saved" << std::endl;
 
-
-
+    // Write dependent variables history to file.
+    input_output::writeDataMapToTextFile(
+                dependentVariablesHistory,
+                "DependentVariablesHistory.dat",
+                outputSubFolder,
+                "",
+                std::numeric_limits< double >::digits10,
+                std::numeric_limits< double >::digits10,
+                "," );
 
 
     ////////////////////////////////
@@ -644,7 +730,9 @@ int main( )
             makeObservationTimeList(secondsAfterJ2000(observationInitialTime),
                                     secondsAfterJ2000(observationFinalTime),
                                     observationTimeStep,
-                                    messengerFlybyList);
+                                    messengerFlybyList,
+                                    true,
+                                    unit_conversions::convertDegreesToRadians(180.0-35.0));
 
 
     std::cout << "amount of observation times (before implementing viability settings): " << baseTimeList.size() << std::endl;
@@ -713,13 +801,11 @@ int main( )
 //                           normal_boost_distribution, { 0.0, positionObservableNoise }, 0.0 ), std::placeholders::_1 );
 
 
-    std::function< double( const double ) > testfunction;
+    std::function< double( const double ) > noiseFunctionPO;
+    noiseFunctionPO = [](const double time){
+        return noiseBasedOnMSEangle(time);};
 
-    testfunction = [](const double time){
-        return mercuryMissionNoiseBasedOnSEP(time);};
-
-    // MESSENGER noise based on SPE
-    noiseFunctions[ position_observable ] = testfunction;
+    noiseFunctions[ position_observable ] = noiseFunctionPO;
 
 
     ///////////////////////////////
@@ -772,10 +858,10 @@ int main( )
                                                                 (rand()%20-10.0)/100.0 );
     }
 
-    // perturb parameters with a value between -10ppm and +10ppm
+    // perturb parameters with a value between -100ppm and +100ppm
     for( unsigned int i = 0; i < truthParameters.size()-6*numberOfNumericalBodies; i++ ){
         unsigned int j = i + 6*numberOfNumericalBodies;
-        double randomPercentage = (rand()%20-10.0)/(1.0E6);
+        double randomPercentage = (rand()%200-100.0)/(1.0E6);
         std::cout << randomPercentage << std::endl;
         parameterPerturbation( j ) = initialParameterEstimate[j]*randomPercentage;
     }

@@ -19,6 +19,16 @@ parameters = ["X_Mer", "Y_Mer", "Z_Mer",
               "PPN_beta",
               "mu_Sun",
               "J2_Sun"]
+dependent_variables = ["Venus_CG",
+                       "Earth_CG",
+                       "Moon_CG",
+                       "Mars_CG",
+                       "Jupiter_CG",
+                       "Saturn_CG",
+                       "Sun_CG",
+                       "exclude",
+                       "Sun_J2",
+                       "Sun_SS"]
 
 
 # Plot propagated bodies
@@ -30,6 +40,11 @@ PropagatedBodies.f(dir_cpp_output, dir_plots, parameters, bodies)
 print("making plots of parameter estimation history...")
 import ParameterHistory
 ParameterHistory.f(dir_cpp_output, dir_plots, parameters,  bodies)
+
+# Plot dependent variable history
+print("making plots of dependent variable history...")
+import DependentVariableHistory
+DependentVariableHistory.f(dir_cpp_output, dir_plots, dependent_variables)
 
 # Make correlation heat map
 print("making heat map of parameter correlations...")

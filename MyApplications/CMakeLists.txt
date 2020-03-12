@@ -198,5 +198,13 @@ target_link_libraries(application_Thesis
     ${TUDAT_APPLICATION_ESTIMATION_LIBRARIES}
     ${Boost_LIBRARIES} )
 
+# Add mercuryOrbiterStateEstimation application.
+add_executable(application_MercuryOrbiterStateEstimation "${SRCROOT}/mercuryOrbiterStateEstimation.cpp")
+setup_executable_target(application_MercuryOrbiterStateEstimation "${SRCROOT}")
+target_link_libraries(application_MercuryOrbiterStateEstimation
+    ${TUDAT_ESTIMATION_LIBRARIES}
+    ${TUDAT_APPLICATION_ESTIMATION_LIBRARIES}
+    ${Boost_LIBRARIES} )
+
 
 
