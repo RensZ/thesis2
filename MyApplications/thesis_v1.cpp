@@ -13,7 +13,7 @@
 #include <Tudat/SimulationSetup/tudatEstimationHeader.h>
 
 #include "tudatApplications/thesis/MyApplications/timeVaryingGravitationalParameterAcceleration.h"
-#include "tudatApplications/thesis/MyApplications/timeVaryingGravitationalParameterAccelerationPartial.h"
+#include "Tudat/Astrodynamics/OrbitDetermination/AccelerationPartials/timeVaryingGravitationalParameterPartial.h"
 
 
 
@@ -84,7 +84,7 @@ double mercurySunEarthAngle(const double time){
 
 
 //! Function to generate a list of observation times between an initial and final time, with a time step in between.
-//! the fourth input can be used to manually add times liek flyby's
+//! the fourth input can be used to manually add times like flyby's
 //! the fifth and sixth input can be used to exclude observations in the pattern based on the Mercury-Sun-Earth angle
 std::vector<double> makeObservationTimeList(const double initialTime,
                                             const double endTime,
@@ -379,9 +379,9 @@ int main( )
                                     sunAngularMomentumVector));
 
 
-//                    currentAccelerations[ bodyNames.at( j ) ].push_back(
-//                                std::make_shared< TimeVaryingGravitationalParameterAccelerationSettings >(
-//                                    timeVaryingGravitationalParameter));
+                    currentAccelerations[ bodyNames.at( j ) ].push_back(
+                                std::make_shared< TimeVaryingGravitationalParameterAccelerationSettings >(
+                                    timeVaryingGravitationalParameter));
 
                 }
                 else{
@@ -670,9 +670,9 @@ int main( )
                              ("global_metric", ppn_parameter_beta ) );
     varianceVector.push_back(sigmaBeta*sigmaBeta);
 
-    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                             ("Sun", gravitational_parameter));
-    varianceVector.push_back(sigmaSunGM*sigmaSunGM);
+//    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+//                             ("Sun", gravitational_parameter));
+//    varianceVector.push_back(sigmaSunGM*sigmaSunGM);
 
 //    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
 //                             ("Sun", time_varying_gravitational_parameter));

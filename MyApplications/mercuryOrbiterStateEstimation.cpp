@@ -84,7 +84,7 @@ int main( )
     bodyNames[ 7 ] = "Moon";
 
     // Specify initial and final time
-    double initialEphemerisTime = 400000000.0; //september 2012
+    double initialEphemerisTime = 410000000.0; //september 2012
     int numberOfSimulationDays = 10.0;
     double finalEphemerisTime = initialEphemerisTime + numberOfSimulationDays * 86400.0;
 
@@ -102,6 +102,8 @@ int main( )
                     "ECLIPJ2000", "IAU_Mercury", initialEphemerisTime ),
                 initialEphemerisTime, 2.0 * mathematical_constants::PI / physical_constants::JULIAN_DAY );
 
+
+    bodySettings[ "Mercury" ]->ephemerisSettings-> resetMakeMultiArcEphemeris( true );
 
 
     // Custom settings Sun
@@ -341,7 +343,7 @@ int main( )
 
 
     // Define arc length
-    double arcDuration = 3.01 * 86400.0;
+    double arcDuration = 1.01 * 86400.0;
     double arcOverlap = 3600.0;
 
     // Create propagator settings (including initial state taken from Kepler orbit) for each arc
@@ -465,8 +467,8 @@ int main( )
     linkEndsPerObservable[ one_way_doppler ].push_back( stationReceiverLinkEnds[ 1 ] );
     linkEndsPerObservable[ one_way_doppler ].push_back( stationTransmitterLinkEnds[ 2 ] );
 
-//    linkEndsPerObservable[ angular_position ].push_back( stationReceiverLinkEnds[ 2 ] );
-//    linkEndsPerObservable[ angular_position ].push_back( stationTransmitterLinkEnds[ 1 ] );
+    linkEndsPerObservable[ angular_position ].push_back( stationReceiverLinkEnds[ 2 ] );
+    linkEndsPerObservable[ angular_position ].push_back( stationTransmitterLinkEnds[ 1 ] );
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////    DEFINE PARAMETERS THAT ARE TO BE ESTIMATED      ////////////////////////////////////////////
@@ -573,7 +575,6 @@ int main( )
                                             currentObservable, lightTimeCorrections, biasSettings ) ) );
         }
     }
-
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////          INITIALIZE ORBIT DETERMINATION OBJECT     ////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -586,11 +587,13 @@ int main( )
                 bodyMap, parametersToEstimate, observationSettingsMap,
                 integratorSettings, propagatorSettings );
 
+
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////          SIMULATE OBSERVATIONS                     ////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    std::cout<< "simulate observations..." << std::endl;
+    std::cout<< "observation simulation settings..." << std::endl;
 
     // Define time of first observation
     double observationTimeStart = initialEphemerisTime + 1000.0;
@@ -643,10 +646,10 @@ int main( )
             SingleObservablePodInputType;
     typedef std::map< ObservableType, SingleObservablePodInputType > PodInputDataType;
 
-    // Define noise levels from Srinivasan 2007
-    double rangeNoise = 3.0;
+    // Define noise levels
+    double rangeNoise = 0.1;
     double angularPositionNoise = 1.0E-7;
-    double dopplerNoise = 0.06E-3;
+    double dopplerNoise = 1.0E-12;
 
     // Create noise functions per observable
     std::map< ObservableType, std::function< double( const double ) > > noiseFunctions;
@@ -665,10 +668,16 @@ int main( )
                        createBoostContinuousRandomVariableGeneratorFunction(
                            normal_boost_distribution, { 0.0, dopplerNoise }, 0.0 ), std::placeholders::_1 );
 
+
+    std::cout<< "simulating observations..." << std::endl;
+
     // Simulate observations
     PodInputDataType observationsAndTimes = simulateObservationsWithNoise< double, double >(
                 measurementSimulationInput, orbitDeterminationManager.getObservationSimulators( ), noiseFunctions,
                 viabilityCalculators );
+
+
+
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////    PERTURB PARAMETER VECTOR AND ESTIMATE PARAMETERS     ////////////////////////////////////////////
@@ -707,6 +716,9 @@ int main( )
     // Perform estimation
     std::shared_ptr< PodOutput< double > > podOutput = orbitDeterminationManager.estimateParameters(
                 podInput, std::make_shared< EstimationConvergenceChecker >( 4 ) );
+
+
+
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////        PROVIDE OUTPUT TO CONSOLE AND FILES           //////////////////////////////////////////

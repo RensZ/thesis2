@@ -21,6 +21,8 @@ namespace tudat
 //        const double timeVaryingGravitationalParameter,
 //        const double timeSinceJ2000 );
 
+// moved everything to .h file
+
 
 class TimeVaryingGravitationalParameterAcceleration:
         public basic_astrodynamics::AccelerationModel< Eigen::Vector3d >
@@ -103,6 +105,8 @@ public:
 //                    timeVaryingGravitationalParameter_,
 //                    currentTime_
 //                    );
+
+            // moved everything to .h file
 
         }
 
