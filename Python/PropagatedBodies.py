@@ -29,6 +29,7 @@ def f(dir_output, dir_plots, parameters, bodies):
         fig = plt.figure(figsize=(10,10))
         ax = fig.gca(projection='3d')
         ax.plot(x,y,z,linewidth=0.75)
+        # ax.plot(x[0:10000],y[0:10000],z[0:10000],linewidth=0.75)
         ax.set_xlabel('x [AU]')
         ax.set_ylabel('y [AU]')
         ax.set_zlabel('z [AU]')

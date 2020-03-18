@@ -103,7 +103,7 @@ int main( )
                 initialEphemerisTime, 2.0 * mathematical_constants::PI / physical_constants::JULIAN_DAY );
 
 
-    bodySettings[ "Mercury" ]->ephemerisSettings-> resetMakeMultiArcEphemeris( true );
+//    bodySettings[ "Mercury" ]->ephemerisSettings-> resetMakeMultiArcEphemeris( true );
 
 
     // Custom settings Sun
@@ -190,7 +190,7 @@ int main( )
     double referenceAreaRadiation = 3.0;
     double radiationPressureCoefficient = 1.2;
     std::vector< std::string > occultingBodies;
-    occultingBodies.push_back( "Earth" );
+    occultingBodies.push_back( "Mercury" );
     std::shared_ptr< RadiationPressureInterfaceSettings > asterixRadiationPressureSettings =
             std::make_shared< CannonBallRadiationPressureInterfaceSettings >(
                 "Sun", referenceAreaRadiation, radiationPressureCoefficient, occultingBodies );
@@ -264,45 +264,10 @@ int main( )
 
     std::cout<<"accelerations on Vehicle set"<<std::endl;
 
-    // Set accelerations on Mercury that are to be taken into account.
-    std::map< std::string, std::vector< std::shared_ptr< AccelerationSettings > > > accelerationsOfMercury;
-
-    accelerationsOfMercury[ "Sun" ].push_back( std::make_shared< SphericalHarmonicAccelerationSettings >( 2, 0 ) );
-
-
-    accelerationsOfMercury[ "Venus" ].push_back( std::make_shared< AccelerationSettings >(
-                                                   basic_astrodynamics::central_gravity ) );
-
-    accelerationsOfMercury[ "Earth" ].push_back( std::make_shared< AccelerationSettings >(
-                                                   basic_astrodynamics::central_gravity ) );
-
-    accelerationsOfMercury[ "Mars" ].push_back( std::make_shared< AccelerationSettings >(
-                                                   basic_astrodynamics::central_gravity ) );
-
-    accelerationsOfMercury[ "Jupiter" ].push_back( std::make_shared< AccelerationSettings >(
-                                                   basic_astrodynamics::central_gravity ) );
-
-    accelerationsOfMercury[ "Saturn" ].push_back( std::make_shared< AccelerationSettings >(
-                                                   basic_astrodynamics::central_gravity ) );
-
-
-//    accelerationsOfMercury[ "Sun" ].push_back( std::make_shared< EmpiricalAccelerationSettings >( ) );
-
-    accelerationsOfMercury[ "Sun" ].push_back( std::make_shared< RelativisticAccelerationCorrectionSettings >(
-                                                     true, false, false ) );
-
-    accelerationMap[ "Mercury" ] = accelerationsOfMercury;
-
-    std::cout<<"accelerations on Mercury set"<<std::endl;
-
-
 
     // Set bodies for which initial state is to be estimated and integrated.
     std::vector< std::string > bodiesToIntegrate;
     std::vector< std::string > centralBodies;
-
-    bodiesToIntegrate.push_back( "Mercury" );
-    centralBodies.push_back( "SSB" );
 
     bodiesToIntegrate.push_back( "Vehicle" );
     centralBodies.push_back( "Mercury" );
@@ -337,10 +302,6 @@ int main( )
 //    double mercuryGravitationalParameter = bodyMap.at( "Mercury" )->getGravityFieldModel( )->getGravitationalParameter( );
     Eigen::Vector6d vehicleInitialKeplerianState = convertCartesianToKeplerianElements(vehicleInitialState,mercuryGravitationalParameter);
 
-//    Eigen::Vector6d mercuryInitialState = getInitialStateOfBody("Mercury","SSB",bodyMap, initialEphemerisTime);
-
-//    Eigen::Vector6d mercuryInitialKeplerianState = convertCartesianToKeplerianElements(mercuryInitialState,sunGravitationalParameter);
-
 
     // Define arc length
     double arcDuration = 1.01 * 86400.0;
@@ -357,24 +318,12 @@ int main( )
         std::cout<<currentTime<<std::endl;
         arcStartTimes.push_back( currentTime );
 
-
-        Eigen::Vector6d currentArcInitialStateMercury = getInitialStateOfBody("Mercury","SSB",bodyMap,currentTime);
-
-        Eigen::Vector6d currentArcInitialStateVehicle = convertKeplerianToCartesianElements(
+        Eigen::Vector6d currentArcInitialState = convertKeplerianToCartesianElements(
                     propagateKeplerOrbit( vehicleInitialKeplerianState, currentTime - initialEphemerisTime,
                                           mercuryGravitationalParameter ), mercuryGravitationalParameter );
 
-
-
-//        Eigen::Vector6d currentArcInitialStateMercury = convertKeplerianToCartesianElements(
-//                    propagateKeplerOrbit( mercuryInitialKeplerianState, currentTime - initialEphemerisTime,
-//                                          sunGravitationalParameter ), sunGravitationalParameter );
-
-        Eigen::VectorXd currentArcInitialStateSystem(12);
-        currentArcInitialStateSystem << currentArcInitialStateMercury, currentArcInitialStateVehicle;
-
         propagatorSettingsList.push_back( std::make_shared< TranslationalStatePropagatorSettings< double > >(
-                                              centralBodies, accelerationModelMap, bodiesToIntegrate, currentArcInitialStateSystem,
+                                              centralBodies, accelerationModelMap, bodiesToIntegrate, currentArcInitialState,
                                               currentTime + arcDuration + arcOverlap ) );
         currentTime += arcDuration;
     }
@@ -460,15 +409,19 @@ int main( )
 
     // Define (arbitrarily) link ends to be used for 1-way range, 1-way doppler and angular position observables
     std::map< ObservableType, std::vector< LinkEnds > > linkEndsPerObservable;
-    linkEndsPerObservable[ one_way_range ].push_back( stationReceiverLinkEnds[ 0 ] );
-    linkEndsPerObservable[ one_way_range ].push_back( stationTransmitterLinkEnds[ 0 ] );
-    linkEndsPerObservable[ one_way_range ].push_back( stationReceiverLinkEnds[ 1 ] );
+//    linkEndsPerObservable[ one_way_range ].push_back( stationReceiverLinkEnds[ 0 ] );
+//    linkEndsPerObservable[ one_way_range ].push_back( stationTransmitterLinkEnds[ 0 ] );
+//    linkEndsPerObservable[ one_way_range ].push_back( stationReceiverLinkEnds[ 1 ] );
 
+    linkEndsPerObservable[ one_way_doppler ].push_back( stationReceiverLinkEnds[ 0 ] );
+    linkEndsPerObservable[ one_way_doppler ].push_back( stationTransmitterLinkEnds[ 0 ] );
     linkEndsPerObservable[ one_way_doppler ].push_back( stationReceiverLinkEnds[ 1 ] );
+    linkEndsPerObservable[ one_way_doppler ].push_back( stationTransmitterLinkEnds[ 1 ] );
+    linkEndsPerObservable[ one_way_doppler ].push_back( stationReceiverLinkEnds[ 2 ] );
     linkEndsPerObservable[ one_way_doppler ].push_back( stationTransmitterLinkEnds[ 2 ] );
 
-    linkEndsPerObservable[ angular_position ].push_back( stationReceiverLinkEnds[ 2 ] );
-    linkEndsPerObservable[ angular_position ].push_back( stationTransmitterLinkEnds[ 1 ] );
+//    linkEndsPerObservable[ angular_position ].push_back( stationReceiverLinkEnds[ 2 ] );
+//    linkEndsPerObservable[ angular_position ].push_back( stationTransmitterLinkEnds[ 1 ] );
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////    DEFINE PARAMETERS THAT ARE TO BE ESTIMATED      ////////////////////////////////////////////
@@ -480,27 +433,13 @@ int main( )
     std::vector< std::shared_ptr< EstimatableParameterSettings > > parameterNames;
 
     // Create concatenated list of arc initial states
-    Eigen::VectorXd parametersMercuryInitialState = Eigen::VectorXd( 6 * arcStartTimes.size( ) );
-    Eigen::VectorXd parametersVehicleInitialState = Eigen::VectorXd( 6 * arcStartTimes.size( ) );
-
-
+    Eigen::VectorXd systemInitialState = Eigen::VectorXd( 6 * arcStartTimes.size( ) );
     for( unsigned int i = 0; i < arcStartTimes.size( ); i++ )
     {
-        unsigned int j = 6*i;
-        Eigen::VectorXd parametersSystemInitialState =  propagatorSettingsList.at( i )->getInitialStates( );
-        std::cout<< arcStartTimes.at(i) << std::endl <<
-                    parametersSystemInitialState <<std::endl;
-        parametersMercuryInitialState.segment( j, 6 ) = parametersSystemInitialState.segment(0,6);
-        parametersVehicleInitialState.segment( j, 6 ) = parametersSystemInitialState.segment(6,6);
+        systemInitialState.segment( i * 6, 6 ) = propagatorSettingsList.at( i )->getInitialStates( );
     }
-
-    std::cout << "Vehicle: " << parametersVehicleInitialState << std::endl;
-    std::cout << "Mercury: " << parametersMercuryInitialState << std::endl;
-
     parameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
-                                  "Mercury", parametersMercuryInitialState, arcStartTimes, "Sun" ) );
-    parameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
-                                  "Vehicle", parametersVehicleInitialState, arcStartTimes, "Mercury" ) );
+                                  "Vehicle", systemInitialState, arcStartTimes, "Mercury" ) );
 
 
 //    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "global_metric", ppn_parameter_gamma ) );

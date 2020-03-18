@@ -35,14 +35,14 @@ public:
             std::function< Eigen::Vector6d( ) > stateFunctionOfAcceleratedBody,
             std::function< Eigen::Vector6d( ) > stateFunctionOfCentralBody,
             std::function< double( ) > gravitationalParameterFunctionOfCentralBody,
-            double timeVaryingGravitationalParameterFunction
+            std::function< double( ) > timeVaryingGravitationalParameterFunction
             ):
         AccelerationModel< Eigen::Vector3d >( ),
         stateFunctionOfAcceleratedBody_( stateFunctionOfAcceleratedBody ),
         stateFunctionOfCentralBody_( stateFunctionOfCentralBody ),
-        gravitationalParameterFunctionOfCentralBody_( gravitationalParameterFunctionOfCentralBody )
+        gravitationalParameterFunctionOfCentralBody_( gravitationalParameterFunctionOfCentralBody ),
+        timeVaryingGravitationalParameterFunction_( timeVaryingGravitationalParameterFunction )
     {
-        timeVaryingGravitationalParameter_ = timeVaryingGravitationalParameterFunction;
         this->updateMembers( );
     }
 
@@ -87,17 +87,21 @@ public:
 
             positionOfAcceleratedBodyWrtCentralBody_ = stateOfAcceleratedBodyWrtCentralBody_.segment(0,3);
 
-            relativePositionArray_ = positionOfAcceleratedBodyWrtCentralBody_;
+            double distance = positionOfAcceleratedBodyWrtCentralBody_.norm();
+
+//            relativePositionArray_ = positionOfAcceleratedBodyWrtCentralBody_;
+
 
             // compute acceleration (equation 11 of Genova et al 2018, Nature communications)
             currentAcceleration_ =
                     gravitationalParameterOfCentralBody_ *
                     timeVaryingGravitationalParameter_ *
-                    currentTime_ *
-                    relativePositionArray_ /
-                    (relativePositionArray_ * relativePositionArray_ * relativePositionArray_);
+                    ( currentTime_/(tudat::physical_constants::JULIAN_YEAR) ) *
+                    positionOfAcceleratedBodyWrtCentralBody_ /
+                    (distance*distance*distance);
 
-//            timeVaryingGravitationalParameter_ = timeVaryingGravitationalParameterFunction_( );
+
+            timeVaryingGravitationalParameter_ = timeVaryingGravitationalParameterFunction_( );
 
 //            currentAcceleration_ = calculateTimeVaryingGravitationalParameterAcceleration(
 //                    gravitationalParameterOfCentralBody_,
@@ -105,8 +109,6 @@ public:
 //                    timeVaryingGravitationalParameter_,
 //                    currentTime_
 //                    );
-
-            // moved everything to .h file
 
         }
 

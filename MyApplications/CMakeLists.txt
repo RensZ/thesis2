@@ -176,12 +176,10 @@ include(tudatLinkLibraries)
 
 # Add own classes
 set(SOURCES
-    "${SRCROOT}/timeVaryingGravitationalParameterAcceleration.cpp"
-    "${SRCROOT}/TVGPInterface.cpp")
+    "${SRCROOT}/timeVaryingGravitationalParameterAcceleration.cpp")
 set(HEADERS
     "${SRCROOT}/timeVaryingGravitationalParameter.h"
-    "${SRCROOT}/timeVaryingGravitationalParameterAcceleration.h"
-    "${SRCROOT}/TVGPInterface.h")
+    "${SRCROOT}/timeVaryingGravitationalParameterAcceleration.h")
 
 add_library(timeVaryingGravitationalParameter STATIC ${SOURCES})
 setup_tudat_library_target(timeVaryingGravitationalParameter "${SRCROOT}")

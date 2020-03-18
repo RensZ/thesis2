@@ -28,7 +28,8 @@ dependent_variables = ["Venus_CG",
                        "Sun_CG",
                        "exclude",
                        "Sun_J2",
-                       "Sun_SS"]
+                       "Sun_SS",
+                       "Sun_TVGP"]
 
 
 # Plot propagated bodies

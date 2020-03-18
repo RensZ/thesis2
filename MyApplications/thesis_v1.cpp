@@ -194,7 +194,7 @@ int main( )
     const double sunJ4 = -4.34E-9; //from Antia 2008
     const double sunGravitationalParameter = 132712440041.9394E9; //m3/s2, from Genova 2018
     const double sunAngularMomentum = 190.0E39; //kgm2/s, from Pijpers 1998
-    double timeVaryingGravitationalParameter = -1E-13; //PLACEHOLDER
+    double timeVaryingGravitationalParameter = -6E-14; //PLACEHOLDER
 
     // Parameter apriori values and uncertainties
     const bool useAprioriValues = true;
@@ -317,6 +317,7 @@ int main( )
                 sunGravitationalParameter, sunRadius,
                 normalizedCosineCoefficients, normalizedSineCoefficients, "IAU_Sun" );
 
+
     // Create body map
     NamedBodyMap bodyMap = createBodies( bodySettings );
     setGlobalFrameBodyEphemerides( bodyMap, "SSB", "ECLIPJ2000" );
@@ -350,7 +351,7 @@ int main( )
         if (bodiesToPropagate[i] == "Moon"){
             centralBodies[i] = "Earth";
         } else{
-            centralBodies[i] = "SSB";
+            centralBodies[i] = "Sun";
         }
     }
 
@@ -439,6 +440,10 @@ int main( )
               std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
                     relativistic_correction_acceleration, "Mercury" , "Sun" ) );
 
+    dependentVariablesList.push_back(
+              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                    time_varying_gravitational_parameter_acceleration, "Mercury" , "Sun" ) );
+
     // Create object with list of dependent variables
     std::shared_ptr< DependentVariableSaveSettings > dependentVariablesToSave =
     std::make_shared< DependentVariableSaveSettings >( dependentVariablesList );
@@ -463,16 +468,16 @@ int main( )
               systemInitialState, finalSimulationTime, cowell, dependentVariablesToSave);
 
     // Define numerical integrator settings.
-    std::shared_ptr< AdamsBashforthMoultonSettings< double > > integratorSettings =
-            std::make_shared< AdamsBashforthMoultonSettings< double > > (
-                initialSimulationTime, initialTimeStep,
-                minimumStepSize, maximumStepSize,
-                relativeErrorTolerence, absoluteErrorTolerence,
-                minimumOrder, maximumOrder);
+//    std::shared_ptr< AdamsBashforthMoultonSettings< double > > integratorSettings =
+//            std::make_shared< AdamsBashforthMoultonSettings< double > > (
+//                initialSimulationTime, initialTimeStep,
+//                minimumStepSize, maximumStepSize,
+//                relativeErrorTolerence, absoluteErrorTolerence,
+//                minimumOrder, maximumOrder);
 
-//    std::shared_ptr< IntegratorSettings< > > integratorSettings =
-//            std::make_shared< IntegratorSettings< > >
-//            ( rungeKutta4, initialSimulationTime, initialTimeStep );
+    std::shared_ptr< IntegratorSettings< > > integratorSettings =
+            std::make_shared< IntegratorSettings< > >
+            ( rungeKutta4, initialSimulationTime, initialTimeStep );
 
 
 
@@ -661,24 +666,23 @@ int main( )
     }
 
 
-    // Add additional parameters to be estimated
+    // relativistic parameters
     parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                              ("global_metric", ppn_parameter_gamma ) );
     varianceVector.push_back(sigmaGamma*sigmaGamma);
-
     parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                              ("global_metric", ppn_parameter_beta ) );
     varianceVector.push_back(sigmaBeta*sigmaBeta);
 
-//    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-//                             ("Sun", gravitational_parameter));
-//    varianceVector.push_back(sigmaSunGM*sigmaSunGM);
+    // gravitational parameter Sun and time derivative
+    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                             ("Sun", gravitational_parameter));
+    varianceVector.push_back(sigmaSunGM*sigmaSunGM);
+    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                             ("Sun", time_varying_gravitational_parameter));
+    varianceVector.push_back(sigmaTVGP*sigmaTVGP);
 
-//    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-//                             ("Sun", time_varying_gravitational_parameter));
-//    varianceVector.push_back(sigmaTVGP*sigmaTVGP);
-
-    // Add gravitational moments Sun
+    // gravitational moments Sun
     std::vector< std::pair< int, int > > blockIndices;
     blockIndices.push_back(std::make_pair(2,0));
     varianceVector.push_back(sigmaSunJ2*sigmaSunJ2);

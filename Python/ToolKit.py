@@ -8,6 +8,10 @@ Purpose: a place to put self-made tools that are used in other files
 
 def Knm(degree,order):
 
+    """
+    a function to calculate the normalization factor, needed to retreive the unnormalized J2 values
+    """
+
     # reproduced function from TUDAT, as seen in line 761 of:
     # http://doxygen.tudat.tudelft.nl/d2/d5e/legendre_polynomials_8cpp_source.html
 
