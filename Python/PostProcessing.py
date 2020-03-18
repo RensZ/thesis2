@@ -17,6 +17,7 @@ parameters = ["X_Mer", "Y_Mer", "Z_Mer",
               "Vx_Mer", "Vy_Mer", "Vz_Mer",
               "PPN_gamma",
               "PPN_beta",
+              "Nordtvedt",
               "mu_Sun",
               "TVGP_Sun",
               "J2_Sun"]

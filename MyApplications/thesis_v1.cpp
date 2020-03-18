@@ -213,7 +213,8 @@ int main( )
     const double sigmaSunGM = 0.14E9; //Genova 2018
     const double sigmaSunJ2 = 0.03E-7; //Genova 2018
     const double sigmaSunJ4 = 0.1E-9; //PLACEHOLDER
-    const double sigmaTVGP = 1E-14; //PLACEHOLDER
+    const double sigmaTVGP = 1.0E-14; //PLACEHOLDER
+    const double sigmaNordtvedt = 3.0E-4; //Genova 2018
 
     // Planet propagation settings
     const bool propogatePlanets = false; // Propogate the other planets besides Mercury (NOTE: need observations for other planets, or LS can't find solutions for other planets)
@@ -677,17 +678,25 @@ int main( )
     parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                              ("global_metric", ppn_parameter_gamma ) );
     varianceVector.push_back(sigmaGamma*sigmaGamma);
+
     parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                              ("global_metric", ppn_parameter_beta ) );
     varianceVector.push_back(sigmaBeta*sigmaBeta);
+
+//    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+//                             ("global_metric", ppn_nordtvedt_parameter ) );
+//    varianceVector.push_back(sigmaNordtvedt*sigmaNordtvedt);
+
 
     // gravitational parameter Sun and time derivative
     parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                              ("Sun", gravitational_parameter));
     varianceVector.push_back(sigmaSunGM*sigmaSunGM);
+
     parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                              ("global_metric", time_varying_gravitational_parameter));
     varianceVector.push_back(sigmaTVGP*sigmaTVGP);
+
 
     // gravitational moments Sun
     std::vector< std::pair< int, int > > blockIndices;
