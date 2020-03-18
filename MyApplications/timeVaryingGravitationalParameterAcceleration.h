@@ -1,9 +1,7 @@
 #ifndef TIMEVARYINGGRAVITATIONALPARAMETERACCELERATION_H
 #define TIMEVARYINGGRAVITATIONALPARAMETERACCELERATION_H
 
-#include <functional>
-#include <boost/lambda/lambda.hpp>
-#include <memory>
+
 #include <Eigen/Core>
 
 #include "Tudat/Astrodynamics/BasicAstrodynamics/physicalConstants.h"
@@ -84,13 +82,11 @@ public:
             stateOfCentralBody_ = stateFunctionOfCentralBody_( );
 
             stateOfAcceleratedBodyWrtCentralBody_ = stateOfAcceleratedBody_ - stateOfCentralBody_;
-
             positionOfAcceleratedBodyWrtCentralBody_ = stateOfAcceleratedBodyWrtCentralBody_.segment(0,3);
 
             double distance = positionOfAcceleratedBodyWrtCentralBody_.norm();
 
-//            relativePositionArray_ = positionOfAcceleratedBodyWrtCentralBody_;
-
+            timeVaryingGravitationalParameter_ = timeVaryingGravitationalParameterFunction_( );
 
             // compute acceleration (equation 11 of Genova et al 2018, Nature communications)
             currentAcceleration_ =
@@ -101,7 +97,7 @@ public:
                     (distance*distance*distance);
 
 
-            timeVaryingGravitationalParameter_ = timeVaryingGravitationalParameterFunction_( );
+//            relativePositionArray_ = positionOfAcceleratedBodyWrtCentralBody_;
 
 //            currentAcceleration_ = calculateTimeVaryingGravitationalParameterAcceleration(
 //                    gravitationalParameterOfCentralBody_,
@@ -139,7 +135,7 @@ public:
     { return gravitationalParameterFunctionOfCentralBody_; }
 
 
-    //! Function to return the current gravitational parameter of central body
+    //! Function to return the time varying gravitational parameter
     std::function< double( ) > getTimeVaryingGravitationalParameterFunction( )
     { return timeVaryingGravitationalParameterFunction_; }
 
@@ -188,9 +184,6 @@ private:
 
     //! acceleration, as computed by last call to updateMembers function
     Eigen::Vector3d currentAcceleration_;
-
-    // declare variables needed in the cpp file?
-    Eigen::Array3d relativePositionArray_;
 
 
 };

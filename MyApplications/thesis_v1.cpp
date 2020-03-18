@@ -320,6 +320,7 @@ int main( )
                 normalizedCosineCoefficients, normalizedSineCoefficients, "IAU_Sun" );
 
 
+
     // Create body map
     NamedBodyMap bodyMap = createBodies( bodySettings );
     setGlobalFrameBodyEphemerides( bodyMap, "SSB", "ECLIPJ2000" );
@@ -381,6 +382,9 @@ int main( )
                                     "",
                                     sunAngularMomentumVector));
 
+                    currentAccelerations[ bodyNames.at( j ) ].push_back(
+                                std::make_shared< SEPViolationAccelerationSettings >(
+                                    bodyNames));
 
                     currentAccelerations[ bodyNames.at( j ) ].push_back(
                                 std::make_shared< TimeVaryingGravitationalParameterAccelerationSettings >(
@@ -552,6 +556,7 @@ int main( )
 
     // Create ground stations from geodetic positions.
     std::vector< std::string > groundStationNames;
+
 
     groundStationNames.push_back( "Station1" );
     createGroundStation( bodyMap.at( "Earth" ), "Station1",
