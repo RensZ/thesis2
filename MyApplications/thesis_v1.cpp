@@ -213,7 +213,7 @@ int main( )
     const double sigmaSunGM = 0.14E9; //Genova 2018
     const double sigmaSunJ2 = 0.03E-7; //Genova 2018
     const double sigmaSunJ4 = 0.1E-9; //PLACEHOLDER
-    const double sigmaTVGP = 1E14; //PLACEHOLDER
+    const double sigmaTVGP = 1E-14; //PLACEHOLDER
 
     // Planet propagation settings
     const bool propogatePlanets = false; // Propogate the other planets besides Mercury (NOTE: need observations for other planets, or LS can't find solutions for other planets)
@@ -239,6 +239,7 @@ int main( )
     messengerFlyby3 << 2009, 9, 29, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
 
     // ABM integrator settings
+    const bool useABM = true; //else, RK4 will be used, using initialtimestep as the constant time step
     const double initialTimeStep = 3600;
     const double minimumStepSize = 3600/4;
     const double maximumStepSize = 3600*4;
@@ -467,17 +468,23 @@ int main( )
             ( centralBodies, accelerationModelMap, bodiesToPropagate,
               systemInitialState, finalSimulationTime, cowell, dependentVariablesToSave);
 
-    // Define numerical integrator settings.
-//    std::shared_ptr< AdamsBashforthMoultonSettings< double > > integratorSettings =
-//            std::make_shared< AdamsBashforthMoultonSettings< double > > (
-//                initialSimulationTime, initialTimeStep,
-//                minimumStepSize, maximumStepSize,
-//                relativeErrorTolerence, absoluteErrorTolerence,
-//                minimumOrder, maximumOrder);
 
-    std::shared_ptr< IntegratorSettings< > > integratorSettings =
-            std::make_shared< IntegratorSettings< > >
-            ( rungeKutta4, initialSimulationTime, initialTimeStep );
+
+    std::shared_ptr< AdamsBashforthMoultonSettings< double > > integratorSettings =
+            std::make_shared< AdamsBashforthMoultonSettings< double > > (
+                initialSimulationTime, initialTimeStep,
+                minimumStepSize, maximumStepSize,
+                relativeErrorTolerence, absoluteErrorTolerence,
+                minimumOrder, maximumOrder);
+
+//    std::shared_ptr< IntegratorSettings< > > integratorSettings =
+//            std::make_shared< IntegratorSettings< > >
+//            ( rungeKutta4, initialSimulationTime, initialTimeStep );
+
+
+
+
+
 
 
 
@@ -679,7 +686,7 @@ int main( )
                              ("Sun", gravitational_parameter));
     varianceVector.push_back(sigmaSunGM*sigmaSunGM);
     parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                             ("Sun", time_varying_gravitational_parameter));
+                             ("global_metric", time_varying_gravitational_parameter));
     varianceVector.push_back(sigmaTVGP*sigmaTVGP);
 
     // gravitational moments Sun
