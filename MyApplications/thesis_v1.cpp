@@ -84,31 +84,39 @@ double mercurySunEarthAngle(const double time){
 
 
 //! Function to generate a list of observation times between an initial and final time, with a time step in between.
-//! the fourth input can be used to manually add times like flyby's
-//! the fifth and sixth input can be used to exclude observations in the pattern based on the Mercury-Sun-Earth angle
+//! a maximum number of observations can be indicated, if the pattern generates more than that, a random selection will be deleted to meet the maximum.
+//! a maximum Mercury-Sun-Earth angle can be indicated, observations will not be included above the requirement (see function above)
+//! in addition times can be added to the list manually which will be added last
 std::vector<double> makeObservationTimeList(const double initialTime,
                                             const double endTime,
                                             const double timeStep,
-                                            const std::vector<double> flybyTimes,
-                                            const bool useMaxMSEangle,
-                                            const double maxMSEangle) //radians
+                                            const unsigned int maximumNumberOfObservations, //if not applicable, set to a very large number.
+                                            const double maxMSEangle, //radians. if not applicable, set to value greater than pi.
+                                            const std::vector<double> flybyTimes)
 {
-    std::vector< double > observationTimeList = flybyTimes;
+    std::vector< double > observationTimeList;
     double currentTime = initialTime;
+
+    // add times to observation list which satisfy MSE requirements
     while (currentTime <= endTime){
-
-        if (useMaxMSEangle == true){
-            double MSEangle = mercurySunEarthAngle(currentTime);
-            if (MSEangle < maxMSEangle){
-                observationTimeList.push_back(currentTime);
-            }
-
-        } else{
+        double MSEangle = mercurySunEarthAngle(currentTime);
+        if (MSEangle < maxMSEangle){
             observationTimeList.push_back(currentTime);
         }
-
-        currentTime += timeStep;
+            currentTime += timeStep;
     }
+
+    // if list is longer than the max number of observations, delete random entries
+    srand(0);
+    while ( observationTimeList.size() > maximumNumberOfObservations ){
+        unsigned int numberOfObservations = observationTimeList.size();
+        unsigned int randomIndex = rand()%(numberOfObservations-1);
+        observationTimeList.erase( observationTimeList.begin() + randomIndex );
+    }
+
+    // add times which are manually indicated
+    for( unsigned int i = 0; i < flybyTimes.size(); i++ )
+        observationTimeList.push_back(flybyTimes.at(i));
     return observationTimeList;
 }
 
@@ -136,9 +144,9 @@ double noiseBasedOnMSEangle(const double time){
     boost::random::normal_distribution<> nd(0.0,noise);
     const double sample = nd(rng);
 
-    std::cout << "SPE (deg): " << relativeAngle*180/pi << " ---- "
-              << "noise level (m): " << noise << " ---- "
-              << "rng noise sample (m): " << sample << std::endl;
+//    std::cout << "SPE (deg): " << relativeAngle*180/pi << " ---- "
+//              << "noise level (m): " << noise << " ---- "
+//              << "rng noise sample (m): " << sample << std::endl;
 
     return sample;
 }
@@ -232,6 +240,7 @@ int main( )
     observationInitialTime << 2011, 3, 18, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
     observationFinalTime   << 2015, 4, 28, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
     double observationTimeStep = 60.0*60.0*24.0; // seconds
+    const unsigned int maximumNumberOfObservations = 900;
 
     // MESSENGER flyby's
     Eigen::Vector6i messengerFlyby1, messengerFlyby2, messengerFlyby3;
@@ -382,9 +391,9 @@ int main( )
                                     "",
                                     sunAngularMomentumVector));
 
-                    currentAccelerations[ bodyNames.at( j ) ].push_back(
-                                std::make_shared< SEPViolationAccelerationSettings >(
-                                    bodyNames));
+//                    currentAccelerations[ bodyNames.at( j ) ].push_back(
+//                                std::make_shared< SEPViolationAccelerationSettings >(
+//                                    bodyNames));
 
                     currentAccelerations[ bodyNames.at( j ) ].push_back(
                                 std::make_shared< TimeVaryingGravitationalParameterAccelerationSettings >(
@@ -446,15 +455,18 @@ int main( )
               std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
                     relativistic_correction_acceleration, "Mercury" , "Sun" ) );
 
+//    dependentVariablesList.push_back(
+//              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+//                    sep_violation_acceleration, "Mercury" , "Sun" ) );
+
     dependentVariablesList.push_back(
               std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
                     time_varying_gravitational_parameter_acceleration, "Mercury" , "Sun" ) );
 
+
     // Create object with list of dependent variables
     std::shared_ptr< DependentVariableSaveSettings > dependentVariablesToSave =
     std::make_shared< DependentVariableSaveSettings >( dependentVariablesList );
-
-
 
 
     //////////////////////////////
@@ -485,15 +497,6 @@ int main( )
 //    std::shared_ptr< IntegratorSettings< > > integratorSettings =
 //            std::make_shared< IntegratorSettings< > >
 //            ( rungeKutta4, initialSimulationTime, initialTimeStep );
-
-
-
-
-
-
-
-
-
 
 
 
@@ -755,9 +758,9 @@ int main( )
             makeObservationTimeList(secondsAfterJ2000(observationInitialTime),
                                     secondsAfterJ2000(observationFinalTime),
                                     observationTimeStep,
-                                    messengerFlybyList,
-                                    true,
-                                    unit_conversions::convertDegreesToRadians(180.0-35.0));
+                                    maximumNumberOfObservations,
+                                    unit_conversions::convertDegreesToRadians(180.0-35.0),
+                                    messengerFlybyList);
 
 
     std::cout << "amount of observation times (before implementing viability settings): " << baseTimeList.size() << std::endl;
@@ -968,29 +971,29 @@ int main( )
                                      "TruthParameters.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( podOutput->getUnnormalizedCovarianceMatrix( ),
                                      "EstimationCovariance.dat", 16, outputSubFolder );
-    input_output::writeMatrixToFile( podOutput->normalizedInformationMatrix_,
-                                     "EstimationInformationMatrix.dat", 16, outputSubFolder );
-    input_output::writeMatrixToFile( podOutput->weightsMatrixDiagonal_,
-                                     "EstimationWeightsDiagonal.dat", 16, outputSubFolder );
-    input_output::writeMatrixToFile( podOutput->residuals_,
-                                     "EstimationResiduals.dat", 16, outputSubFolder );
-    input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ),
-                                     "EstimationCorrelations.dat", 16, outputSubFolder );
-    input_output::writeMatrixToFile( podOutput->getResidualHistoryMatrix( ),
-                                     "ResidualHistory.dat", 16, outputSubFolder );
-    input_output::writeMatrixToFile( podOutput->getParameterHistoryMatrix( ),
-                                     "ParameterHistory.dat", 16, outputSubFolder );
-    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
-                                     "ObservationMeasurements.dat", 16, outputSubFolder );
-    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
-                                         getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
-                                     "ObservationTimes.dat", 16, outputSubFolder );
-    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
-                                         getConcatenatedGroundStationIndex( podInput->getObservationsAndTimes( ) ).first ),
-                                     "ObservationLinkEnds.dat", 16, outputSubFolder );
-    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
-                                         getConcatenatedObservableTypes( podInput->getObservationsAndTimes( ) ) ),
-                                     "ObservationObservableTypes.dat", 16, outputSubFolder );
+//    input_output::writeMatrixToFile( podOutput->normalizedInformationMatrix_,
+//                                     "EstimationInformationMatrix.dat", 16, outputSubFolder );
+//    input_output::writeMatrixToFile( podOutput->weightsMatrixDiagonal_,
+//                                     "EstimationWeightsDiagonal.dat", 16, outputSubFolder );
+//    input_output::writeMatrixToFile( podOutput->residuals_,
+//                                     "EstimationResiduals.dat", 16, outputSubFolder );
+//    input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ),
+//                                     "EstimationCorrelations.dat", 16, outputSubFolder );
+//    input_output::writeMatrixToFile( podOutput->getResidualHistoryMatrix( ),
+//                                     "ResidualHistory.dat", 16, outputSubFolder );
+//    input_output::writeMatrixToFile( podOutput->getParameterHistoryMatrix( ),
+//                                     "ParameterHistory.dat", 16, outputSubFolder );
+//    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
+//                                     "ObservationMeasurements.dat", 16, outputSubFolder );
+//    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
+//                                         getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
+//                                     "ObservationTimes.dat", 16, outputSubFolder );
+//    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
+//                                         getConcatenatedGroundStationIndex( podInput->getObservationsAndTimes( ) ).first ),
+//                                     "ObservationLinkEnds.dat", 16, outputSubFolder );
+//    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
+//                                         getConcatenatedObservableTypes( podInput->getObservationsAndTimes( ) ) ),
+//                                     "ObservationObservableTypes.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( estimationError,
                                      "ObservationTrueEstimationError.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( podOutput->getFormalErrorVector( ),

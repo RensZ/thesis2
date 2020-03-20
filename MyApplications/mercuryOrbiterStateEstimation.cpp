@@ -85,7 +85,7 @@ int main( )
 
     // Specify initial and final time
     double initialEphemerisTime = 410000000.0; //september 2012
-    int numberOfSimulationDays = 10.0;
+    int numberOfSimulationDays = 5.0;
     double finalEphemerisTime = initialEphemerisTime + numberOfSimulationDays * 86400.0;
 
     // Create bodies needed in simulation
@@ -102,8 +102,6 @@ int main( )
                     "ECLIPJ2000", "IAU_Mercury", initialEphemerisTime ),
                 initialEphemerisTime, 2.0 * mathematical_constants::PI / physical_constants::JULIAN_DAY );
 
-
-//    bodySettings[ "Mercury" ]->ephemerisSettings-> resetMakeMultiArcEphemeris( true );
 
 
     // Custom settings Sun
@@ -135,8 +133,8 @@ int main( )
     const double mercuryRadius =  2.4400000000000000E6; //m
     const double mercuryGravitationalParameter = 2.2031863566000000E13; //m3/s2
 
-    const unsigned int maxMercuryDegree = 8;
-    const unsigned int maxMercuryOrder = 8;
+    const unsigned int maxMercuryDegree = 2;
+    const unsigned int maxMercuryOrder = 2;
 
     Eigen::MatrixXd mercurySineCoefficients;
     Eigen::MatrixXd mercuryCosineCoefficients;
@@ -153,9 +151,15 @@ int main( )
              tudat::input_output::readMatrixFromFile( HgM008File , ",", "#" ).cast<int>();
 
 
+
     for( unsigned int i = 0; i < HgM008.col(0).size(); i++ ){
-        int d = HgM008i(i,0);
-        int o = HgM008i(i,1);
+
+        unsigned int d = HgM008i(i,0);
+        unsigned int o = HgM008i(i,1);
+        if (d > maxMercuryDegree || o > maxMercuryOrder){
+            break;
+        }
+
         std::cout << "d: " << d << "    o: " << o << "    Snm: " << HgM008(i,2) << "    Cnm: " << HgM008(i,3) << std::endl;
         mercuryCosineCoefficients(d,o) = HgM008(i,2)/calculateLegendreGeodesyNormalizationFactor(d,o);
         mercurySineCoefficients(d,o)   = HgM008(i,3)/calculateLegendreGeodesyNormalizationFactor(d,o);
@@ -191,18 +195,17 @@ int main( )
     double radiationPressureCoefficient = 1.2;
     std::vector< std::string > occultingBodies;
     occultingBodies.push_back( "Mercury" );
-    std::shared_ptr< RadiationPressureInterfaceSettings > asterixRadiationPressureSettings =
+    std::shared_ptr< RadiationPressureInterfaceSettings > vehicleRadiationPressureSettings =
             std::make_shared< CannonBallRadiationPressureInterfaceSettings >(
                 "Sun", referenceAreaRadiation, radiationPressureCoefficient, occultingBodies );
 
     // Create and set radiation pressure settings
     bodyMap[ "Vehicle" ]->setRadiationPressureInterface(
                 "Sun", createRadiationPressureInterface(
-                    asterixRadiationPressureSettings, "Vehicle", bodyMap ) );
+                    vehicleRadiationPressureSettings, "Vehicle", bodyMap ) );
 
     bodyMap[ "Vehicle" ]->setEphemeris( std::make_shared< MultiArcEphemeris >(
                                             std::map< double, std::shared_ptr< Ephemeris > >( ), "Mercury", "ECLIPJ2000" ) );
-
 
     setGlobalFrameBodyEphemerides( bodyMap, "SSB", "ECLIPJ2000" );
 
@@ -231,7 +234,11 @@ int main( )
     SelectedAccelerationMap accelerationMap;
     std::map< std::string, std::vector< std::shared_ptr< AccelerationSettings > > > accelerationsOfVehicle;
 
-    accelerationsOfVehicle[ "Mercury" ].push_back( std::make_shared< SphericalHarmonicAccelerationSettings >( 8, 8 ) );
+
+    //    accelerationsOfVehicle[ "Mercury" ].push_back( std::make_shared< AccelerationSettings >(
+    //                                                   basic_astrodynamics::central_gravity ) );
+
+    accelerationsOfVehicle[ "Mercury" ].push_back( std::make_shared< SphericalHarmonicAccelerationSettings >( maxMercuryDegree, maxMercuryOrder ) );
 
     accelerationsOfVehicle[ "Sun" ].push_back( std::make_shared< SphericalHarmonicAccelerationSettings >( 2, 0 ) );
 
@@ -292,35 +299,40 @@ int main( )
 //    vehicleInitialKeplerianState( longitudeOfAscendingNodeIndex ) = unit_conversions::convertDegreesToRadians( 0.0 );
 //    vehicleInitialKeplerianState( trueAnomalyIndex ) = unit_conversions::convertDegreesToRadians( 0.0 );
 
-    // MESSENGER state at 2012-9-4 from JPL HORIZON
-    Eigen::Vector6d vehicleInitialStateAU;
-    vehicleInitialStateAU << -2.423657699935677E-01,  2.276340767122562E-01,  4.081053184691631E-02,
-                              2.616958930121424E-02, -1.914176707377883E-02, -5.328193893430881E-04;
 
-    Eigen::Vector6d vehicleInitialState = vehicleInitialStateAU*physical_constants::ASTRONOMICAL_UNIT;
+//    // MESSENGER state at 2012-9-4 from JPL HORIZON
+//    Eigen::Vector6d vehicleInitialStateKM;
+//    vehicleInitialStateKM <<  -3.903241060109104E+03, 1.132080847551607E+03,  3.115447461584540E+02
+//                              -1.543646767332147E+00, 1.748791694677803E-01, -2.355773564131267E+00;
 
-//    double mercuryGravitationalParameter = bodyMap.at( "Mercury" )->getGravityFieldModel( )->getGravitationalParameter( );
-    Eigen::Vector6d vehicleInitialKeplerianState = convertCartesianToKeplerianElements(vehicleInitialState,mercuryGravitationalParameter);
+//    Eigen::Vector6d vehicleInitialState = (10^3)*vehicleInitialStateKM;
 
+//    Eigen::Vector6d vehicleInitialKeplerianState = convertCartesianToKeplerianElements(vehicleInitialState,mercuryGravitationalParameter);
+//    std::cout<<vehicleInitialKeplerianState<<std::endl;
+
+
+    loadSpiceKernelInTudat(input_output::getSpiceKernelPath() + "msgr_040803_130501_140822_od318sc_0.bsp");
 
     // Define arc length
     double arcDuration = 1.01 * 86400.0;
     double arcOverlap = 3600.0;
 
     // Create propagator settings (including initial state taken from Kepler orbit) for each arc
-    std::cout<<"start time: "<<initialEphemerisTime<<std::endl;
-
     std::vector< std::shared_ptr< SingleArcPropagatorSettings< double > > > propagatorSettingsList;
     std::vector< double > arcStartTimes;
     double currentTime = initialEphemerisTime;
     while( currentTime <= finalEphemerisTime )
     {
-        std::cout<<currentTime<<std::endl;
         arcStartTimes.push_back( currentTime );
 
-        Eigen::Vector6d currentArcInitialState = convertKeplerianToCartesianElements(
-                    propagateKeplerOrbit( vehicleInitialKeplerianState, currentTime - initialEphemerisTime,
-                                          mercuryGravitationalParameter ), mercuryGravitationalParameter );
+        Eigen::Vector6d currentArcInitialState =
+                getBodyCartesianStateAtEpoch("MESSENGER","Mercury","ECLIPJ2000","None",currentTime);
+
+//        Eigen::Vector6d currentArcInitialState = convertKeplerianToCartesianElements(
+//                    propagateKeplerOrbit( vehicleInitialKeplerianState, currentTime - initialEphemerisTime,
+//                                          mercuryGravitationalParameter ), mercuryGravitationalParameter );
+
+        std::cout<<currentArcInitialState<<std::endl;
 
         propagatorSettingsList.push_back( std::make_shared< TranslationalStatePropagatorSettings< double > >(
                                               centralBodies, accelerationModelMap, bodiesToIntegrate, currentArcInitialState,
@@ -328,62 +340,82 @@ int main( )
         currentTime += arcDuration;
     }
 
-    std::cout<<"length arcStartTimes"<<arcStartTimes.size()<<std::endl;
-    std::cout<<"final time: "<<finalEphemerisTime<<std::endl;
+
 
     // Create propagator settings
     std::shared_ptr< PropagatorSettings< double > > propagatorSettings =
             std::make_shared< MultiArcPropagatorSettings< double > >( propagatorSettingsList );
 
     // Create integrator settings
+//    std::shared_ptr< AdamsBashforthMoultonSettings< double > > integratorSettings =
+//            std::make_shared< AdamsBashforthMoultonSettings< double > > (
+//                initialEphemerisTime, 8.0,
+//                1.0, 32.0,
+//                1E-12, 1E-12,
+//                6, 12);
+
+
     std::shared_ptr< IntegratorSettings< double > > integratorSettings =
             std::make_shared< RungeKuttaVariableStepSizeSettingsScalarTolerances< double > >(
-                rungeKuttaVariableStepSize, double( initialEphemerisTime ), 30.0,
+                double( initialEphemerisTime ), 15.0,
                 RungeKuttaCoefficients::CoefficientSets::rungeKuttaFehlberg78,
-                15.0, 15.0, 1.0, 1.0 );
+                1.0, 15.0, 1.0, 1.0 );
+
+//        std::shared_ptr< IntegratorSettings< > > integratorSettings =
+//                std::make_shared< IntegratorSettings< > >
+//                ( rungeKutta4, initialEphemerisTime, 2.0 );
 
 
 
-//    ////////////////////////////
-//    //// DYNAMICS SIMULATOR ////
-//    ////////////////////////////
+    ////////////////////////////
+    //// DYNAMICS SIMULATOR ////
+    ////////////////////////////
 
-//    std::cout << "running dynamics simulator..." << std::endl;
+    std::cout << "running dynamics simulator..." << std::endl;
 
-//    SingleArcDynamicsSimulator <> dynamicsSimulator (bodyMap,integratorSettings,propagatorSettings,true,false,true);
+    MultiArcDynamicsSimulator <> dynamicsSimulator (bodyMap,
+                                                    integratorSettings,
+                                                    propagatorSettings,
+                                                    arcStartTimes,
+                                                    true,false,true);
 
-//    std::cout << "saving integration result and dependent variables..." << std::endl;
+    std::cout << "saving integration result and dependent variables..." << std::endl;
 
-//    std::map< double, Eigen::VectorXd > integrationResult = dynamicsSimulator.getEquationsOfMotionNumericalSolution( );
-//    std::map< double, Eigen::VectorXd > dependentVariablesHistory = dynamicsSimulator.getDependentVariableHistory();
+    std::vector< std::map< double, Eigen::VectorXd > > integrationResult = dynamicsSimulator.getEquationsOfMotionNumericalSolution( );
 
-//    // Retrieve numerically integrated state for each body.
-//    std::vector< std::map< double, Eigen::VectorXd > > allBodiesPropagationHistory;
-//    allBodiesPropagationHistory.resize( bodiesToIntegrate.size() );
-//    for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = integrationResult.begin( );
-//         stateIterator != integrationResult.end( ); stateIterator++ )
-//    {
-//        for( unsigned int i = 0; i < bodiesToIntegrate.size(); i++ )
-//        {
-//            allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
-//        }
-//    }
+    // Retrieve numerically integrated state for each body.
+    std::vector< std::map< double, Eigen::VectorXd > > allBodiesPropagationHistory;
+    allBodiesPropagationHistory.resize( bodiesToIntegrate.size() );
+
+    for( unsigned int i = 0; i < arcStartTimes.size(); i++ ){
+
+        std::map< double, Eigen::VectorXd > intermediateIntegrationResult = integrationResult.at(i);
+
+        for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateIntegrationResult.begin( );
+             stateIterator != intermediateIntegrationResult.end( ); stateIterator++ )
+        {
+            for( unsigned int i = 0; i < bodiesToIntegrate.size(); i++ )
+            {
+                allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
+            }
+        }
+
+    }
+
+    for( unsigned int i = 0; i < bodiesToIntegrate.size(); i++ )
+    {
+        // Write propagation history to file.
+        input_output::writeDataMapToTextFile(
+                    allBodiesPropagationHistory[ i ],
+                    "StatePropagationHistory" + bodiesToIntegrate.at( i ) + ".dat",
+                     tudat_applications::getOutputPath( ) + "MercuryOrbiterStateEstimation/",
+                    "",
+                    std::numeric_limits< double >::digits10,
+                    std::numeric_limits< double >::digits10,
+                    "," );
+    }
 
 
-
-
-//    for( unsigned int i = 0; i < bodiesToIntegrate.size(); i++ )
-//    {
-//        // Write propagation history to file.
-//        input_output::writeDataMapToTextFile(
-//                    allBodiesPropagationHistory[ i ],
-//                    "StatePropagationHistory" + bodiesToIntegrate.at( i ) + ".dat",
-//                     tudat_applications::getOutputPath( ) + "MercuryOrbiterStateEstimation/",
-//                    "",
-//                    std::numeric_limits< double >::digits10,
-//                    std::numeric_limits< double >::digits10,
-//                    "," );
-//    }
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -441,9 +473,7 @@ int main( )
     parameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
                                   "Vehicle", systemInitialState, arcStartTimes, "Mercury" ) );
 
-
-//    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "global_metric", ppn_parameter_gamma ) );
-
+    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "global_metric", ppn_parameter_gamma ) );
     parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "Vehicle", radiation_pressure_coefficient ) );
 
 //    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "Vehicle", constant_drag_coefficient ) );
@@ -457,9 +487,9 @@ int main( )
 //                                  linkEndsPerObservable.at( one_way_range ).at( 1 ), one_way_range, true ) );
 
     parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
-                                  2, 0, 8, 8, "Mercury", spherical_harmonics_cosine_coefficient_block ) );
+                                  2, 0, maxMercuryDegree, maxMercuryOrder, "Mercury", spherical_harmonics_cosine_coefficient_block ) );
     parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
-                                  2, 1, 8, 8, "Mercury", spherical_harmonics_sine_coefficient_block ) );
+                                  2, 1, maxMercuryDegree, maxMercuryOrder, "Mercury", spherical_harmonics_sine_coefficient_block ) );
 
 
 
@@ -482,11 +512,18 @@ int main( )
     // Print identifiers and indices of parameters to terminal.
     printEstimatableParameterEntries( parametersToEstimate );
 
+
+
+
+
+
+
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////             CREATE OBSERVATION SETTINGS            ////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    std::cout<< "create observation settings" << std::endl;
+    std::cout<< "create observation settings..." << std::endl;
 
     // Iterate over all observable types and associated link ends, and creating settings for observation
     observation_models::ObservationSettingsMap observationSettingsMap;
@@ -514,11 +551,12 @@ int main( )
                                             currentObservable, lightTimeCorrections, biasSettings ) ) );
         }
     }
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////          INITIALIZE ORBIT DETERMINATION OBJECT     ////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    std::cout<< "initialize OD object..." << std::endl;
+    std::cout<< "create OD object.." << std::endl;
 
     // Create orbit determination object (propagate orbit, create observation models)
     OrbitDeterminationManager< double, double > orbitDeterminationManager =
@@ -654,7 +692,7 @@ int main( )
 
     // Perform estimation
     std::shared_ptr< PodOutput< double > > podOutput = orbitDeterminationManager.estimateParameters(
-                podInput, std::make_shared< EstimationConvergenceChecker >( 4 ) );
+                podInput, std::make_shared< EstimationConvergenceChecker >( 10 ) );
 
 
 
@@ -692,39 +730,39 @@ int main( )
     input_output::writeMatrixToFile( podOutput->informationMatrixTransformationDiagonal_,
                                      "earthOrbitEstimationInformationMatrixNormalization.dat", 16,
                                      tudat_applications::getOutputPath( ) + outputSubFolder );
-    input_output::writeMatrixToFile( podOutput->weightsMatrixDiagonal_,
-                                     "earthOrbitEstimationWeightsDiagonal.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
-    input_output::writeMatrixToFile( podOutput->residuals_,
-                                     "earthOrbitEstimationResiduals.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
-    input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ),
-                                     "earthOrbitEstimationCorrelations.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
-    input_output::writeMatrixToFile( podOutput->getResidualHistoryMatrix( ),
-                                     "earthOrbitResidualHistory.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
-    input_output::writeMatrixToFile( podOutput->getParameterHistoryMatrix( ),
-                                     "earthOrbitParameterHistory.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
-    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
-                                     "earthOrbitObservationMeasurements.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
-    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
-                                         getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
-                                     "earthOrbitObservationTimes.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
-    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
-                                         getConcatenatedGroundStationIndex( podInput->getObservationsAndTimes( ) ).first ),
-                                     "earthOrbitObservationLinkEnds.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
-    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
-                                         getConcatenatedObservableTypes( podInput->getObservationsAndTimes( ) ) ),
-                                     "earthOrbitObservationObservableTypes.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
-    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
-                                     "earthOrbitObservationMeasurements.dat", 16,
-                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+//    input_output::writeMatrixToFile( podOutput->weightsMatrixDiagonal_,
+//                                     "earthOrbitEstimationWeightsDiagonal.dat", 16,
+//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+//    input_output::writeMatrixToFile( podOutput->residuals_,
+//                                     "earthOrbitEstimationResiduals.dat", 16,
+//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+//    input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ),
+//                                     "earthOrbitEstimationCorrelations.dat", 16,
+//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+//    input_output::writeMatrixToFile( podOutput->getResidualHistoryMatrix( ),
+//                                     "earthOrbitResidualHistory.dat", 16,
+//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+//    input_output::writeMatrixToFile( podOutput->getParameterHistoryMatrix( ),
+//                                     "earthOrbitParameterHistory.dat", 16,
+//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+//    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
+//                                     "earthOrbitObservationMeasurements.dat", 16,
+//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+//    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
+//                                         getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
+//                                     "earthOrbitObservationTimes.dat", 16,
+//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+//    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
+//                                         getConcatenatedGroundStationIndex( podInput->getObservationsAndTimes( ) ).first ),
+//                                     "earthOrbitObservationLinkEnds.dat", 16,
+//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+//    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
+//                                         getConcatenatedObservableTypes( podInput->getObservationsAndTimes( ) ) ),
+//                                     "earthOrbitObservationObservableTypes.dat", 16,
+//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+//    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
+//                                     "earthOrbitObservationMeasurements.dat", 16,
+//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
     input_output::writeMatrixToFile( estimationError,
                                      "earthOrbitObservationTrueEstimationError.dat", 16,
                                      tudat_applications::getOutputPath( ) + outputSubFolder );

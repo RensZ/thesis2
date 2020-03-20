@@ -4,8 +4,6 @@
 #include <Eigen/Core>
 
 #include "Tudat/Astrodynamics/BasicAstrodynamics/accelerationModel.h"
-#include "Tudat/SimulationSetup/EnvironmentSetup/body.h"
-#include "Tudat/Basics/basicTypedefs.h"
 #include "Tudat/Astrodynamics/Gravitation/centralGravityModel.h"
 
 
@@ -13,13 +11,6 @@ namespace tudat
 {
 namespace relativity
 {
-
-
-
-
-double getGravitationalSelfEnergy(
-        const std::string bodyName,
-        const double gravitationalParameter);
 
 
 
