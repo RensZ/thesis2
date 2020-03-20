@@ -17,6 +17,7 @@ parameters = ["X_Mer", "Y_Mer", "Z_Mer",
               "Vx_Mer", "Vy_Mer", "Vz_Mer",
               "PPN_gamma",
               "PPN_beta",
+              "Nordtvedt",
               "mu_Sun",
               "TVGP_Sun",
               "J2_Sun"]
@@ -30,6 +31,7 @@ dependent_variables = ["Venus_CG",
                        "exclude",
                        "Sun_J2",
                        "Sun_SS",
+                       "Sun_SEP",
                        "Sun_TVGP"]
 
 

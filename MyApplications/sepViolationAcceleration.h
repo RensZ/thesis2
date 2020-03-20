@@ -23,14 +23,16 @@ public:
     SEPViolationAcceleration(
             std::function< Eigen::Vector3d( ) > positionFunctionOfAcceleratedBody,
             std::function< Eigen::Vector3d( ) > positionFunctionOfCentralBody,
-            std::function< Eigen::Vector3d( ) > sepCorrectedPositionFunctionOfCentralBody,
-            std::function< double( ) > gravitationalParameterFunctionOfCentralBody
+            std::function< Eigen::Vector3d( ) > sepCorrectedPositionFunctionOfBodyUndergoingAcceleration,
+            std::function< double( ) > gravitationalParameterFunctionOfCentralBody,
+            std::function< Eigen::Vector3d( ) > nordtvedtPartialFunction
             ):
         AccelerationModel< Eigen::Vector3d >( ),
         positionFunctionOfAcceleratedBody_( positionFunctionOfAcceleratedBody ),
         positionFunctionOfCentralBody_( positionFunctionOfCentralBody ),
-        sepCorrectedPositionFunctionOfCentralBody_( sepCorrectedPositionFunctionOfCentralBody ),
-        gravitationalParameterFunctionOfCentralBody_( gravitationalParameterFunctionOfCentralBody )
+        sepCorrectedPositionFunctionOfCentralBody_( sepCorrectedPositionFunctionOfBodyUndergoingAcceleration ),
+        gravitationalParameterFunctionOfCentralBody_( gravitationalParameterFunctionOfCentralBody ),
+        nordtvedtPartialFunction_(nordtvedtPartialFunction)
     {
         this->updateMembers( );
     }
@@ -63,7 +65,10 @@ public:
 
             positionOfAcceleratedBody_ = positionFunctionOfAcceleratedBody_( );
             positionOfCentralBody_ = positionFunctionOfCentralBody_( );
+
             sepCorrectedPositionOfCentralBody_ = sepCorrectedPositionFunctionOfCentralBody_( );
+            nordtvedtPartial_ = nordtvedtPartialFunction_( );
+
             gravitationalParameterOfCentralBody_ = gravitationalParameterFunctionOfCentralBody_( );
 
             centralGravityAcceleration_ = gravitation::computeGravitationalAcceleration(
@@ -98,13 +103,13 @@ public:
     std::function< Eigen::Vector3d( ) > getPositionFunctionOfCentralBody( )
     { return positionFunctionOfCentralBody_; }
 
-    //! Function to return the current position of the main body exerting acceleration
-    /*!
-     * Function to return the current position of the main body exerting acceleration
-     * \return Current position of the main body exerting acceleration
-     */
+
     std::function< Eigen::Vector3d( ) > getSEPCorrectedPositionFunctionOfCentralBody( )
     { return sepCorrectedPositionFunctionOfCentralBody_; }
+
+    std::function< Eigen::Vector3d( ) > getNordtvedtPartialFunction( )
+    { return nordtvedtPartialFunction_; }
+
 
 
     //! Function to return the current gravitational parameter of central body
@@ -137,11 +142,16 @@ private:
     //! position function of main body exerting acceleration (e.g. Earth for an Earth-orbiting satellite).
     std::function< Eigen::Vector3d( ) > sepCorrectedPositionFunctionOfCentralBody_;
 
+
+
     //! Function returning the gravitational parameter of the accelerated body
     std::function< double( ) > gravitationalParameterFunctionOfAcceleratedBody_;
 
     //! Function returning the gravitational parameter of the central body
     std::function< double( ) > gravitationalParameterFunctionOfCentralBody_;
+
+    //! position function of main body exerting acceleration (e.g. Earth for an Earth-orbiting satellite).
+    std::function< Eigen::Vector3d( ) > nordtvedtPartialFunction_;
 
 
 //    //! Function returning the time varying gravitational parameter
@@ -157,8 +167,12 @@ private:
     //! Current position of the body undergoing acceleration, as computed by last call to updateMembers function.
     Eigen::Vector3d positionOfCentralBody_;
 
+
     //! Current position of the body undergoing acceleration, as computed by last call to updateMembers function.
     Eigen::Vector3d sepCorrectedPositionOfCentralBody_;
+
+    //! Current position of the body undergoing acceleration, as computed by last call to updateMembers function.
+    Eigen::Vector3d nordtvedtPartial_;
 
 
     //! Current time varying gravitational parameter

@@ -259,7 +259,7 @@ int main( )
     const unsigned int maximumOrder = 12;
 
     // Parameter estimation settings
-    const unsigned int maximumNumberOfIterations = 10;
+    const unsigned int maximumNumberOfIterations = 5;
 
     // Output location
     std::string outputSubFolder = tudat_applications::getOutputPath( ) + "Output/";
@@ -391,9 +391,9 @@ int main( )
                                     "",
                                     sunAngularMomentumVector));
 
-//                    currentAccelerations[ bodyNames.at( j ) ].push_back(
-//                                std::make_shared< SEPViolationAccelerationSettings >(
-//                                    bodyNames));
+                    currentAccelerations[ bodyNames.at( j ) ].push_back(
+                                std::make_shared< SEPViolationAccelerationSettings >(
+                                    bodyNames));
 
                     currentAccelerations[ bodyNames.at( j ) ].push_back(
                                 std::make_shared< TimeVaryingGravitationalParameterAccelerationSettings >(
@@ -455,9 +455,9 @@ int main( )
               std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
                     relativistic_correction_acceleration, "Mercury" , "Sun" ) );
 
-//    dependentVariablesList.push_back(
-//              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-//                    sep_violation_acceleration, "Mercury" , "Sun" ) );
+    dependentVariablesList.push_back(
+              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                    sep_violation_acceleration, "Mercury" , "Sun" ) );
 
     dependentVariablesList.push_back(
               std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
@@ -691,9 +691,9 @@ int main( )
                              ("global_metric", ppn_parameter_beta ) );
     varianceVector.push_back(sigmaBeta*sigmaBeta);
 
-//    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-//                             ("global_metric", ppn_nordtvedt_parameter ) );
-//    varianceVector.push_back(sigmaNordtvedt*sigmaNordtvedt);
+    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                             ("global_metric", ppn_nordtvedt_parameter ) );
+    varianceVector.push_back(sigmaNordtvedt*sigmaNordtvedt);
 
 
     // gravitational parameter Sun and time derivative
@@ -981,8 +981,8 @@ int main( )
 //                                     "EstimationCorrelations.dat", 16, outputSubFolder );
 //    input_output::writeMatrixToFile( podOutput->getResidualHistoryMatrix( ),
 //                                     "ResidualHistory.dat", 16, outputSubFolder );
-//    input_output::writeMatrixToFile( podOutput->getParameterHistoryMatrix( ),
-//                                     "ParameterHistory.dat", 16, outputSubFolder );
+    input_output::writeMatrixToFile( podOutput->getParameterHistoryMatrix( ),
+                                     "ParameterHistory.dat", 16, outputSubFolder );
 //    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
 //                                     "ObservationMeasurements.dat", 16, outputSubFolder );
 //    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
