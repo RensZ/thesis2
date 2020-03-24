@@ -63,6 +63,16 @@ int main( )
     using namespace tudat::physical_constants;
     using namespace tudat::input_output;
 
+
+    //a-priori sigma values
+    const double sigmaPosition = 1000.0;
+    const double sigmaVelocity = 1.0;
+    const double sigmaRadiation = 0.5;
+    const double sigmaGamma = 2.3E-5; //Genova 2018
+    const double sigmaSunJ2 = 0.03E-7; //Genova 2018
+    std::vector<double> varianceVector;
+
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////     CREATE ENVIRONMENT AND VEHICLE       //////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -97,12 +107,12 @@ int main( )
 //                    "ECLIPJ2000", "IAU_Sun", initialEphemerisTime ),
 //                initialEphemerisTime, 2.0 * mathematical_constants::PI / physical_constants::JULIAN_DAY );
 
-    bodySettings[ "Mercury" ]->rotationModelSettings = std::make_shared< SimpleRotationModelSettings >(
-                "ECLIPJ2000", "IAU_Mercury", spice_interface::computeRotationQuaternionBetweenFrames(
-                    "ECLIPJ2000", "IAU_Mercury", initialEphemerisTime ),
-                initialEphemerisTime, 2.0 * mathematical_constants::PI / physical_constants::JULIAN_DAY );
+//    bodySettings[ "Mercury" ]->rotationModelSettings = std::make_shared< SimpleRotationModelSettings >(
+//                "ECLIPJ2000", "IAU_Mercury", spice_interface::computeRotationQuaternionBetweenFrames(
+//                    "ECLIPJ2000", "IAU_Mercury", initialEphemerisTime ),
+//                initialEphemerisTime, 2.0 * mathematical_constants::PI / physical_constants::JULIAN_DAY );
 
-
+    // todo: fix rotation rate above
 
     // Custom settings Sun
     const double sunRadius = 695.7E6; //m, from nasa fact sheet
@@ -136,11 +146,11 @@ int main( )
     const unsigned int maxMercuryDegree = 2;
     const unsigned int maxMercuryOrder = 2;
 
-    Eigen::MatrixXd mercurySineCoefficients;
     Eigen::MatrixXd mercuryCosineCoefficients;
+    Eigen::MatrixXd mercurySineCoefficients;
 
-    mercurySineCoefficients   = Eigen::MatrixXd::Zero(maxMercuryDegree+1,maxMercuryOrder+1);
     mercuryCosineCoefficients = Eigen::MatrixXd::Zero(maxMercuryDegree+1,maxMercuryOrder+1);
+    mercurySineCoefficients   = Eigen::MatrixXd::Zero(maxMercuryDegree+1,maxMercuryOrder+1);
 
     mercuryCosineCoefficients(0,0) = 1.0;
 
@@ -150,6 +160,7 @@ int main( )
     Eigen::MatrixXi HgM008i =
              tudat::input_output::readMatrixFromFile( HgM008File , ",", "#" ).cast<int>();
 
+    std::cout << HgM008 << std::endl;
 
 
     for( unsigned int i = 0; i < HgM008.col(0).size(); i++ ){
@@ -161,8 +172,9 @@ int main( )
         }
 
         std::cout << "d: " << d << "    o: " << o << "    Snm: " << HgM008(i,2) << "    Cnm: " << HgM008(i,3) << std::endl;
-        mercuryCosineCoefficients(d,o) = HgM008(i,2)/calculateLegendreGeodesyNormalizationFactor(d,o);
-        mercurySineCoefficients(d,o)   = HgM008(i,3)/calculateLegendreGeodesyNormalizationFactor(d,o);
+        double normalization = calculateLegendreGeodesyNormalizationFactor(d,o);
+        mercuryCosineCoefficients(d,o) = HgM008(i,2)/normalization;
+        mercurySineCoefficients(d,o) = HgM008(i,3)/normalization;
     }
 
     std::cout<< mercuryCosineCoefficients << std::endl;
@@ -357,9 +369,9 @@ int main( )
 
     std::shared_ptr< IntegratorSettings< double > > integratorSettings =
             std::make_shared< RungeKuttaVariableStepSizeSettingsScalarTolerances< double > >(
-                double( initialEphemerisTime ), 15.0,
+                double( initialEphemerisTime ), 10.0,
                 RungeKuttaCoefficients::CoefficientSets::rungeKuttaFehlberg78,
-                1.0, 15.0, 1.0, 1.0 );
+                1.0E-1, 1.0E-1, 5.0, 10.0); //tolerances iets lager?
 
 //        std::shared_ptr< IntegratorSettings< > > integratorSettings =
 //                std::make_shared< IntegratorSettings< > >
@@ -469,12 +481,24 @@ int main( )
     for( unsigned int i = 0; i < arcStartTimes.size( ); i++ )
     {
         systemInitialState.segment( i * 6, 6 ) = propagatorSettingsList.at( i )->getInitialStates( );
+
+        varianceVector.push_back(sigmaPosition*sigmaPosition);
+        varianceVector.push_back(sigmaPosition*sigmaPosition);
+        varianceVector.push_back(sigmaPosition*sigmaPosition);
+        varianceVector.push_back(sigmaVelocity*sigmaVelocity);
+        varianceVector.push_back(sigmaVelocity*sigmaVelocity);
+        varianceVector.push_back(sigmaVelocity*sigmaVelocity);
+
     }
+
     parameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
                                   "Vehicle", systemInitialState, arcStartTimes, "Mercury" ) );
 
     parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "global_metric", ppn_parameter_gamma ) );
+    varianceVector.push_back( sigmaGamma*sigmaGamma );
+
     parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "Vehicle", radiation_pressure_coefficient ) );
+    varianceVector.push_back( sigmaRadiation*sigmaRadiation );
 
 //    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "Vehicle", constant_drag_coefficient ) );
 //    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "Earth", constant_rotation_rate ) );
@@ -487,10 +511,38 @@ int main( )
 //                                  linkEndsPerObservable.at( one_way_range ).at( 1 ), one_way_range, true ) );
 
     parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
+                                  2, 0, 2, 0, "Sun", spherical_harmonics_cosine_coefficient_block ) );
+    varianceVector.push_back( sigmaSunJ2*sigmaSunJ2 );
+
+    parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
                                   2, 0, maxMercuryDegree, maxMercuryOrder, "Mercury", spherical_harmonics_cosine_coefficient_block ) );
+    for( unsigned int i = 0; i < HgM008.col(0).size(); i++ ){
+        unsigned int d = HgM008i(i,0);
+        unsigned int o = HgM008i(i,1);
+        if (d > maxMercuryDegree || o > maxMercuryOrder){
+            break;
+        }
+        if (d >= 2){
+            double normalization = calculateLegendreGeodesyNormalizationFactor(d,o);
+            double sigma = HgM008(i,4)/normalization;
+            varianceVector.push_back( sigma );
+        }
+    }
+
     parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
                                   2, 1, maxMercuryDegree, maxMercuryOrder, "Mercury", spherical_harmonics_sine_coefficient_block ) );
-
+    for( unsigned int i = 0; i < HgM008.col(0).size(); i++ ){
+        unsigned int d = HgM008i(i,0);
+        unsigned int o = HgM008i(i,1);
+        if (d > maxMercuryDegree || o > maxMercuryOrder){
+            break;
+        }
+        if (d >= 2 && o >= 1){
+            double normalization = calculateLegendreGeodesyNormalizationFactor(d,o);
+            double sigma = HgM008(i,5)/normalization;
+            varianceVector.push_back( sigma );
+        }
+    }
 
 
 //    // Define required settings for arc-wise empirical accelerations
@@ -511,10 +563,6 @@ int main( )
 
     // Print identifiers and indices of parameters to terminal.
     printEstimatableParameterEntries( parametersToEstimate );
-
-
-
-
 
 
 
@@ -609,12 +657,12 @@ int main( )
     }
 
     // Create observation viability settings and calculators
-    std::vector< std::shared_ptr< ObservationViabilitySettings > > observationViabilitySettings;
-    observationViabilitySettings.push_back( std::make_shared< ObservationViabilitySettings >(
-                                                minimum_elevation_angle, std::make_pair( "Earth", "" ), "",
-                                                unit_conversions::convertDegreesToRadians( 5.0 ) ) );
-    PerObservableObservationViabilityCalculatorList viabilityCalculators = createObservationViabilityCalculators(
-                bodyMap, linkEndsPerObservable, observationViabilitySettings );
+//    std::vector< std::shared_ptr< ObservationViabilitySettings > > observationViabilitySettings;
+//    observationViabilitySettings.push_back( std::make_shared< ObservationViabilitySettings >(
+//                                                minimum_elevation_angle, std::make_pair( "Earth", "" ), "",
+//                                                unit_conversions::convertDegreesToRadians( 5.0 ) ) );
+//    PerObservableObservationViabilityCalculatorList viabilityCalculators = createObservationViabilityCalculators(
+//                bodyMap, linkEndsPerObservable, observationViabilitySettings );
 
     // Set typedefs for POD input (observation types, observation link ends, observation values, associated times with
     // reference link ends.
@@ -650,8 +698,7 @@ int main( )
 
     // Simulate observations
     PodInputDataType observationsAndTimes = simulateObservationsWithNoise< double, double >(
-                measurementSimulationInput, orbitDeterminationManager.getObservationSimulators( ), noiseFunctions,
-                viabilityCalculators );
+                measurementSimulationInput, orbitDeterminationManager.getObservationSimulators( ), noiseFunctions);
 
 
 
@@ -675,12 +722,27 @@ int main( )
     }
     initialParameterEstimate += parameterPerturbation;
 
+
+    // Define a priori covariance matrix
+    Eigen::MatrixXd aprioriCovariance =
+        Eigen::MatrixXd::Zero( truthParameters.rows( ), truthParameters.rows( ));
+
+    std::cout << "a priori variances:" << std::endl;
+    for( unsigned int i = 0; i < truthParameters.size(); i++ ){
+        std::cout << varianceVector.at( i ) << std::endl;
+        aprioriCovariance( i,i ) = varianceVector.at( i );
+    }
+
+    Eigen::MatrixXd inverseOfAprioriCovariance = aprioriCovariance.inverse();
+
+
     // Define estimation input
     std::shared_ptr< PodInput< double, double > > podInput =
             std::make_shared< PodInput< double, double > >(
                 observationsAndTimes, initialParameterEstimate.rows( ),
-                Eigen::MatrixXd::Zero( truthParameters.rows( ), truthParameters.rows( ) ),
+                inverseOfAprioriCovariance,
                 initialParameterEstimate - truthParameters );
+
 
     // Define observation weights (constant per observable type)
     std::map< observation_models::ObservableType, double > weightPerObservable;
@@ -690,10 +752,11 @@ int main( )
     podInput->setConstantPerObservableWeightsMatrix( weightPerObservable );
     podInput->defineEstimationSettings( true, false, true, true, true );
 
+
+
     // Perform estimation
     std::shared_ptr< PodOutput< double > > podOutput = orbitDeterminationManager.estimateParameters(
                 podInput, std::make_shared< EstimationConvergenceChecker >( 10 ) );
-
 
 
 
@@ -736,9 +799,9 @@ int main( )
 //    input_output::writeMatrixToFile( podOutput->residuals_,
 //                                     "earthOrbitEstimationResiduals.dat", 16,
 //                                     tudat_applications::getOutputPath( ) + outputSubFolder );
-//    input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ),
-//                                     "earthOrbitEstimationCorrelations.dat", 16,
-//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+    input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ),
+                                     "earthOrbitEstimationCorrelations.dat", 16,
+                                     tudat_applications::getOutputPath( ) + outputSubFolder );
 //    input_output::writeMatrixToFile( podOutput->getResidualHistoryMatrix( ),
 //                                     "earthOrbitResidualHistory.dat", 16,
 //                                     tudat_applications::getOutputPath( ) + outputSubFolder );

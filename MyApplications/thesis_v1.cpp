@@ -187,7 +187,9 @@ int main( )
 
     // Specify start and end time simulation
     Eigen::Vector6i initialTime, finalTime;
-    initialTime << 2008, 1, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
+//    initialTime << 2008, 1, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
+//    finalTime   << 2015, 5, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
+    initialTime << 2015, 1, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
     finalTime   << 2015, 5, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
 
     // Acceleration settings
@@ -286,6 +288,8 @@ int main( )
     bodyNames[ 4 ] = "Mars";
     bodyNames[ 5 ] = "Jupiter";
     bodyNames[ 6 ] = "Saturn";
+//    bodyNames[ 7 ] = "Uranus";
+//    bodyNames[ 8 ] = "Neptune";
     bodyNames[ 7 ] = "Moon";
 
     // Default body settings
@@ -363,7 +367,7 @@ int main( )
         if (bodiesToPropagate[i] == "Moon"){
             centralBodies[i] = "Earth";
         } else{
-            centralBodies[i] = "Sun";
+            centralBodies[i] = "SSB";
         }
     }
 
@@ -915,9 +919,9 @@ int main( )
             aprioriCovariance( i,i ) = varianceVector.at( i );
         }
         std::cout << "a priori covariance matrix:" << std::endl << aprioriCovariance << std::endl;
-        Eigen::MatrixXd inverseOfAprioriCovariance = aprioriCovariance.inverse();
+        inverseOfAprioriCovariance = aprioriCovariance.inverse();
     } else{
-        Eigen::MatrixXd inverseOfAprioriCovariance = Eigen::MatrixXd::Zero( truthParameters.rows( ), truthParameters.rows( ));
+        inverseOfAprioriCovariance = Eigen::MatrixXd::Zero( truthParameters.rows( ), truthParameters.rows( ));
     }
 
 

@@ -16,9 +16,7 @@ bodies     = ["Vehicle"]
 parameters = ["X_Veh", "Y_Veh", "Z_Veh",
               "Vx_Veh", "Vy_Veh", "Vz_Veh",
               "PPN_gamma",
-              "PPN_beta",
-              "mu_Sun",
-              "TVGP_Sun",
+              "CR_Veh",
               "J2_Sun"]
 dependent_variables = ["Venus_CG",
                        "Earth_CG",
