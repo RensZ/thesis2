@@ -23,14 +23,14 @@ public:
     SEPViolationAcceleration(
             std::function< Eigen::Vector3d( ) > positionFunctionOfAcceleratedBody,
             std::function< Eigen::Vector3d( ) > positionFunctionOfCentralBody,
-            std::function< Eigen::Vector3d( ) > sepCorrectedPositionFunctionOfBodyUndergoingAcceleration,
+            std::function< Eigen::Vector3d( ) > sepPositionCorrectionFunction,
             std::function< double( ) > gravitationalParameterFunctionOfCentralBody,
             std::function< Eigen::Vector3d( ) > nordtvedtPartialFunction
             ):
         AccelerationModel< Eigen::Vector3d >( ),
         positionFunctionOfAcceleratedBody_( positionFunctionOfAcceleratedBody ),
         positionFunctionOfCentralBody_( positionFunctionOfCentralBody ),
-        sepCorrectedPositionFunctionOfCentralBody_( sepCorrectedPositionFunctionOfBodyUndergoingAcceleration ),
+        sepPositionCorrectionFunction_( sepPositionCorrectionFunction ),
         gravitationalParameterFunctionOfCentralBody_( gravitationalParameterFunctionOfCentralBody ),
         nordtvedtPartialFunction_(nordtvedtPartialFunction)
     {
@@ -66,7 +66,9 @@ public:
             positionOfAcceleratedBody_ = positionFunctionOfAcceleratedBody_( );
             positionOfCentralBody_ = positionFunctionOfCentralBody_( );
 
-            sepCorrectedPositionOfCentralBody_ = sepCorrectedPositionFunctionOfCentralBody_( );
+            sepPositionCorrection_ = sepPositionCorrectionFunction_( );
+
+            sepCorrectedPositionOfCentralBody_ = positionOfCentralBody_ + sepPositionCorrection_;
             nordtvedtPartial_ = nordtvedtPartialFunction_( );
 
             gravitationalParameterOfCentralBody_ = gravitationalParameterFunctionOfCentralBody_( );
@@ -104,8 +106,9 @@ public:
     { return positionFunctionOfCentralBody_; }
 
 
-    std::function< Eigen::Vector3d( ) > getSEPCorrectedPositionFunctionOfCentralBody( )
-    { return sepCorrectedPositionFunctionOfCentralBody_; }
+
+    std::function< Eigen::Vector3d( ) > getSEPPositionCorrectionFunction( )
+    { return sepPositionCorrectionFunction_; }
 
     std::function< Eigen::Vector3d( ) > getNordtvedtPartialFunction( )
     { return nordtvedtPartialFunction_; }
@@ -140,7 +143,7 @@ private:
     std::function< Eigen::Vector3d( ) > positionFunctionOfCentralBody_;
 
     //! position function of main body exerting acceleration (e.g. Earth for an Earth-orbiting satellite).
-    std::function< Eigen::Vector3d( ) > sepCorrectedPositionFunctionOfCentralBody_;
+    std::function< Eigen::Vector3d( ) > sepPositionCorrectionFunction_;
 
 
 
@@ -167,6 +170,9 @@ private:
     //! Current position of the body undergoing acceleration, as computed by last call to updateMembers function.
     Eigen::Vector3d positionOfCentralBody_;
 
+
+    //! Current position of the body undergoing acceleration, as computed by last call to updateMembers function.
+    Eigen::Vector3d sepPositionCorrection_;
 
     //! Current position of the body undergoing acceleration, as computed by last call to updateMembers function.
     Eigen::Vector3d sepCorrectedPositionOfCentralBody_;

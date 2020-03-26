@@ -16,141 +16,8 @@
 #include "Tudat/Astrodynamics/OrbitDetermination/AccelerationPartials/timeVaryingGravitationalParameterPartial.h"
 
 
-
-// Get path for output directory.
-namespace tudat_applications
-{
-    static inline std::string getOutputPath(
-            const std::string& extraDirectory = "" )
-    {
-        // Declare file path string assigned to filePath.
-        // __FILE__ only gives the absolute path of the header file!
-        std::string filePath_( __FILE__ );
-
-        // Strip filename from temporary string and return root-path string.
-        std::string outputPath = filePath_.substr( 0, filePath_.length( )
-                                    - std::string( "MyApplications" ).length( ) )
-                                    + std::string( "/" );
-        if( extraDirectory != "" ){outputPath += extraDirectory;}
-        if( outputPath.at( outputPath.size( ) - 1 ) != '/' ){outputPath += "/";}
-
-        return outputPath;
-    }
-}
-
-
-// convert calendar date and time to seconds after J2000
-double secondsAfterJ2000(Eigen::Vector6i datetime){
-    using namespace tudat;
-    using namespace tudat::basic_astrodynamics;
-    const unsigned int secondsPerDay = 60*60*24;
-    const unsigned int julianDayJ2000 = 2451545;
-    double julianDay = basic_astrodynamics::convertCalendarDateToJulianDay(datetime[0],datetime[1],datetime[2],datetime[3],datetime[4],datetime[5]);
-    return (julianDay - julianDayJ2000)*secondsPerDay;
-}
-
-
-//! Function to calculate the Sun-Mercury-Earth angle
-//! this is a simplified approach which simply uses the mean motion
-//! w.r.t. an epoch where both planets alligned
-double mercurySunEarthAngle(const double time){
-
-    // from NASA fact sheet https://nssdc.gsfc.nasa.gov/planetary/factsheet/
-    const double yearMercury = 88.0  *24.0*60.0*60.0;
-    const double yearEarth   = 365.2 *24.0*60.0*60.0;
-
-    // Get mean motion of planets
-    const double pi = 3.14159265359;
-    const double meanMotionMercury = 2*pi/yearMercury;
-    const double meanMotionEarth   = 2*pi/yearEarth;
-
-    // get time since last eclipse, when Mercury and Earth perfectly aligned (MSE = 0)
-    Eigen::Vector6i timeAlignedVector;
-    timeAlignedVector << 2019, 11, 11, 15, 20, 0; // YYYY, MM, DD, hh, mm, ss
-    const double timeAligned = secondsAfterJ2000(timeAlignedVector);
-    const double timeDelta = time-timeAligned;
-
-    // get angular distance traveled since last eclipse (or in the past)
-    const double angleTravelledMercury = timeDelta*meanMotionMercury;
-    const double angleTravelledEarth   = timeDelta*meanMotionEarth;
-
-    // get value between 0-180 degrees
-    double relativeAngle = std::fmod((abs(angleTravelledMercury-angleTravelledEarth)),2*pi);
-    if (relativeAngle > pi){
-        relativeAngle = 2*pi-relativeAngle;
-    }
-    return relativeAngle;
-}
-
-
-//! Function to generate a list of observation times between an initial and final time, with a time step in between.
-//! a maximum number of observations can be indicated, if the pattern generates more than that, a random selection will be deleted to meet the maximum.
-//! a maximum Mercury-Sun-Earth angle can be indicated, observations will not be included above the requirement (see function above)
-//! in addition times can be added to the list manually which will be added last
-std::vector<double> makeObservationTimeList(const double initialTime,
-                                            const double endTime,
-                                            const double timeStep,
-                                            const unsigned int maximumNumberOfObservations, //if not applicable, set to a very large number.
-                                            const double maxMSEangle, //radians. if not applicable, set to value greater than pi.
-                                            const std::vector<double> flybyTimes)
-{
-    std::vector< double > observationTimeList;
-    double currentTime = initialTime;
-
-    // add times to observation list which satisfy MSE requirements
-    while (currentTime <= endTime){
-        double MSEangle = mercurySunEarthAngle(currentTime);
-        if (MSEangle < maxMSEangle){
-            observationTimeList.push_back(currentTime);
-        }
-            currentTime += timeStep;
-    }
-
-    // if list is longer than the max number of observations, delete random entries
-    srand(0);
-    while ( observationTimeList.size() > maximumNumberOfObservations ){
-        unsigned int numberOfObservations = observationTimeList.size();
-        unsigned int randomIndex = rand()%(numberOfObservations-1);
-        observationTimeList.erase( observationTimeList.begin() + randomIndex );
-    }
-
-    // add times which are manually indicated
-    for( unsigned int i = 0; i < flybyTimes.size(); i++ )
-        observationTimeList.push_back(flybyTimes.at(i));
-    return observationTimeList;
-}
-
-
-//! Function to make the noise level dependent on the Mercury-Sun-Earth angle,
-//! based on a linear relation constructed with the minimum and maximum noise.
-double noiseBasedOnMSEangle(const double time){
-
-    // calculate MSE angle with previous function
-    double relativeAngle = mercurySunEarthAngle(time);
-
-    // get noise level (linear function between a minimum and maximum point)
-    const double pi = 3.14159265359;
-    const double maxAngle = pi-35.0*pi/180.0;
-    const double minAngle = 0;
-    const double noiseAtMaxAngle = 3.0;
-    const double noiseAtMinAngle = 0.5;
-
-    const double slope = (noiseAtMaxAngle-noiseAtMinAngle)/(maxAngle-minAngle);
-    const double intercept = noiseAtMaxAngle - slope*maxAngle;
-    const double noise = slope*relativeAngle + intercept;
-
-    // create a gaussian sample
-    boost::random::mt19937 rng(time);
-    boost::random::normal_distribution<> nd(0.0,noise);
-    const double sample = nd(rng);
-
-//    std::cout << "SPE (deg): " << relativeAngle*180/pi << " ---- "
-//              << "noise level (m): " << noise << " ---- "
-//              << "rng noise sample (m): " << sample << std::endl;
-
-    return sample;
-}
-
+// custom functions written for the main application are placed here to save space:
+#include "tudatApplications/thesis/MyApplications//customFunctions.h"
 
 
 int main( )
@@ -187,10 +54,12 @@ int main( )
 
     // Specify start and end time simulation
     Eigen::Vector6i initialTime, finalTime;
-//    initialTime << 2008, 1, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
-//    finalTime   << 2015, 5, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
-    initialTime << 2015, 1, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
+    initialTime << 2008, 1, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
     finalTime   << 2015, 5, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
+//    initialTime << 2015, 1, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss // for testing
+//    finalTime   << 2015, 5, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss // for testing
+//    initialTime << 2011, 3, 18, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss // without flyby's
+//    finalTime   << 2015, 4, 28, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss // without flyby's
 
     // Acceleration settings
     const bool calculateSchwarzschildCorrection = true;
@@ -216,15 +85,16 @@ int main( )
 //    const double aprioriSunJ4 = sunJ4;
 //    Eigen::VectorXd aprioriParameters(aprioriGamma, aprioriBeta, aprioriSunGM, aprioriSunJ2);
 
-    const double sigmaPosition = 10.0; //educated guess
-    const double sigmaVelocity = 10.0E-6; //educated guess
+    const double sigmaPosition = 1000.0; //educated guess
+    const double sigmaVelocity = 1.0; //educated guess
     const double sigmaGamma = 2.3E-5; //Genova 2018
     const double sigmaBeta = 6.9E-5; //Genova 2018
+    const double sigmaNordtvedt = 3.0E-4; //Genova 2018
     const double sigmaSunGM = 0.14E9; //Genova 2018
     const double sigmaSunJ2 = 0.03E-7; //Genova 2018
     const double sigmaSunJ4 = 0.1E-9; //PLACEHOLDER
     const double sigmaTVGP = 1.0E-14; //PLACEHOLDER
-    const double sigmaNordtvedt = 3.0E-4; //Genova 2018
+
 
     // Planet propagation settings
     const bool propogatePlanets = false; // Propogate the other planets besides Mercury (NOTE: need observations for other planets, or LS can't find solutions for other planets)
@@ -250,21 +120,20 @@ int main( )
     messengerFlyby2 << 2008, 10, 6, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
     messengerFlyby3 << 2009, 9, 29, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
 
-    // ABM integrator settings
-    const bool useABM = true; //else, RK4 will be used, using initialtimestep as the constant time step
+    // ABM integrator settings (if RK4 is used instead, initialstepsize is taken)
     const double initialTimeStep = 3600;
-    const double minimumStepSize = 3600/4;
-    const double maximumStepSize = 3600*4;
+    const double minimumStepSize = 3600/8;
+    const double maximumStepSize = 3600*8;
     const double relativeErrorTolerence = 10E-12;
     const double absoluteErrorTolerence = 10E-12;
     const unsigned int minimumOrder = 6;
     const unsigned int maximumOrder = 12;
 
     // Parameter estimation settings
-    const unsigned int maximumNumberOfIterations = 5;
+    const unsigned int maximumNumberOfIterations = 20;
 
     // Output location
-    std::string outputSubFolder = tudat_applications::getOutputPath( ) + "Output/";
+    std::string outputSubFolder = getOutputPath( ) + "thesisOutput/";
 
 
     /////////////////////
@@ -491,16 +360,16 @@ int main( )
 
 
 
-    std::shared_ptr< AdamsBashforthMoultonSettings< double > > integratorSettings =
-            std::make_shared< AdamsBashforthMoultonSettings< double > > (
-                initialSimulationTime, initialTimeStep,
-                minimumStepSize, maximumStepSize,
-                relativeErrorTolerence, absoluteErrorTolerence,
-                minimumOrder, maximumOrder);
+//    std::shared_ptr< AdamsBashforthMoultonSettings< double > > integratorSettings =
+//            std::make_shared< AdamsBashforthMoultonSettings< double > > (
+//                initialSimulationTime, initialTimeStep,
+//                minimumStepSize, maximumStepSize,
+//                relativeErrorTolerence, absoluteErrorTolerence,
+//                minimumOrder, maximumOrder);
 
-//    std::shared_ptr< IntegratorSettings< > > integratorSettings =
-//            std::make_shared< IntegratorSettings< > >
-//            ( rungeKutta4, initialSimulationTime, initialTimeStep );
+    std::shared_ptr< IntegratorSettings< > > integratorSettings =
+            std::make_shared< IntegratorSettings< > >
+            ( rungeKutta4, initialSimulationTime, initialTimeStep );
 
 
 
@@ -890,10 +759,10 @@ int main( )
                                                                 (rand()%20-10.0)/100.0 );
     }
 
-    // perturb parameters with a value between -100ppm and +100ppm
+    // perturb parameters with a value between -10ppm and +10ppm
     for( unsigned int i = 0; i < truthParameters.size()-6*numberOfNumericalBodies; i++ ){
         unsigned int j = i + 6*numberOfNumericalBodies;
-        double randomPercentage = (rand()%200-100.0)/(1.0E6);
+        double randomPercentage = (rand()%200-100.0)/(1.0E7);
         std::cout << randomPercentage << std::endl;
         parameterPerturbation( j ) = initialParameterEstimate[j]*randomPercentage;
     }
@@ -981,8 +850,8 @@ int main( )
 //                                     "EstimationWeightsDiagonal.dat", 16, outputSubFolder );
 //    input_output::writeMatrixToFile( podOutput->residuals_,
 //                                     "EstimationResiduals.dat", 16, outputSubFolder );
-//    input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ),
-//                                     "EstimationCorrelations.dat", 16, outputSubFolder );
+    input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ),
+                                     "EstimationCorrelations.dat", 16, outputSubFolder );
 //    input_output::writeMatrixToFile( podOutput->getResidualHistoryMatrix( ),
 //                                     "ResidualHistory.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( podOutput->getParameterHistoryMatrix( ),

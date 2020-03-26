@@ -177,8 +177,9 @@ include(tudatLinkLibraries)
 
 # Add own classes
 set(SOURCES
-   "${SRCROOT}/empty.cpp")
+   "${SRCROOT}/customFunctions.cpp")
 set(HEADERS
+   "${SRCROOT}/customFunctions.h"
    "${SRCROOT}/sepViolationAcceleration.h"
    "${SRCROOT}/timeVaryingGravitationalParameterAcceleration.h")
 
