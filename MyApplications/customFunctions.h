@@ -3,10 +3,8 @@
 
 #include <Tudat/SimulationSetup/tudatEstimationHeader.h>
 
-static inline std::string getOutputPath(
-        const std::string& extraDirectory = "" );
-
 double secondsAfterJ2000(Eigen::Vector6i datetime);
+double secondsAfterJ2000(std::vector<int> datetime);
 
 double mercurySunEarthAngle(const double time);
 

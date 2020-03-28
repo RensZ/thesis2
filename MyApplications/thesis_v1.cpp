@@ -15,9 +15,29 @@
 #include "tudatApplications/thesis/MyApplications/timeVaryingGravitationalParameterAcceleration.h"
 #include "Tudat/Astrodynamics/OrbitDetermination/AccelerationPartials/timeVaryingGravitationalParameterPartial.h"
 
+#include "json.hpp"
 
 // custom functions written for the main application are placed here to save space:
 #include "tudatApplications/thesis/MyApplications//customFunctions.h"
+
+
+// Get path for output directory.
+static inline std::string getOutputPath(
+        const std::string& extraDirectory = "" )
+{
+    // Declare file path string assigned to filePath.
+    // __FILE__ only gives the absolute path of the header file!
+    std::string filePath_( __FILE__ );
+
+    // Strip filename from temporary string and return root-path string.
+    std::string outputPath = filePath_.substr( 0, filePath_.length( )
+                                - std::string( "MyApplications" ).length( ) )
+                                + std::string( "/" );
+    if( extraDirectory != "" ){outputPath += extraDirectory;}
+    if( outputPath.at( outputPath.size( ) - 1 ) != '/' ){outputPath += "/";}
+
+    return outputPath;
+}
 
 
 int main( )
@@ -44,22 +64,10 @@ int main( )
     using namespace tudat::unit_conversions;
     using namespace tudat::physical_constants;
 
-    // Load spice kernels.
-    std::string kernelsPath = input_output::getSpiceKernelPath( );
-    spice_interface::loadStandardSpiceKernels( );
 
-    /////////////////////
-    //// USER INPUTS ////
-    /////////////////////
-
-    // Specify start and end time simulation
-    Eigen::Vector6i initialTime, finalTime;
-    initialTime << 2008, 1, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
-    finalTime   << 2015, 5, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
-//    initialTime << 2015, 1, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss // for testing
-//    finalTime   << 2015, 5, 1, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss // for testing
-//    initialTime << 2011, 3, 18, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss // without flyby's
-//    finalTime   << 2015, 4, 28, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss // without flyby's
+    ////////////////////////////
+    //// APPLICATION INPUTS ////
+    ////////////////////////////
 
     // Acceleration settings
     const bool calculateSchwarzschildCorrection = true;
@@ -67,58 +75,15 @@ int main( )
     const bool calculateDeSitterCorrection = false;
     const bool estimateJ4 = false;
 
-    // Parameter inputs
-    const double sunRadius = 695.7E6; //m, from nasa fact sheet
-    const double sunJ2 = 2.20E-7; //from Genova 2018
-    const double sunJ4 = -4.34E-9; //from Antia 2008
-    const double sunGravitationalParameter = 132712440041.9394E9; //m3/s2, from Genova 2018
-    const double sunAngularMomentum = 190.0E39; //kgm2/s, from Pijpers 1998
-    double timeVaryingGravitationalParameter = -6E-14; //PLACEHOLDER
-
     // Parameter apriori values and uncertainties
     const bool useAprioriValues = true;
-
-//    const double aprioriGamma = 1.0;
-//    const double aprioriBeta = 1.0;
-//    const double aprioriSunGM = sunGravitationalParameter;
-//    const double aprioriSunJ2 = sunJ2;
-//    const double aprioriSunJ4 = sunJ4;
-//    Eigen::VectorXd aprioriParameters(aprioriGamma, aprioriBeta, aprioriSunGM, aprioriSunJ2);
-
-    const double sigmaPosition = 1000.0; //educated guess
-    const double sigmaVelocity = 1.0; //educated guess
-    const double sigmaGamma = 2.3E-5; //Genova 2018
-    const double sigmaBeta = 6.9E-5; //Genova 2018
-    const double sigmaNordtvedt = 3.0E-4; //Genova 2018
-    const double sigmaSunGM = 0.14E9; //Genova 2018
-    const double sigmaSunJ2 = 0.03E-7; //Genova 2018
-    const double sigmaSunJ4 = 0.1E-9; //PLACEHOLDER
-    const double sigmaTVGP = 1.0E-14; //PLACEHOLDER
-
 
     // Planet propagation settings
     const bool propogatePlanets = false; // Propogate the other planets besides Mercury (NOTE: need observations for other planets, or LS can't find solutions for other planets)
     const bool useDirectSpice = false; // Use direct SPICE (more accurate than tabulated Spice)
 
-    // Observation settings
-    const bool simulateObservationNoise = true;
-    double rangeNoise = 2.0;
-    double angularPositionNoise = 1.0E-7;
-    double dopplerNoise = 1.0E-12;
-    double positionObservableNoise = 5.0;
-
-    // MESSENGER observation schedule
-    Eigen::Vector6i observationInitialTime, observationFinalTime;
-    observationInitialTime << 2011, 3, 18, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
-    observationFinalTime   << 2015, 4, 28, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
-    double observationTimeStep = 60.0*60.0*24.0; // seconds
-    const unsigned int maximumNumberOfObservations = 900;
-
-    // MESSENGER flyby's
-    Eigen::Vector6i messengerFlyby1, messengerFlyby2, messengerFlyby3;
-    messengerFlyby1 << 2008, 1, 14, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
-    messengerFlyby2 << 2008, 10, 6, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
-    messengerFlyby3 << 2009, 9, 29, 0, 0, 0; // YYYY, MM, DD, hh, mm, ss
+    // Parameter estimation settings
+    const unsigned int maximumNumberOfIterations = 10;
 
     // ABM integrator settings (if RK4 is used instead, initialstepsize is taken)
     const double initialTimeStep = 3600;
@@ -129,11 +94,95 @@ int main( )
     const unsigned int minimumOrder = 6;
     const unsigned int maximumOrder = 12;
 
-    // Parameter estimation settings
-    const unsigned int maximumNumberOfIterations = 20;
+    // Observation settings
+    const bool simulateObservationNoise = true;
 
-    // Output location
-    std::string outputSubFolder = getOutputPath( ) + "thesisOutput/";
+
+    ////////////////////////
+    //// MISSION INPUTS ////
+    ////////////////////////
+
+
+    // Load json input
+    using json = nlohmann::json;
+    std::string json_directory = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/";
+    std::ifstream json_file(json_directory + "inputs_Genova2018_test.json");
+    json json_input;
+    json_file >> json_input;
+
+    std::cout<<"inputs imported from json file: "<<json_input<<std::endl;
+
+
+    // Retrieve simulation start and end time
+    std::vector<int> j1 = json_input["initialTime"];
+    Eigen::Vector6i initialTime(j1.data()); j1.clear();
+    std::vector<int> j2 = json_input["finalTime"];
+    Eigen::Vector6i finalTime(j2.data()); j2.clear();
+
+
+    // Retrieve input parameters including uncertainties and apriori values
+    const double sunJ2 = json_input["sunJ2"];
+    const double sunAngularMomentum = json_input["sunAngularMomentum"];
+    const double sunGravitationalParameter = json_input["sunGravitationalParameter"];
+    const double timeVaryingGravitationalParameter = json_input["timeVaryingGravitationalParameter"];
+
+    const double sigmaGamma = json_input["sigmaGamma"];
+    const double sigmaBeta = json_input["sigmaBeta"];
+    const double sigmaNordtvedt = json_input["sigmaNordtvedt"];
+    const double sigmaSunGM = json_input["sigmaSunGM"];
+    const double sigmaSunJ2 = json_input["sigmaSunJ2"];
+    const double sigmaTVGP = json_input["sigmaTVGP"];
+
+    //    const double aprioriGamma = 1.0;
+    //    const double aprioriBeta = 1.0;
+    //    const double aprioriSunGM = sunGravitationalParameter;
+    //    const double aprioriSunJ2 = sunJ2;
+    //    const double aprioriSunJ4 = sunJ4;
+    //    Eigen::VectorXd aprioriParameters(aprioriGamma, aprioriBeta, aprioriSunGM, aprioriSunJ2);
+
+
+    // retreive regular observation schedule
+    std::vector<int> j3 = json_input["observationInitialTime"];
+    Eigen::Vector6i observationInitialTime(j1.data()); j3.clear();
+    std::vector<int> j4 = json_input["observationFinalTime"];
+    Eigen::Vector6i observationFinalTime(j2.data()); j4.clear();
+    const double observationTimeStep = json_input["observationTimeStep"];
+    const unsigned int maximumNumberOfObservations = json_input["maximumNumberOfObservations"];
+
+    // retreive flybys
+    std::vector<int> flybyObject = json_input["flybyObject"];
+    std::vector<double> flybyList;
+    std::vector<int> currentFlyby;
+    for (unsigned int i=0; i<flybyObject.size()/6; i++ ){
+
+        for (unsigned int c=0; c<6; c++ ){
+            currentFlyby.push_back(flybyObject.at(6*i+c));
+        }
+        flybyList.push_back(secondsAfterJ2000(currentFlyby));
+        currentFlyby.clear();
+    }
+
+
+    // observation Noise
+    double rangeNoise = json_input["rangeNoise"];
+    double dopplerNoise = json_input["dopplerNoise"];
+    double angularPositionNoise = json_input["angularPositionNoise"];
+
+    // Location of simulation output
+    std::string outputSubFolderName = json_input["outputSubFolderName"];
+    std::string outputSubFolder = getOutputPath( ) + outputSubFolderName;
+
+
+    // Other parameters, currently not included in json
+    const double sunRadius = 695.7E6; //m, from nasa fact sheet
+    const double sunJ4 = -4.34E-9; //from Antia 2008
+    const double sigmaSunJ4 = 0.1E-9; //PLACEHOLDER
+
+    const double sigmaPosition = 1000.0; //educated guess
+    const double sigmaVelocity = 1.0; //educated guess
+
+    double positionObservableNoise = 5.0;
+
 
 
     /////////////////////
@@ -142,7 +191,11 @@ int main( )
 
     std::cout << "building environment..." << std::endl;
 
-    // initial and final time to Julian
+    // Load spice kernels.
+    std::string kernelsPath = input_output::getSpiceKernelPath( );
+    spice_interface::loadStandardSpiceKernels( );
+
+    // Convert initial and final time to Julian
     double initialSimulationTime = secondsAfterJ2000(initialTime);
     double finalSimulationTime = secondsAfterJ2000(finalTime);
 
@@ -268,9 +321,9 @@ int main( )
                                 std::make_shared< SEPViolationAccelerationSettings >(
                                     bodyNames));
 
-                    currentAccelerations[ bodyNames.at( j ) ].push_back(
-                                std::make_shared< TimeVaryingGravitationalParameterAccelerationSettings >(
-                                    timeVaryingGravitationalParameter));
+//                    currentAccelerations[ bodyNames.at( j ) ].push_back(
+//                                std::make_shared< TimeVaryingGravitationalParameterAccelerationSettings >(
+//                                    timeVaryingGravitationalParameter));
 
                 }
                 else{
@@ -332,9 +385,9 @@ int main( )
               std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
                     sep_violation_acceleration, "Mercury" , "Sun" ) );
 
-    dependentVariablesList.push_back(
-              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                    time_varying_gravitational_parameter_acceleration, "Mercury" , "Sun" ) );
+//    dependentVariablesList.push_back(
+//              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+//                    time_varying_gravitational_parameter_acceleration, "Mercury" , "Sun" ) );
 
 
     // Create object with list of dependent variables
@@ -574,9 +627,9 @@ int main( )
                              ("Sun", gravitational_parameter));
     varianceVector.push_back(sigmaSunGM*sigmaSunGM);
 
-    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                             ("global_metric", time_varying_gravitational_parameter));
-    varianceVector.push_back(sigmaTVGP*sigmaTVGP);
+//    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+//                             ("global_metric", time_varying_gravitational_parameter));
+//    varianceVector.push_back(sigmaTVGP*sigmaTVGP);
 
 
     // gravitational moments Sun
@@ -622,18 +675,13 @@ int main( )
     std::cout << "Defining observation settings..." << std::endl;
 
     // generate list of observations
-    std::vector < double > messengerFlybyList;
-    messengerFlybyList.push_back(secondsAfterJ2000(messengerFlyby1));
-    messengerFlybyList.push_back(secondsAfterJ2000(messengerFlyby2));
-    messengerFlybyList.push_back(secondsAfterJ2000(messengerFlyby3));
-
     std::vector< double > baseTimeList =
             makeObservationTimeList(secondsAfterJ2000(observationInitialTime),
                                     secondsAfterJ2000(observationFinalTime),
                                     observationTimeStep,
                                     maximumNumberOfObservations,
                                     unit_conversions::convertDegreesToRadians(180.0-35.0),
-                                    messengerFlybyList);
+                                    flybyList);
 
 
     std::cout << "amount of observation times (before implementing viability settings): " << baseTimeList.size() << std::endl;

@@ -1,24 +1,6 @@
 
 #include "MyApplications/customFunctions.h"
 
-// Get path for output directory.
-
-static inline std::string getOutputPath(
-        const std::string& extraDirectory = "" )
-{
-    // Declare file path string assigned to filePath.
-    // __FILE__ only gives the absolute path of the header file!
-    std::string filePath_( __FILE__ );
-
-    // Strip filename from temporary string and return root-path string.
-    std::string outputPath = filePath_.substr( 0, filePath_.length( )
-                                - std::string( "MyApplications" ).length( ) )
-                                + std::string( "/" );
-    if( extraDirectory != "" ){outputPath += extraDirectory;}
-    if( outputPath.at( outputPath.size( ) - 1 ) != '/' ){outputPath += "/";}
-
-    return outputPath;
-}
 
 
 // convert calendar date and time to seconds after J2000
@@ -28,6 +10,18 @@ double secondsAfterJ2000(Eigen::Vector6i datetime){
     const unsigned int secondsPerDay = 60*60*24;
     const unsigned int julianDayJ2000 = 2451545;
     double julianDay = basic_astrodynamics::convertCalendarDateToJulianDay(datetime[0],datetime[1],datetime[2],datetime[3],datetime[4],datetime[5]);
+    return (julianDay - julianDayJ2000)*secondsPerDay;
+}
+
+double secondsAfterJ2000(std::vector<int> datetime){
+    if (datetime.size() != 6){
+        std::runtime_error("error, vector input of function secondsAfterJ2000 should have size 6 (Y,M,D,h,m,s)");
+    }
+    using namespace tudat;
+    using namespace tudat::basic_astrodynamics;
+    const unsigned int secondsPerDay = 60*60*24;
+    const unsigned int julianDayJ2000 = 2451545;
+    double julianDay = basic_astrodynamics::convertCalendarDateToJulianDay(datetime.at(0),datetime.at(1),datetime.at(2),datetime.at(3),datetime.at(4),datetime.at(5));
     return (julianDay - julianDayJ2000)*secondsPerDay;
 }
 

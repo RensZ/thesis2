@@ -68,7 +68,7 @@ public:
 
             sepPositionCorrection_ = sepPositionCorrectionFunction_( );
 
-            sepCorrectedPositionOfCentralBody_ = positionOfCentralBody_ + sepPositionCorrection_;
+            sepCorrectedPositionOfCentralBody_ = positionOfCentralBody_ - sepPositionCorrection_;
             nordtvedtPartial_ = nordtvedtPartialFunction_( );
 
             gravitationalParameterOfCentralBody_ = gravitationalParameterFunctionOfCentralBody_( );

@@ -7,7 +7,7 @@ Purpose: wrapper file for all the post-processing of thesis_v1.cpp
 
 
 # Directories
-dir_cpp_output = '/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Output/'
+dir_cpp_output = '/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/OutputGenova2018/'
 dir_plots = '/home/rens/Documents/PostProcessing_plots/'
 
 # User inputs
@@ -15,11 +15,10 @@ no_bodies = 1
 bodies     = ["Mercury"]
 parameters = ["X_Mer", "Y_Mer", "Z_Mer",
               "Vx_Mer", "Vy_Mer", "Vz_Mer",
-              "PPN_gamma",
-              "PPN_beta",
+              "Gamma",
+              "Beta",
               "Nordtvedt",
               "mu_Sun",
-              "TVGP_Sun",
               "J2_Sun"]
 dependent_variables = ["Venus_CG",
                        "Earth_CG",
@@ -31,8 +30,7 @@ dependent_variables = ["Venus_CG",
                        "exclude",
                        "Sun_J2",
                        "Sun_SS",
-                       "Sun_SEP",
-                       "Sun_TVGP"]
+                       "Sun_SEP"]
 
 
 # Plot propagated bodies

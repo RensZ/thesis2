@@ -1,0 +1,28 @@
+{
+    "initialTime": [2011, 3, 18, 0, 0, 0],
+    "finalTime": [2012, 4, 28, 0, 0, 0],
+
+    "sunJ2": 2.20E-7,
+    "sunAngularMomentum": 190.0E39,
+    "sunGravitationalParameter": 132712440041.9394E9,
+    "timeVaryingGravitationalParameter": -6.0E-14,
+
+    "sigmaGamma": 2.3E-5,
+    "sigmaBeta": 6.9E-5,
+    "sigmaNordtvedt": 3.0E-4,
+    "sigmaSunGM": 0.14E9,
+    "sigmaSunJ2": 0.03E-7,
+    "sigmaTVGP": 1.0E-14,
+
+    "observationInitialTime": [2011, 3, 18, 0, 0, 0],
+    "observationFinalTime": [2012, 4, 28, 0, 0, 0],
+    "observationTimeStep": 86400.0,
+    "maximumNumberOfObservations": 900,
+    "flybyObject": [],
+
+    "rangeNoise": 2.0,
+    "dopplerNoise": 1.0E-12,
+    "angularPositionNoise": 1.0E-7,
+
+    "outputSubFolderName": "OutputGenova2018"
+}
