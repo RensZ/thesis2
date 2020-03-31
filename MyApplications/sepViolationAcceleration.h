@@ -68,7 +68,7 @@ public:
 
             sepPositionCorrection_ = sepPositionCorrectionFunction_( );
 
-            sepCorrectedPositionOfCentralBody_ = positionOfCentralBody_ - sepPositionCorrection_;
+            sepCorrectedPositionOfCentralBody_ = positionOfCentralBody_ + sepPositionCorrection_;
             nordtvedtPartial_ = nordtvedtPartialFunction_( );
 
             gravitationalParameterOfCentralBody_ = gravitationalParameterFunctionOfCentralBody_( );
@@ -104,7 +104,6 @@ public:
      */
     std::function< Eigen::Vector3d( ) > getPositionFunctionOfCentralBody( )
     { return positionFunctionOfCentralBody_; }
-
 
 
     std::function< Eigen::Vector3d( ) > getSEPPositionCorrectionFunction( )

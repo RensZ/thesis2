@@ -371,7 +371,7 @@ int main( )
             std::make_shared< RungeKuttaVariableStepSizeSettingsScalarTolerances< double > >(
                 double( initialEphemerisTime ), 10.0,
                 RungeKuttaCoefficients::CoefficientSets::rungeKuttaFehlberg78,
-                1.0E-1, 1.0E-1, 5.0, 10.0); //tolerances iets lager?
+                1.0, 1.0, 5.0, 10.0); //tolerances iets lager?
 
 //        std::shared_ptr< IntegratorSettings< > > integratorSettings =
 //                std::make_shared< IntegratorSettings< > >
@@ -514,35 +514,35 @@ int main( )
                                   2, 0, 2, 0, "Sun", spherical_harmonics_cosine_coefficient_block ) );
     varianceVector.push_back( sigmaSunJ2*sigmaSunJ2 );
 
-    parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
-                                  2, 0, maxMercuryDegree, maxMercuryOrder, "Mercury", spherical_harmonics_cosine_coefficient_block ) );
-    for( unsigned int i = 0; i < HgM008.col(0).size(); i++ ){
-        unsigned int d = HgM008i(i,0);
-        unsigned int o = HgM008i(i,1);
-        if (d > maxMercuryDegree || o > maxMercuryOrder){
-            break;
-        }
-        if (d >= 2){
-            double normalization = calculateLegendreGeodesyNormalizationFactor(d,o);
-            double sigma = HgM008(i,4)/normalization;
-            varianceVector.push_back( sigma );
-        }
-    }
+    //    parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
+    //                                  2, 0, maxMercuryDegree, maxMercuryOrder, "Mercury", spherical_harmonics_cosine_coefficient_block ) );
+    //    for( unsigned int i = 0; i < HgM008.col(0).size(); i++ ){
+    //        unsigned int d = HgM008i(i,0);
+    //        unsigned int o = HgM008i(i,1);
+    //        if (d > maxMercuryDegree || o > maxMercuryOrder){
+    //            break;
+    //        }
+    //        if (d >= 2){
+    //            double normalization = calculateLegendreGeodesyNormalizationFactor(d,o);
+    //            double sigma = HgM008(i,4)/normalization;
+    //            varianceVector.push_back( sigma );
+    //        }
+    //    }
 
-    parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
-                                  2, 1, maxMercuryDegree, maxMercuryOrder, "Mercury", spherical_harmonics_sine_coefficient_block ) );
-    for( unsigned int i = 0; i < HgM008.col(0).size(); i++ ){
-        unsigned int d = HgM008i(i,0);
-        unsigned int o = HgM008i(i,1);
-        if (d > maxMercuryDegree || o > maxMercuryOrder){
-            break;
-        }
-        if (d >= 2 && o >= 1){
-            double normalization = calculateLegendreGeodesyNormalizationFactor(d,o);
-            double sigma = HgM008(i,5)/normalization;
-            varianceVector.push_back( sigma );
-        }
-    }
+    //    parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
+    //                                  2, 1, maxMercuryDegree, maxMercuryOrder, "Mercury", spherical_harmonics_sine_coefficient_block ) );
+    //    for( unsigned int i = 0; i < HgM008.col(0).size(); i++ ){
+    //        unsigned int d = HgM008i(i,0);
+    //        unsigned int o = HgM008i(i,1);
+    //        if (d > maxMercuryDegree || o > maxMercuryOrder){
+    //            break;
+    //        }
+    //        if (d >= 2 && o >= 1){
+    //            double normalization = calculateLegendreGeodesyNormalizationFactor(d,o);
+    //            double sigma = HgM008(i,5)/normalization;
+    //            varianceVector.push_back( sigma );
+    //        }
+    //    }
 
 
 //    // Define required settings for arc-wise empirical accelerations
