@@ -36,6 +36,11 @@ print("making plots of propagated bodies...")
 import PropagatedBodies
 PropagatedBodies.f(dir_cpp_output, dir_plots, parameters, bodies)
 
+# Plot residuals over time
+print("making plot of the observation residuals...")
+import Residuals
+Residuals.f(dir_cpp_output, dir_plots, bodies)
+
 # # Plot parameter history
 # print("making plots of parameter estimation history...")
 # import ParameterHistory

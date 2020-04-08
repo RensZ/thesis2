@@ -70,9 +70,8 @@ int main( )
     ////////////////////////////
 
     // Acceleration settings
-    const bool calculateSchwarzschildCorrection = true;
-    const bool calculateLenseThirringCorrection = false;
-    const bool calculateDeSitterCorrection = false;
+    const bool calculateLenseThirringCorrection = false; //need to implement partials
+    const bool calculateDeSitterCorrection = false; //need to implement partials
     const bool estimateJ4 = false;
 
     // Parameter apriori values and uncertainties
@@ -83,7 +82,7 @@ int main( )
     const bool useDirectSpice = false; // Use direct SPICE (more accurate than tabulated Spice)
 
     // Parameter estimation settings
-    const unsigned int maximumNumberOfIterations = 3;
+    const unsigned int maximumNumberOfIterations = 5;
 
     // ABM integrator settings (if RK4 is used instead, initialstepsize is taken)
     const double initialTimeStep = 3600;
@@ -119,11 +118,16 @@ int main( )
     std::vector<int> j2 = json_input["finalTime"];
     Eigen::Vector6i finalTime(j2.data()); j2.clear();
 
+    // Acceleration settings
+    const bool calculateSchwarzschildCorrection = json_input["calculateSchwarzschildCorrection"];
+    const bool includeSEPViolationAcceleration = json_input["includeSEPViolationAcceleration"];
+    const bool includeTVGPAcceleration = json_input["includeTVGPAcceleration"];
 
     // Retrieve input parameters including uncertainties and apriori values
     const double sunJ2 = json_input["sunJ2"];
     const double sunAngularMomentum = json_input["sunAngularMomentum"];
     const double sunGravitationalParameter = json_input["sunGravitationalParameter"];
+    const double nordtvedtParameter = json_input["nordtvedtParameter"];
     const double timeVaryingGravitationalParameter = json_input["timeVaryingGravitationalParameter"];
 
     const double sigmaGamma = json_input["sigmaGamma"];
@@ -162,7 +166,6 @@ int main( )
         currentFlyby.clear();
     }
 
-
     // observation Noise
     double rangeNoise = json_input["rangeNoise"];
     double dopplerNoise = json_input["dopplerNoise"];
@@ -171,7 +174,6 @@ int main( )
     // Location of simulation output
     std::string outputSubFolderName = json_input["outputSubFolderName"];
     std::string outputSubFolder = getOutputPath( ) + outputSubFolderName;
-
 
     // Other parameters, currently not included in json
     const double sunRadius = 695.7E6; //m, from nasa fact sheet
@@ -189,11 +191,18 @@ int main( )
     //// ENVIRONMENT ////
     /////////////////////
 
-    std::cout << "building environment..." << std::endl;
-
     // Load spice kernels.
+    std::cout << "loading SPICE kernels..." << std::endl;
+
     std::string kernelsPath = input_output::getSpiceKernelPath( );
+
     spice_interface::loadStandardSpiceKernels( );
+
+//    std::vector< std::string > customKernels;
+//    customKernels.push_back( kernelsPath + "tudat_merged_spk_kernel_thesis2.bsp" );
+//    spice_interface::loadStandardSpiceKernels( customKernels );
+
+    std::cout << "building environment..." << std::endl;
 
     // Convert initial and final time to Julian
     double initialSimulationTime = secondsAfterJ2000(initialTime);
@@ -218,6 +227,7 @@ int main( )
     double buffer = maximumOrder*maximumStepSize; //see Tudat libraries 1.1.3.
     std::map< std::string, std::shared_ptr< BodySettings > > bodySettings;
     bodySettings = getDefaultBodySettings( bodyNames, initialSimulationTime - buffer, finalSimulationTime + buffer );
+
 
     // Use direct SPICE ephemerides
     if (useDirectSpice == true){
@@ -253,7 +263,6 @@ int main( )
     bodySettings[ "Sun" ] -> gravityFieldSettings = std::make_shared< SphericalHarmonicsGravityFieldSettings >(
                 sunGravitationalParameter, sunRadius,
                 normalizedCosineCoefficients, normalizedSineCoefficients, "IAU_Sun" );
-
 
 
     // Create body map
@@ -309,6 +318,7 @@ int main( )
                 if (bodyNames.at( j ) == "Sun"){
                     currentAccelerations[ bodyNames.at( j ) ].push_back(
                                 std::make_shared< SphericalHarmonicAccelerationSettings > (maximumDegree,0));
+
                     currentAccelerations[ bodyNames.at( j ) ].push_back(
                                 std::make_shared< RelativisticAccelerationCorrectionSettings >(
                                     calculateSchwarzschildCorrection,
@@ -317,13 +327,18 @@ int main( )
                                     "",
                                     sunAngularMomentumVector));
 
-                    currentAccelerations[ bodyNames.at( j ) ].push_back(
-                                std::make_shared< SEPViolationAccelerationSettings >(
-                                    bodyNames));
 
-//                    currentAccelerations[ bodyNames.at( j ) ].push_back(
-//                                std::make_shared< TimeVaryingGravitationalParameterAccelerationSettings >(
-//                                    timeVaryingGravitationalParameter));
+                    if (includeSEPViolationAcceleration == true){
+                        currentAccelerations[ bodyNames.at( j ) ].push_back(
+                                    std::make_shared< SEPViolationAccelerationSettings >(
+                                        bodyNames, nordtvedtParameter));
+                    }
+
+                    if (includeTVGPAcceleration == true){
+                    currentAccelerations[ bodyNames.at( j ) ].push_back(
+                                std::make_shared< TimeVaryingGravitationalParameterAccelerationSettings >(
+                                    timeVaryingGravitationalParameter));
+                    }
 
                 }
                 else{
@@ -349,46 +364,36 @@ int main( )
 
     std::vector< std::shared_ptr< SingleDependentVariableSaveSettings > > dependentVariablesList;
 
-    dependentVariablesList.push_back(
-              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                    central_gravity, "Mercury" , "Venus" ) );
 
-    dependentVariablesList.push_back(
-              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                    central_gravity, "Mercury" , "Earth" ) );
-
-    dependentVariablesList.push_back(
-              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                    central_gravity, "Mercury" , "Moon" ) );
-
-    dependentVariablesList.push_back(
-              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                    central_gravity, "Mercury" , "Mars" ) );
-
-    dependentVariablesList.push_back(
-              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                    central_gravity, "Mercury" , "Jupiter" ) );
-
-    dependentVariablesList.push_back(
-              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                    central_gravity, "Mercury" , "Saturn" ) );
+    for( unsigned int i = 0; i < numberOfNumericalBodies; i++ ){
+        if (!(bodyNames.at( i ) == "Sun") && !(bodyNames.at( i ) == "Mercury")){
+            dependentVariablesList.push_back(
+                      std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                            central_gravity, "Mercury" , bodyNames.at( i ) ) );
+        }
+    }
 
     dependentVariablesList.push_back(
                 std::make_shared< SphericalHarmonicAccelerationTermsDependentVariableSaveSettings >(
                 "Mercury", "Sun", maximumDegree, 0 ) );
 
+    if (calculateSchwarzschildCorrection == true){
     dependentVariablesList.push_back(
               std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
                     relativistic_correction_acceleration, "Mercury" , "Sun" ) );
+    }
 
-//    dependentVariablesList.push_back(
-//              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-//                    sep_violation_acceleration, "Mercury" , "Sun" ) );
+    if (includeSEPViolationAcceleration == true){
+    dependentVariablesList.push_back(
+              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                    sep_violation_acceleration, "Mercury" , "Sun" ) );
+    }
 
-//    dependentVariablesList.push_back(
-//              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-//                    time_varying_gravitational_parameter_acceleration, "Mercury" , "Sun" ) );
-
+    if (includeTVGPAcceleration == true){
+    dependentVariablesList.push_back(
+              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                    time_varying_gravitational_parameter_acceleration, "Mercury" , "Sun" ) );
+    }
 
     // Create object with list of dependent variables
     std::shared_ptr< DependentVariableSaveSettings > dependentVariablesToSave =
@@ -607,32 +612,11 @@ int main( )
         }
     }
 
-
-    // relativistic parameters
-    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                             ("global_metric", ppn_parameter_gamma ) );
-    varianceVector.push_back(sigmaGamma*sigmaGamma);
-
-    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                             ("global_metric", ppn_parameter_beta ) );
-    varianceVector.push_back(sigmaBeta*sigmaBeta);
-
-//    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-//                             ("global_metric", ppn_nordtvedt_parameter ) );
-//    varianceVector.push_back(sigmaNordtvedt*sigmaNordtvedt);
-
-
-    // gravitational parameter Sun and time derivative
+    // gravity field Sun (mu and spherical harmonics)
     parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                              ("Sun", gravitational_parameter));
     varianceVector.push_back(sigmaSunGM*sigmaSunGM);
 
-//    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-//                             ("global_metric", time_varying_gravitational_parameter));
-//    varianceVector.push_back(sigmaTVGP*sigmaTVGP);
-
-
-    // gravitational moments Sun
     std::vector< std::pair< int, int > > blockIndices;
     blockIndices.push_back(std::make_pair(2,0));
     varianceVector.push_back(sigmaSunJ2*sigmaSunJ2);
@@ -642,6 +626,35 @@ int main( )
     }
     parameterNames.push_back(std::make_shared<SphericalHarmonicEstimatableParameterSettings>
                              (blockIndices,"Sun",spherical_harmonics_cosine_coefficient_block));
+
+
+    // relativistic parameters
+    if (calculateSchwarzschildCorrection == true
+        || includeSEPViolationAcceleration == true){
+    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                             ("global_metric", ppn_parameter_gamma ) );
+    varianceVector.push_back(sigmaGamma*sigmaGamma);
+
+    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                             ("global_metric", ppn_parameter_beta ) );
+    varianceVector.push_back(sigmaBeta*sigmaBeta);
+    }
+
+    // Nordtvedt parameter
+    if (includeSEPViolationAcceleration == true){
+    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                             ("global_metric", ppn_nordtvedt_parameter ) );
+    varianceVector.push_back(sigmaNordtvedt*sigmaNordtvedt);
+    }
+
+    // time varying gravitational parameter
+    if (includeTVGPAcceleration == true){
+    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                             ("global_metric", time_varying_gravitational_parameter));
+    varianceVector.push_back(sigmaTVGP*sigmaTVGP);
+    }
+
+
 
 
 
@@ -796,23 +809,25 @@ int main( )
 ////    srand(time(NULL));  //warning: not reproducable
     srand(0);
 
-    for( unsigned int i = 0; i < numberOfNumericalBodies; i++ ){
-        // perturb body positions by random value between -10 and 10 meters
-        parameterPerturbation.segment(i*6,3) = Eigen::Vector3d( (rand()%200-100.0)/10.0,
-                                                                (rand()%200-100.0)/10.0,
-                                                                (rand()%200-100.0)/10.0 );
-        // perturb body velocities by random value between -0.01 and 0.01 m/s
-        parameterPerturbation.segment(i*6,3) = Eigen::Vector3d( (rand()%20-10.0)/100.0,
-                                                                (rand()%20-10.0)/100.0,
-                                                                (rand()%20-10.0)/100.0 );
-    }
+//    for( unsigned int i = 0; i < numberOfNumericalBodies; i++ ){
+//        // perturb body positions by random value between -10 and 10 meters
+//        parameterPerturbation.segment(i*6,3) = Eigen::Vector3d( (rand()%200-100.0)/10.0,
+//                                                                (rand()%200-100.0)/10.0,
+//                                                                (rand()%200-100.0)/10.0 );
+//        // perturb body velocities by random value between -0.01 and 0.01 m/s
+//        parameterPerturbation.segment(i*6,3) = Eigen::Vector3d( (rand()%20-10.0)/100.0,
+//                                                                (rand()%20-10.0)/100.0,
+//                                                                (rand()%20-10.0)/100.0 );
+//    }
 
-    // perturb parameters with a value between -10ppm and +10ppm
-    for( unsigned int i = 0; i < truthParameters.size()-6*numberOfNumericalBodies; i++ ){
-        unsigned int j = i + 6*numberOfNumericalBodies;
-        double randomPercentage = (rand()%200-100.0)/(1.0E7);
-        std::cout << randomPercentage << std::endl;
-        parameterPerturbation( j ) = initialParameterEstimate[j]*randomPercentage;
+    // perturb parameters with a value between -0.001 and +0.001 times the given apriori sigma
+//    for( unsigned int i = 0; i < truthParameters.size()-6*numberOfNumericalBodies; i++ ){
+    for( unsigned int i = 0; i < truthParameters.size(); i++ ){
+//        unsigned int j = i + 6*numberOfNumericalBodies;
+        double randomPercentage = (rand()%20-10.0)/(1000.0);
+        std::cout << "randomPercentage: " << randomPercentage;
+        parameterPerturbation( i ) = sqrt(varianceVector.at( i ))*randomPercentage;
+        std::cout<< " // std: "<<sqrt(varianceVector.at( i )) <<" perturbation: "<<parameterPerturbation( i ) <<std::endl;
     }
 
     initialParameterEstimate += parameterPerturbation;
@@ -900,15 +915,15 @@ int main( )
 //                                     "EstimationResiduals.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ),
                                      "EstimationCorrelations.dat", 16, outputSubFolder );
-//    input_output::writeMatrixToFile( podOutput->getResidualHistoryMatrix( ),
-//                                     "ResidualHistory.dat", 16, outputSubFolder );
+    input_output::writeMatrixToFile( podOutput->getResidualHistoryMatrix( ),
+                                     "ResidualHistory.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( podOutput->getParameterHistoryMatrix( ),
                                      "ParameterHistory.dat", 16, outputSubFolder );
 //    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
 //                                     "ObservationMeasurements.dat", 16, outputSubFolder );
-//    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
-//                                         getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
-//                                     "ObservationTimes.dat", 16, outputSubFolder );
+    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
+                                         getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
+                                     "ObservationTimes.dat", 16, outputSubFolder );
 //    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
 //                                         getConcatenatedGroundStationIndex( podInput->getObservationsAndTimes( ) ).first ),
 //                                     "ObservationLinkEnds.dat", 16, outputSubFolder );

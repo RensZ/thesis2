@@ -143,8 +143,8 @@ int main( )
     const double mercuryRadius =  2.4400000000000000E6; //m
     const double mercuryGravitationalParameter = 2.2031863566000000E13; //m3/s2
 
-    const unsigned int maxMercuryDegree = 2;
-    const unsigned int maxMercuryOrder = 2;
+    const unsigned int maxMercuryDegree = 6;
+    const unsigned int maxMercuryOrder = 6;
 
     Eigen::MatrixXd mercuryCosineCoefficients;
     Eigen::MatrixXd mercurySineCoefficients;
@@ -329,8 +329,11 @@ int main( )
     double arcDuration = 1.01 * 86400.0;
     double arcOverlap = 3600.0;
 
+
+
     // Create propagator settings (including initial state taken from Kepler orbit) for each arc
     std::vector< std::shared_ptr< SingleArcPropagatorSettings< double > > > propagatorSettingsList;
+
     std::vector< double > arcStartTimes;
     double currentTime = initialEphemerisTime;
     while( currentTime <= finalEphemerisTime )
@@ -339,6 +342,8 @@ int main( )
 
         Eigen::Vector6d currentArcInitialState =
                 getBodyCartesianStateAtEpoch("MESSENGER","Mercury","ECLIPJ2000","None",currentTime);
+
+
 
 //        Eigen::Vector6d currentArcInitialState = convertKeplerianToCartesianElements(
 //                    propagateKeplerOrbit( vehicleInitialKeplerianState, currentTime - initialEphemerisTime,
@@ -349,6 +354,7 @@ int main( )
         propagatorSettingsList.push_back( std::make_shared< TranslationalStatePropagatorSettings< double > >(
                                               centralBodies, accelerationModelMap, bodiesToIntegrate, currentArcInitialState,
                                               currentTime + arcDuration + arcOverlap ) );
+
         currentTime += arcDuration;
     }
 
@@ -369,9 +375,9 @@ int main( )
 
     std::shared_ptr< IntegratorSettings< double > > integratorSettings =
             std::make_shared< RungeKuttaVariableStepSizeSettingsScalarTolerances< double > >(
-                double( initialEphemerisTime ), 10.0,
+                double( initialEphemerisTime ), 15.0,
                 RungeKuttaCoefficients::CoefficientSets::rungeKuttaFehlberg78,
-                1.0, 1.0, 5.0, 10.0); //tolerances iets lager?
+                1.0, 30.0, 1.0E-12, 1.0E-12); //tolerances iets lager?
 
 //        std::shared_ptr< IntegratorSettings< > > integratorSettings =
 //                std::make_shared< IntegratorSettings< > >
@@ -457,12 +463,17 @@ int main( )
 //    linkEndsPerObservable[ one_way_range ].push_back( stationTransmitterLinkEnds[ 0 ] );
 //    linkEndsPerObservable[ one_way_range ].push_back( stationReceiverLinkEnds[ 1 ] );
 
+    // one-way
     linkEndsPerObservable[ one_way_doppler ].push_back( stationReceiverLinkEnds[ 0 ] );
     linkEndsPerObservable[ one_way_doppler ].push_back( stationTransmitterLinkEnds[ 0 ] );
+
+    // two-way
     linkEndsPerObservable[ one_way_doppler ].push_back( stationReceiverLinkEnds[ 1 ] );
     linkEndsPerObservable[ one_way_doppler ].push_back( stationTransmitterLinkEnds[ 1 ] );
-    linkEndsPerObservable[ one_way_doppler ].push_back( stationReceiverLinkEnds[ 2 ] );
-    linkEndsPerObservable[ one_way_doppler ].push_back( stationTransmitterLinkEnds[ 2 ] );
+
+    //    linkEndsPerObservable[ one_way_doppler ].push_back( stationReceiverLinkEnds[ 2 ] );
+    //    linkEndsPerObservable[ one_way_doppler ].push_back( stationTransmitterLinkEnds[ 2 ] );
+
 
 //    linkEndsPerObservable[ angular_position ].push_back( stationReceiverLinkEnds[ 2 ] );
 //    linkEndsPerObservable[ angular_position ].push_back( stationTransmitterLinkEnds[ 1 ] );
@@ -494,8 +505,8 @@ int main( )
     parameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
                                   "Vehicle", systemInitialState, arcStartTimes, "Mercury" ) );
 
-    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "global_metric", ppn_parameter_gamma ) );
-    varianceVector.push_back( sigmaGamma*sigmaGamma );
+//    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "global_metric", ppn_parameter_gamma ) );
+//    varianceVector.push_back( sigmaGamma*sigmaGamma );
 
     parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "Vehicle", radiation_pressure_coefficient ) );
     varianceVector.push_back( sigmaRadiation*sigmaRadiation );
@@ -638,7 +649,7 @@ int main( )
         }
     }
 
-    // Create measureement simulation input
+    // Create measurement simulation input
     std::map< ObservableType, std::map< LinkEnds, std::shared_ptr< ObservationSimulationTimeSettings< double > > > >
             measurementSimulationInput;
     for( std::map< ObservableType, std::vector< LinkEnds > >::iterator linkEndIterator = linkEndsPerObservable.begin( );
@@ -674,7 +685,13 @@ int main( )
     // Define noise levels
     double rangeNoise = 0.1;
     double angularPositionNoise = 1.0E-7;
-    double dopplerNoise = 1.0E-12;
+    double dopplerNoise = (0.1E-3)/physical_constants::SPEED_OF_LIGHT; // Mazarico et al. 2014: 0.1mm/s at 60s integration time
+    std::cout << "doppler noise: " << dopplerNoise << std::endl;
+
+    // Defaults
+//    double rangeNoise = 0.1;
+//    double angularPositionNoise = 1.0E-7;
+//    double dopplerNoise = 1.0E-12;
 
     // Create noise functions per observable
     std::map< ObservableType, std::function< double( const double ) > > noiseFunctions;
@@ -717,8 +734,8 @@ int main( )
             Eigen::Matrix< double, Eigen::Dynamic, 1 >::Zero( truthParameters.rows( ) );
     for( unsigned int i = 0; i < arcStartTimes.size( ); i++ )
     {
-        parameterPerturbation.segment( 6 * i, 3 ) = Eigen::Vector3d::Constant( 1.0 );
-        parameterPerturbation.segment( 6 * i + 3, 3 ) = Eigen::Vector3d::Constant( 1.0E-3 );
+        parameterPerturbation.segment( 6*i, 3 ) = Eigen::Vector3d::Constant( 1.0 );
+        parameterPerturbation.segment( 6*i+3, 3 ) = Eigen::Vector3d::Constant( 1.0E-3 );
     }
     initialParameterEstimate += parameterPerturbation;
 
@@ -729,9 +746,10 @@ int main( )
 
     std::cout << "a priori variances:" << std::endl;
     for( unsigned int i = 0; i < truthParameters.size(); i++ ){
-        std::cout << varianceVector.at( i ) << std::endl;
+        std::cout << varianceVector.at( i ) << " ";
         aprioriCovariance( i,i ) = varianceVector.at( i );
     }
+    std::cout << std::endl;
 
     Eigen::MatrixXd inverseOfAprioriCovariance = aprioriCovariance.inverse();
 
@@ -755,8 +773,9 @@ int main( )
 
 
     // Perform estimation
+    const unsigned int numberOfIterations = 5;
     std::shared_ptr< PodOutput< double > > podOutput = orbitDeterminationManager.estimateParameters(
-                podInput, std::make_shared< EstimationConvergenceChecker >( 10 ) );
+                podInput, std::make_shared< EstimationConvergenceChecker >( numberOfIterations ) );
 
 
 
@@ -766,7 +785,7 @@ int main( )
 
     std::cout<< "provide output..." << std::endl;
 
-    std::string outputSubFolder = "MercuryOrbiterStateEstimation/";
+    std::string outputSubFolder = "OutputMercuryOrbiter/";
 
     // Print true estimation error, limited mostly by numerical error
     Eigen::VectorXd estimationError = podOutput->parameterEstimate_ - truthParameters;
@@ -783,55 +802,120 @@ int main( )
                 orbitDeterminationManager.getStateTransitionAndSensitivityMatrixInterface( ),
                 60.0, initialEphemerisTime + 3600.0, finalEphemerisTime - 3600.0 );
     input_output::writeDataMapToTextFile( propagatedErrors,
-                                          "earthOrbitEstimationPropagatedErrors.dat",
+                                          "PropagatedErrors.dat",
                                           tudat_applications::getOutputPath( ) + outputSubFolder );
 
-
     input_output::writeMatrixToFile( podOutput->normalizedInformationMatrix_,
-                                     "earthOrbitEstimationInformationMatrix.dat", 16,
+                                     "EstimationInformationMatrix.dat", 16,
                                      tudat_applications::getOutputPath( ) + outputSubFolder );
     input_output::writeMatrixToFile( podOutput->informationMatrixTransformationDiagonal_,
-                                     "earthOrbitEstimationInformationMatrixNormalization.dat", 16,
+                                     "EstimationInformationMatrixNormalization.dat", 16,
                                      tudat_applications::getOutputPath( ) + outputSubFolder );
+
 //    input_output::writeMatrixToFile( podOutput->weightsMatrixDiagonal_,
-//                                     "earthOrbitEstimationWeightsDiagonal.dat", 16,
+//                                     "EstimationWeightsDiagonal.dat", 16,
 //                                     tudat_applications::getOutputPath( ) + outputSubFolder );
 //    input_output::writeMatrixToFile( podOutput->residuals_,
-//                                     "earthOrbitEstimationResiduals.dat", 16,
+//                                     "EstimationResiduals.dat", 16,
 //                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+
     input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ),
-                                     "earthOrbitEstimationCorrelations.dat", 16,
+                                     "EstimationCorrelations.dat", 16,
                                      tudat_applications::getOutputPath( ) + outputSubFolder );
-//    input_output::writeMatrixToFile( podOutput->getResidualHistoryMatrix( ),
-//                                     "earthOrbitResidualHistory.dat", 16,
-//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
-//    input_output::writeMatrixToFile( podOutput->getParameterHistoryMatrix( ),
-//                                     "earthOrbitParameterHistory.dat", 16,
-//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+
+    input_output::writeMatrixToFile( podOutput->getResidualHistoryMatrix( ),
+                                     "ResidualHistory.dat", 16,
+                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+
+    input_output::writeMatrixToFile( podOutput->getParameterHistoryMatrix( ),
+                                     "ParameterHistory.dat", 16,
+                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+
 //    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
-//                                     "earthOrbitObservationMeasurements.dat", 16,
+//                                     "ObservationMeasurements.dat", 16,
 //                                     tudat_applications::getOutputPath( ) + outputSubFolder );
-//    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
-//                                         getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
-//                                     "earthOrbitObservationTimes.dat", 16,
-//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
+                                         getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
+                                     "ObservationTimes.dat", 16,
+                                     tudat_applications::getOutputPath( ) + outputSubFolder );
 //    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
 //                                         getConcatenatedGroundStationIndex( podInput->getObservationsAndTimes( ) ).first ),
-//                                     "earthOrbitObservationLinkEnds.dat", 16,
+//                                     "ObservationLinkEnds.dat", 16,
 //                                     tudat_applications::getOutputPath( ) + outputSubFolder );
 //    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
 //                                         getConcatenatedObservableTypes( podInput->getObservationsAndTimes( ) ) ),
-//                                     "earthOrbitObservationObservableTypes.dat", 16,
+//                                     "ObservationObservableTypes.dat", 16,
 //                                     tudat_applications::getOutputPath( ) + outputSubFolder );
 //    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
-//                                     "earthOrbitObservationMeasurements.dat", 16,
+//                                     "ObservationMeasurements.dat", 16,
 //                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+
+
     input_output::writeMatrixToFile( estimationError,
-                                     "earthOrbitObservationTrueEstimationError.dat", 16,
+                                     "ObservationTrueEstimationError.dat", 16,
                                      tudat_applications::getOutputPath( ) + outputSubFolder );
-    input_output::writeMatrixToFile( podOutput->getFormalErrorVector( ),
-                                     "earthOrbitObservationFormalEstimationError.dat", 16,
+
+    Eigen::VectorXd formalError = podOutput->getFormalErrorVector( );
+    input_output::writeMatrixToFile( formalError,
+                                     "ObservationFormalEstimationError.dat", 16,
                                      tudat_applications::getOutputPath( ) + outputSubFolder );
+
+    // get initial state errors in the RSW frame
+    Eigen::Vector6d averageTrueError, averageFormalError;
+    Eigen::Vector6d averageTrueErrorRSW, averageFormalErrorRSW;
+
+    Eigen::VectorXd trueEstimationErrorRSW = Eigen::VectorXd::Zero(6*numberOfSimulationDays);
+    Eigen::VectorXd formalEstimationErrorRSW = Eigen::VectorXd::Zero(6*numberOfSimulationDays);
+
+    for (int i=0; i<numberOfSimulationDays; i++){
+
+        Eigen::Matrix3d transformationToRSW =
+                    reference_frames::getInertialToRswSatelliteCenteredFrameRotationMatrix(
+                        propagatorSettingsList.at( i )->getInitialStates( ));
+
+        trueEstimationErrorRSW.segment  ( 6*i  , 3 ) = transformationToRSW * estimationError.segment( 6*i  , 3 );
+        trueEstimationErrorRSW.segment  ( 6*i+3, 3 ) = transformationToRSW * estimationError.segment( 6*i+3, 3 );
+
+        formalEstimationErrorRSW.segment( 6*i  , 3 ) = transformationToRSW * formalError.segment( 6*i  , 3 );
+        formalEstimationErrorRSW.segment( 6*i+3, 3 ) = transformationToRSW * formalError.segment( 6*i+3, 3 );
+
+//        std::cout<<formalError.segment( 6*i, 6 ).transpose()<<std::endl;
+//        std::cout<<formalError.segment( 6*i, 6 ).cwiseAbs().transpose()<<std::endl;
+//        std::cout<<(formalError.segment( 6*i, 6 ).cwiseAbs()/numberOfSimulationDays).transpose()<<std::endl;
+
+        averageTrueError      += estimationError.segment( 6*i, 6 ).cwiseAbs()/static_cast< double >(numberOfSimulationDays);
+        averageFormalError    += formalError.segment( 6*i, 6 ).cwiseAbs()/static_cast< double >(numberOfSimulationDays);
+        averageTrueErrorRSW   += trueEstimationErrorRSW.segment( 6*i, 6 ).cwiseAbs()/static_cast< double >(numberOfSimulationDays);
+        averageFormalErrorRSW += formalEstimationErrorRSW.segment( 6*i, 6 ).cwiseAbs()/static_cast< double >(numberOfSimulationDays);
+    }
+
+
+    std::cout<<"average true errors of all initial states in Cartesian frame (absolute values):"<<std::endl
+             <<averageTrueError.transpose()<<std::endl;
+
+    std::cout<<"average formal errors of all initial states in Cartesian frame (absolute values):"<<std::endl
+             <<averageFormalError.transpose()<<std::endl;
+
+    std::cout<<"true to formal ratio:"<<std::endl
+             <<averageTrueError.cwiseQuotient(averageFormalError).transpose()<<std::endl;
+
+    std::cout<<"average true errors of all initial states in RSW frame (absolute values):"<<std::endl
+             <<averageTrueErrorRSW.transpose()<<std::endl;
+
+    std::cout<<"average formal errors of all initial states in RSW frame (absolute values):"<<std::endl
+             <<averageFormalErrorRSW.transpose()<<std::endl;
+
+    std::cout<<"true to formal ratio:"<<std::endl
+             <<averageTrueErrorRSW.cwiseQuotient(averageFormalErrorRSW).transpose()<<std::endl;
+
+
+    input_output::writeMatrixToFile( trueEstimationErrorRSW,
+                                     "ObservationTrueEstimationErrorRSW.dat", 16,
+                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+    input_output::writeMatrixToFile( formalEstimationErrorRSW,
+                                     "ObservationFormalEstimationErrorRSW.dat", 16,
+                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+
 
     // Final statement.
     // The exit code EXIT_SUCCESS indicates that the program was successfully executed.

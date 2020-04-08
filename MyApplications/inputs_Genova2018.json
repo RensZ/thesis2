@@ -2,17 +2,22 @@
     "initialTime": [2008, 1, 1, 0, 0, 0],
     "finalTime": [2015, 5, 1, 0, 0, 0],
 
+    "calculateSchwarzschildCorrection": true,
+    "includeSEPViolationAcceleration": true,
+    "includeTVGPAcceleration": true,
+
     "sunJ2": 2.20E-7,
     "sunAngularMomentum": 190.0E39,
-    "sunGravitationalParameter": 132712440041.9394E9,
-    "timeVaryingGravitationalParameter": -6.0E-14,
+    "sunGravitationalParameter": 132712440043.754E9,
+    "nordtvedtParameter": 1.0E-4,
+    "timeVaryingGravitationalParameter": -0.50E-13,
 
     "sigmaGamma": 2.3E-5,
     "sigmaBeta": 6.9E-5,
     "sigmaNordtvedt": 3.0E-4,
     "sigmaSunGM": 0.14E9,
     "sigmaSunJ2": 0.03E-7,
-    "sigmaTVGP": 1.0E-14,
+    "sigmaTVGP": 0.29E-13,
 
     "observationInitialTime": [2011, 3, 18, 0, 0, 0],
     "observationFinalTime": [2015, 4, 28, 0, 0, 0],
