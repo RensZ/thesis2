@@ -19,7 +19,11 @@ def f(dir_output, dir_plots, parameters, bodies):
     no_parameters = (len(parameters) - no_bodies * 6)
 
     subplotcolumns = 2
-    subplotrows = ceil( (no_bodies*2 + no_parameters)/subplotcolumns )
+
+    if ("gamma" in parameters) and ("beta" in parameters):
+        subplotrows = ceil((no_bodies*2 + no_parameters+1)/subplotcolumns)
+    else:
+        subplotrows = ceil((no_bodies*2 + no_parameters)/subplotcolumns)
 
     data = np.genfromtxt(dir_output + "ParameterHistory.dat")
     truth = np.genfromtxt(dir_output + "TruthParameters.dat")
@@ -68,12 +72,29 @@ def f(dir_output, dir_plots, parameters, bodies):
         if i >= len(parameters)-subplotcolumns:
             plt.xlabel('number of iterations')
 
+        if parameters[i] == "gamma":
+            gamma = data[i]
+        if parameters[i] == "beta":
+            beta = data[i]
+
         if parameters[i] == "J2_Sun":
             J2 = data[i,-1]*Knm(2,0)
             print("  unnormalized J2 result: ", J2)
         elif parameters[i] == "J4_Sun":
             J4 = data[i,-1]*Knm(4,0)
             print("  unnormalized J4 result: ", J4)
+
+    #if both gamma and beta are included, also plot nordtvedt parameter using the linear relation
+    if ("gamma" in parameters) and ("beta" in parameters):
+        nordtvedt = 4*beta-gamma-3
+        print("  nordtvedt parameter from gamma and beta:", nordtvedt)
+
+        k = no_bodies * 2 + 1 + len(parameters) - 6 * no_bodies
+        plt.subplot(subplotrows, subplotcolumns, k)
+        plt.axhline(y=0.0, color='orange', linewidth=0.75, linestyle='--')
+        plt.plot(nordtvedt)
+        plt.yscale('symlog')
+        plt.ylabel("nv_constraint")
 
     plt.tight_layout()
     plt.savefig(dir_plots + 'paremeter_history.png')

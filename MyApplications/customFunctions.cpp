@@ -29,33 +29,53 @@ double secondsAfterJ2000(std::vector<int> datetime){
 //! Function to calculate the Sun-Mercury-Earth angle
 //! this is a simplified approach which simply uses the mean motion
 //! w.r.t. an epoch where both planets alligned
-double mercurySunEarthAngle(const double time){
+//double mercurySunEarthAngle(const double time){
 
-    // from NASA fact sheet https://nssdc.gsfc.nasa.gov/planetary/factsheet/
-    const double yearMercury = 88.0  *24.0*60.0*60.0;
-    const double yearEarth   = 365.2 *24.0*60.0*60.0;
+//    // from NASA fact sheet https://nssdc.gsfc.nasa.gov/planetary/factsheet/
+//    const double yearMercury = 88.0  *24.0*60.0*60.0;
+//    const double yearEarth   = 365.2 *24.0*60.0*60.0;
 
-    // Get mean motion of planets
-    const double pi = 3.14159265359;
-    const double meanMotionMercury = 2*pi/yearMercury;
-    const double meanMotionEarth   = 2*pi/yearEarth;
+//    // Get mean motion of planets
+//    const double pi = 3.14159265359;
+//    const double meanMotionMercury = 2*pi/yearMercury;
+//    const double meanMotionEarth   = 2*pi/yearEarth;
 
-    // get time since last eclipse, when Mercury and Earth perfectly aligned (MSE = 0)
-    Eigen::Vector6i timeAlignedVector;
-    timeAlignedVector << 2019, 11, 11, 15, 20, 0; // YYYY, MM, DD, hh, mm, ss
-    const double timeAligned = secondsAfterJ2000(timeAlignedVector);
-    const double timeDelta = time-timeAligned;
+//    // get time since last eclipse, when Mercury and Earth perfectly aligned (MSE = 0)
+//    Eigen::Vector6i timeAlignedVector;
+//    timeAlignedVector << 2019, 11, 11, 15, 20, 0; // YYYY, MM, DD, hh, mm, ss
+//    const double timeAligned = secondsAfterJ2000(timeAlignedVector);
+//    const double timeDelta = time-timeAligned;
 
-    // get angular distance traveled since last eclipse (or in the past)
-    const double angleTravelledMercury = timeDelta*meanMotionMercury;
-    const double angleTravelledEarth   = timeDelta*meanMotionEarth;
+//    // get angular distance traveled since last eclipse (or in the past)
+//    const double angleTravelledMercury = timeDelta*meanMotionMercury;
+//    const double angleTravelledEarth   = timeDelta*meanMotionEarth;
 
-    // get value between 0-180 degrees
-    double relativeAngle = std::fmod((abs(angleTravelledMercury-angleTravelledEarth)),2*pi);
-    if (relativeAngle > pi){
-        relativeAngle = 2*pi-relativeAngle;
-    }
-    return relativeAngle;
+//    // get value between 0-180 degrees
+//    double relativeAngle = std::fmod((abs(angleTravelledMercury-angleTravelledEarth)),2*pi);
+//    if (relativeAngle > pi){
+//        relativeAngle = 2*pi-relativeAngle;
+//    }
+//    return relativeAngle;
+//}
+
+//! Function to calculate the angle between 2 bodies w.r.t. a central body
+//! Based on spice data
+double angleBetween2Bodies(const double time,
+                           const std::string centralBody,
+                           const std::string body1,
+                           const std::string body2)
+{
+    using namespace tudat::spice_interface;
+
+    Eigen::Vector3d posBody1 = getBodyCartesianPositionAtEpoch(
+                body1,centralBody,"ECLIPJ2000","None",time);
+    Eigen::Vector3d posBody2 = getBodyCartesianPositionAtEpoch(
+                body2,centralBody,"ECLIPJ2000","None",time);
+
+    double cosAngle = posBody1.dot(posBody2)/
+            ( posBody1.norm() * posBody2.norm() );
+
+    return acos(cosAngle);
 }
 
 
@@ -75,7 +95,7 @@ std::vector<double> makeObservationTimeList(const double initialTime,
 
     // add times to observation list which satisfy MSE requirements
     while (currentTime <= endTime){
-        double MSEangle = mercurySunEarthAngle(currentTime);
+        double MSEangle = angleBetween2Bodies(currentTime, "Sun", "Mercury", "Earth");
         if (MSEangle < maxMSEangle){
             observationTimeList.push_back(currentTime);
         }
@@ -99,17 +119,18 @@ std::vector<double> makeObservationTimeList(const double initialTime,
 
 //! Function to make the noise level dependent on the Mercury-Sun-Earth angle,
 //! based on a linear relation constructed with the minimum and maximum noise.
-double noiseBasedOnMSEangle(const double time){
+double noiseBasedOnMSEangle(const double time,
+                            const double noiseAtMinAngle,
+                            const double noiseAtMaxAngle){
 
     // calculate MSE angle with previous function
-    double relativeAngle = mercurySunEarthAngle(time);
+//    double relativeAngle = mercurySunEarthAngle(time);
+    double relativeAngle = angleBetween2Bodies(time, "Sun", "Mercury", "Earth");
 
     // get noise level (linear function between a minimum and maximum point)
     const double pi = 3.14159265359;
     const double maxAngle = pi-35.0*pi/180.0;
     const double minAngle = 0;
-    const double noiseAtMaxAngle = 3.0;
-    const double noiseAtMinAngle = 0.5;
 
     const double slope = (noiseAtMaxAngle-noiseAtMinAngle)/(maxAngle-minAngle);
     const double intercept = noiseAtMaxAngle - slope*maxAngle;
@@ -126,4 +147,14 @@ double noiseBasedOnMSEangle(const double time){
 
     return sample;
 }
+
+double averageOfDoubleVector(std::vector<double> input){
+    double average = 0.0;
+    double vectorsize = input.size( );
+    for(unsigned int i=0; i<vectorsize; i++){
+        average += input.at( i )/vectorsize;
+    }
+    return average;
+}
+
 

@@ -25,14 +25,16 @@ public:
             std::function< Eigen::Vector3d( ) > positionFunctionOfCentralBody,
             std::function< Eigen::Vector3d( ) > sepPositionCorrectionFunction,
             std::function< double( ) > gravitationalParameterFunctionOfCentralBody,
-            std::function< Eigen::Vector3d( ) > nordtvedtPartialFunction
+            std::function< Eigen::Vector3d( ) > nordtvedtPartialFunction,
+            std::function< bool( ) > useNordtvedtConstraintFunction
             ):
         AccelerationModel< Eigen::Vector3d >( ),
         positionFunctionOfAcceleratedBody_( positionFunctionOfAcceleratedBody ),
         positionFunctionOfCentralBody_( positionFunctionOfCentralBody ),
         sepPositionCorrectionFunction_( sepPositionCorrectionFunction ),
         gravitationalParameterFunctionOfCentralBody_( gravitationalParameterFunctionOfCentralBody ),
-        nordtvedtPartialFunction_(nordtvedtPartialFunction)
+        nordtvedtPartialFunction_(nordtvedtPartialFunction),
+        useNordtvedtConstraintFunction_(useNordtvedtConstraintFunction)
     {
         this->updateMembers( );
     }
@@ -112,6 +114,10 @@ public:
     std::function< Eigen::Vector3d( ) > getNordtvedtPartialFunction( )
     { return nordtvedtPartialFunction_; }
 
+    std::function< bool( ) > getUseNordtvedtConstraintFunction( )
+    { return useNordtvedtConstraintFunction_; }
+
+
 
 
     //! Function to return the current gravitational parameter of central body
@@ -155,6 +161,8 @@ private:
     //! position function of main body exerting acceleration (e.g. Earth for an Earth-orbiting satellite).
     std::function< Eigen::Vector3d( ) > nordtvedtPartialFunction_;
 
+    std::function< bool( ) > useNordtvedtConstraintFunction_;
+
 
 //    //! Function returning the time varying gravitational parameter
 //    std::function< double( ) > nordtvedtParameterFunction_;
@@ -178,6 +186,7 @@ private:
 
     //! Current position of the body undergoing acceleration, as computed by last call to updateMembers function.
     Eigen::Vector3d nordtvedtPartial_;
+
 
 
     //! Current time varying gravitational parameter
