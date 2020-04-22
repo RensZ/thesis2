@@ -131,10 +131,10 @@ int main( )
 
     std::string outputSubFolder = vehicle + "/";
 
-    const unsigned int maxMercuryDegree = 2;
-    const unsigned int maxMercuryOrder = 2;
+    const unsigned int maxMercuryDegree = 8;
+    const unsigned int maxMercuryOrder = 8;
 
-    int numberOfSimulationDays = 10.0;
+    int numberOfSimulationDays = 20.0;
     double arcOverlap = 0.0;
     double observationStartOffset = 1000.0; // or observation generation wil complain
     //    double arcDuration = 1.01 * 86400.0; // integrate for one day
@@ -319,9 +319,11 @@ int main( )
 
     accelerationsOfVehicle[ "Sun" ].push_back( std::make_shared< AccelerationSettings >(
                                                    basic_astrodynamics::cannon_ball_radiation_pressure ) );
-    accelerationsOfVehicle[ "Mercury" ].push_back( std::make_shared< EmpiricalAccelerationSettings >( ) );
+
     accelerationsOfVehicle[ "Sun" ].push_back( std::make_shared< RelativisticAccelerationCorrectionSettings >(
                                                      true, false, false ) );
+
+    //    accelerationsOfVehicle[ "Mercury" ].push_back( std::make_shared< EmpiricalAccelerationSettings >( ) );
 
     accelerationMap[ vehicle ] = accelerationsOfVehicle;
 
@@ -394,10 +396,7 @@ int main( )
             Eigen::Vector6d currentKeplerianState = convertCartesianToKeplerianElements(currentArcInitialState, mercuryGravitationalParameter);
 
 //            currentKeplerianState( 5 ) = unit_conversions::convertDegreesToRadians(0.0);
-
-//            Eigen::Vector6d newCurrentArcInitialState = convertKeplerianToCartesianElements(currentKeplerianState, mercuryGravitationalParameter );
-
-    //        currentKeplerianState = convertCartesianToKeplerianElements(currentArcInitialState, mercuryGravitationalParameter);
+//            currentArcInitialState = convertKeplerianToCartesianElements(currentKeplerianState, mercuryGravitationalParameter);
 
             std::cout<<"a: "<<currentKeplerianState(0);
             std::cout<<" e: "<<currentKeplerianState(1);
@@ -407,12 +406,6 @@ int main( )
             std::cout<<" TA: "<<unit_conversions::convertRadiansToDegrees(currentKeplerianState(5));
             std::cout<<" MSE: "<<currentMSEAngleDegrees<<std::endl;
 
-
-    //        Eigen::Vector6d currentArcInitialState = convertKeplerianToCartesianElements(
-    //                    propagateKeplerOrbit( vehicleInitialKeplerianState, currentTime - initialEphemerisTime,
-    //                                          mercuryGravitationalParameter ), mercuryGravitationalParameter );
-
-    //        std::cout<<currentTime<<currentTime+arcDuration<<std::endl;
             propagatorSettingsList.push_back( std::make_shared< TranslationalStatePropagatorSettings< double > >(
                                                   centralBodies, accelerationModelMap, bodiesToIntegrate, currentArcInitialState,
                                                   currentTime + arcDuration + arcOverlap ) );
@@ -441,13 +434,14 @@ int main( )
 
     std::shared_ptr< IntegratorSettings< double > > integratorSettings =
             std::make_shared< RungeKuttaVariableStepSizeSettingsScalarTolerances< double > >(
-                double( initialEphemerisTime ), 10.0,
+                double( initialEphemerisTime ), 1.0,
                 RungeKuttaCoefficients::CoefficientSets::rungeKuttaFehlberg78,
-                0.1, 30.0, 1.0E-15, 1.0E-15);
+                0.01, 5.0,
+                1.0E-15, 1.0E-15);
 
 //        std::shared_ptr< IntegratorSettings< > > integratorSettings =
 //                std::make_shared< IntegratorSettings< > >
-//                ( rungeKutta4, initialEphemerisTime, 2.0 );
+//                ( rungeKutta4, initialEphemerisTime, 1.0 );
 
 
 
@@ -524,9 +518,9 @@ int main( )
     }
 
     LinkEnds twoWayDopplerLinkEnds;
-    twoWayDopplerLinkEnds[ transmitter ] = std::make_pair( "Earth", groundStationNames.at( 0 ) );
+    twoWayDopplerLinkEnds[ transmitter ] = std::make_pair( "Earth", "" );
     twoWayDopplerLinkEnds[ reflector1 ] = std::make_pair( vehicle, "" );
-    twoWayDopplerLinkEnds[ receiver ] = std::make_pair( "Earth", groundStationNames.at( 0 ) );
+    twoWayDopplerLinkEnds[ receiver ] = std::make_pair( "Earth", "" );
 
 
     // Define (arbitrarily) link ends to be used for 1-way range, 1-way doppler and angular position observables
@@ -576,29 +570,29 @@ int main( )
     //                             ("Mercury", gravitational_parameter));
     //    varianceVector.push_back(sigmaMercuryGM*sigmaMercuryGM);
 
-        parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
-                                      2, 0, maxMercuryDegree, maxMercuryOrder, "Mercury", spherical_harmonics_cosine_coefficient_block ) );
-        for( unsigned int i = 0; i < HgM008.col(0).size(); i++ ){
-            unsigned int d = HgM008i(i,0);
-            unsigned int o = HgM008i(i,1);
-            if (d >= 2 && o >= 0 && d <= maxMercuryDegree && o <= maxMercuryOrder){
-                double sigma = HgM008(i,4);
-                std::cout<<"Cnm d/o "<<d<<"/"<<o<<" sigma: "<<sigma<<std::endl;
-                varianceVector.push_back( sigma*sigma );
-            }
-        }
+//        parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
+//                                      2, 0, maxMercuryDegree, maxMercuryOrder, "Mercury", spherical_harmonics_cosine_coefficient_block ) );
+//        for( unsigned int i = 0; i < HgM008.col(0).size(); i++ ){
+//            unsigned int d = HgM008i(i,0);
+//            unsigned int o = HgM008i(i,1);
+//            if (d >= 2 && o >= 0 && d <= maxMercuryDegree && o <= maxMercuryOrder){
+//                double sigma = HgM008(i,4);
+//                std::cout<<"Cnm d/o "<<d<<"/"<<o<<" sigma: "<<sigma<<std::endl;
+//                varianceVector.push_back( sigma*sigma );
+//            }
+//        }
 
-        parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
-                                      2, 1, maxMercuryDegree, maxMercuryOrder, "Mercury", spherical_harmonics_sine_coefficient_block ) );
-        for( unsigned int i = 0; i < HgM008.col(0).size(); i++ ){
-            unsigned int d = HgM008i(i,0);
-            unsigned int o = HgM008i(i,1);
-            if (d >= 2 && o >= 1 && d <= maxMercuryDegree && o <= maxMercuryOrder){
-                double sigma = HgM008(i,5);
-                std::cout<<"Snm d/o "<<d<<"/"<<o<<" sigma: "<<sigma<<std::endl;
-                varianceVector.push_back( sigma*sigma );
-            }
-        }
+//        parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
+//                                      2, 1, maxMercuryDegree, maxMercuryOrder, "Mercury", spherical_harmonics_sine_coefficient_block ) );
+//        for( unsigned int i = 0; i < HgM008.col(0).size(); i++ ){
+//            unsigned int d = HgM008i(i,0);
+//            unsigned int o = HgM008i(i,1);
+//            if (d >= 2 && o >= 1 && d <= maxMercuryDegree && o <= maxMercuryOrder){
+//                double sigma = HgM008(i,5);
+//                std::cout<<"Snm d/o "<<d<<"/"<<o<<" sigma: "<<sigma<<std::endl;
+//                varianceVector.push_back( sigma*sigma );
+//            }
+//        }
 
 //    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "global_metric", ppn_parameter_gamma ) );
 //    varianceVector.push_back( sigmaGamma*sigmaGamma );
@@ -917,13 +911,34 @@ int main( )
     // Propagate covariance matrix
     std::cout<<"propagating covariance matrix..."<<std::endl;
 
-//    std::map< double, Eigen::MatrixXd > propagatedCovariance;
-//    propagateCovariance(propagatedCovariance, initialCovarianceMatrix,
-//                        orbitDeterminationManager.getStateTransitionAndSensitivityMatrixInterface( ),
-//                        baseTimeList);
-//                        //60.0, initialEphemerisTime + 3600.0, finalEphemerisTime - 3600.0 );
+    std::map< double, Eigen::MatrixXd > propagatedCovariance;
+    propagateCovariance(propagatedCovariance, initialCovarianceMatrix,
+                        orbitDeterminationManager.getStateTransitionAndSensitivityMatrixInterface( ),
+                        baseTimeList);
+                        //60.0, initialEphemerisTime + 3600.0, finalEphemerisTime - 3600.0 );
 
-//    Eigen::MatrixXd propagatedVariance;
+    std::map<double, Eigen::VectorXd> propagatedErrorUsingCovMatrix;
+    std::map<double, Eigen::VectorXd> propagatedRSWErrorUsingCovMatrix;
+
+    unsigned int j = 0;
+    std::map<double, Eigen::MatrixXd>::iterator covit = propagatedCovariance.begin();
+    Eigen::Vector6d currentSigmaVectorRSW;
+    while (covit != propagatedCovariance.end()){
+
+        Eigen::VectorXd currentSigmaVector = covit->second.diagonal().cwiseSqrt();
+        Eigen::Matrix3d currentTransformationToRSW =
+                reference_frames::getInertialToRswSatelliteCenteredFrameRotationMatrix(fullStateHistory.block(j,1,1,3));
+
+        currentSigmaVectorRSW.segment(0,3) = currentTransformationToRSW * currentSigmaVector.segment(0,3);
+        currentSigmaVectorRSW.segment(3,3) = currentTransformationToRSW * currentSigmaVector.segment(3,3);
+
+        propagatedErrorUsingCovMatrix.insert(std::make_pair( covit->first, currentSigmaVector ) );
+        propagatedRSWErrorUsingCovMatrix.insert(std::make_pair( covit->first, currentSigmaVectorRSW ) );
+
+        j++; covit++;
+    }
+
+
 
 
     // Print true estimation error, limited mostly by numerical error
@@ -996,9 +1011,17 @@ int main( )
                                           "PropagatedErrorsRSW.dat",
                                           tudat_applications::getOutputPath( ) + outputSubFolder );
 
-//    input_output::writeDataMapToTextFile( propagatedCovariance,
-//                                          "PropagatedCovariance.dat",
-//                                          tudat_applications::getOutputPath( ) + outputSubFolder );
+    input_output::writeDataMapToTextFile( propagatedCovariance,
+                                          "PropagatedCovariance.dat",
+                                          tudat_applications::getOutputPath( ) + outputSubFolder );
+
+    input_output::writeDataMapToTextFile( propagatedErrorUsingCovMatrix,
+                                          "propagatedErrorUsingCovMatrix.dat",
+                                          tudat_applications::getOutputPath( ) + outputSubFolder );
+
+    input_output::writeDataMapToTextFile( propagatedRSWErrorUsingCovMatrix,
+                                          "propagatedRSWErrorUsingCovMatrix.dat",
+                                          tudat_applications::getOutputPath( ) + outputSubFolder );
 
     input_output::writeMatrixToFile( podOutput->normalizedInformationMatrix_,
                                      "EstimationInformationMatrix.dat", 16,
@@ -1008,13 +1031,13 @@ int main( )
                                      "EstimationInformationMatrixNormalization.dat", 16,
                                      tudat_applications::getOutputPath( ) + outputSubFolder );
 
-//    input_output::writeMatrixToFile( podOutput->weightsMatrixDiagonal_,
-//                                     "EstimationWeightsDiagonal.dat", 16,
-//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+    input_output::writeMatrixToFile( podOutput->weightsMatrixDiagonal_,
+                                     "EstimationWeightsDiagonal.dat", 16,
+                                     tudat_applications::getOutputPath( ) + outputSubFolder );
 
-//    input_output::writeMatrixToFile( podOutput->residuals_,
-//                                     "EstimationResiduals.dat", 16,
-//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+    input_output::writeMatrixToFile( podOutput->residuals_,
+                                     "EstimationResiduals.dat", 16,
+                                     tudat_applications::getOutputPath( ) + outputSubFolder );
 
     input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ),
                                      "EstimationCorrelations.dat", 16,
@@ -1028,28 +1051,28 @@ int main( )
                                      "ParameterHistory.dat", 16,
                                      tudat_applications::getOutputPath( ) + outputSubFolder );
 
-//    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
-//                                     "ObservationMeasurements.dat", 16,
-//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
+                                     "ObservationMeasurements.dat", 16,
+                                     tudat_applications::getOutputPath( ) + outputSubFolder );
 
     input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
                                          getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
                                      "ObservationTimes.dat", 16,
                                      tudat_applications::getOutputPath( ) + outputSubFolder );
 
-//    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
-//                                         getConcatenatedGroundStationIndex( podInput->getObservationsAndTimes( ) ).first ),
-//                                     "ObservationLinkEnds.dat", 16,
-//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
+                                         getConcatenatedGroundStationIndex( podInput->getObservationsAndTimes( ) ).first ),
+                                     "ObservationLinkEnds.dat", 16,
+                                     tudat_applications::getOutputPath( ) + outputSubFolder );
 
-//    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
-//                                         getConcatenatedObservableTypes( podInput->getObservationsAndTimes( ) ) ),
-//                                     "ObservationObservableTypes.dat", 16,
-//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
+                                         getConcatenatedObservableTypes( podInput->getObservationsAndTimes( ) ) ),
+                                     "ObservationObservableTypes.dat", 16,
+                                     tudat_applications::getOutputPath( ) + outputSubFolder );
 
-//    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
-//                                     "ObservationMeasurements.dat", 16,
-//                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
+                                     "ObservationMeasurements.dat", 16,
+                                     tudat_applications::getOutputPath( ) + outputSubFolder );
 
     input_output::writeMatrixToFile( estimationError,
                                      "ObservationTrueEstimationError.dat", 16,
@@ -1065,6 +1088,18 @@ int main( )
 
     input_output::writeMatrixToFile( formalEstimationErrorRSW,
                                      "ObservationFormalEstimationErrorRSW.dat", 16,
+                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+
+    input_output::writeMatrixToFile( podInput->getInverseOfAprioriCovariance( ),
+                                     "InverseAPrioriCovariance.dat", 16,
+                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+
+    input_output::writeMatrixToFile( podOutput->inverseNormalizedCovarianceMatrix_,
+                                     "InverseNormalizedCovariance.dat", 16,
+                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+
+    input_output::writeMatrixToFile( podOutput->getUnnormalizedCovarianceMatrix( ),
+                                     "UnnormalizedCovariance.dat", 16,
                                      tudat_applications::getOutputPath( ) + outputSubFolder );
 
 

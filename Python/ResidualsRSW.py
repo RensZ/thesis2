@@ -12,6 +12,8 @@ def f(dir_output, dir_plots, bodies, no_arcs):
     import matplotlib.pyplot as plt
     from ToolKit import format_spines
 
+    useAbs = False #plot absolute values of errors or not?
+
     #residual history
     t = np.genfromtxt(dir_output+"ObservationTimes.dat")/(60.0*60.0)
     r = np.genfromtxt(dir_output + "ResidualHistory.dat")
@@ -22,7 +24,12 @@ def f(dir_output, dir_plots, bodies, no_arcs):
     r_best = r[:,i_best]
 
     #propagated errors
-    e_data = np.abs(np.genfromtxt(dir_output + "PropagatedErrorsRSW.dat"))
+    if useAbs:
+        e_data = np.abs(np.genfromtxt(dir_output + "propagatedRSWErrorUsingCovMatrix.dat"))
+        yscale = "log"
+    else:
+        e_data = np.genfromtxt(dir_output + "propagatedRSWErrorUsingCovMatrix.dat")
+        yscale = "symlog"
     t_e = e_data[:,0]/(60.0*60.0)
 
     #plot per arc the residuals and propagated errors
@@ -82,7 +89,7 @@ def f(dir_output, dir_plots, bodies, no_arcs):
         if i == 1:
             ax.set_ylabel("propagated position error [m]")
             ax.legend(["r", "at", "ct"])
-        ax.set_yscale("log")
+        ax.set_yscale(yscale)
         ax.set_ylim(np.min(e_data[:, 1:4]), np.max(e_data[:, 1:4]))
         format_spines(ax, i, no_arcs)
 
@@ -92,7 +99,7 @@ def f(dir_output, dir_plots, bodies, no_arcs):
         ax.set_xlabel("t [h]",horizontalalignment='left',x=0.01)
         if i == 1:
             ax.set_ylabel("propagated velocity error [m]")
-        ax.set_yscale("log")
+        ax.set_yscale(yscale)
         ax.set_ylim(np.min(e_data[:,4:7]), np.max(e_data[:,4:7]))
         format_spines(ax, i, no_arcs)
 
@@ -101,6 +108,8 @@ def f(dir_output, dir_plots, bodies, no_arcs):
     plt.tight_layout()
     plt.savefig(dir_plots+bodies[0]+"_observation_residuals_perarc_RSW")
 
+    t_av_r = 60.0 * 60.0 * np.asarray(t_av_r)
+    t_av_e = 60.0*60.0*np.asarray(t_av_e)
 
     # plot average per arc, errobars are the sigmas
     fig2 = plt.figure(figsize=(16, 10))
@@ -108,14 +117,14 @@ def f(dir_output, dir_plots, bodies, no_arcs):
     plt.errorbar(t_av_r,av_r,std_r,fmt='--o')
     plt.xlabel("time since J2000 [s]")
     plt.ylabel("residual [m]")
-    plt.yscale("log")
+    plt.yscale(yscale)
 
     plt.subplot(3,1,2)
     for j in range(0, 3):
         plt.errorbar(t_av_e,av_e[:,j],std_e[:,j],fmt='--o')
     plt.xlabel("time since J2000 [s]")
     plt.ylabel("propagated position error [m]")
-    plt.yscale("log")
+    plt.yscale(yscale)
     plt.legend(["r", "at", "ct"])
 
     plt.subplot(3,1,3)
@@ -123,7 +132,7 @@ def f(dir_output, dir_plots, bodies, no_arcs):
         plt.errorbar(t_av_e,av_e[:,j],std_e[:,j],fmt='--o')
     plt.xlabel("time since J2000 [s]")
     plt.ylabel("propagated velocity error [m/s]")
-    plt.yscale("log")
+    plt.yscale(yscale)
     plt.legend(["r", "at", "ct"])
 
     plt.tight_layout()

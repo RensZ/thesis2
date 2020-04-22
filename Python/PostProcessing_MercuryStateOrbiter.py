@@ -14,17 +14,7 @@ no_bodies = 1
 no_arcs_v = [7, 4]
 bodies     = ["Vehicle"]
 parameters = []
-dependent_variables = ["Venus_CG",
-                       "Earth_CG",
-                       "Moon_CG",
-                       "Mars_CG",
-                       "Jupiter_CG",
-                       "Saturn_CG",
-                       "Sun_CG",
-                       "exclude",
-                       "Sun_J2",
-                       "Sun_SS",
-                       "Sun_TVGP"]
+dependent_variables = []
 
 
 for i in range(len(vehicles)):
@@ -36,6 +26,7 @@ for i in range(len(vehicles)):
 
     dir_cpp_output = '/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Output/' + v + '/'
     dir_plots = '/home/rens/Documents/PostProcessing_plots/MercuryStateOrbiter/' + v + '/'
+
 
     # Make correlation heat map
     print(" making heat map of parameter correlations...")
@@ -55,6 +46,8 @@ for i in range(len(vehicles)):
     print(" making plot of the observation residuals and propagated errors in the RSW frame...")
     import ResidualsRSW
     ResidualsRSW.f(dir_cpp_output, dir_plots, bodies, no_arcs)
+
+
 
 
     # # Plot parameter history

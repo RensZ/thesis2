@@ -26,4 +26,8 @@ double noiseBasedOnMSEangle(const double time,
 
 double averageOfDoubleVector(std::vector<double> input);
 
+Eigen::MatrixXd interpolatePositionErrors(Eigen::MatrixXd errorMatrix,
+                                          std::vector<double> timesAtWhichToInterpolate);
+
+
 #endif // CUSTOMFUNCTIONS_H

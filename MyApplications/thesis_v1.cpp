@@ -109,8 +109,8 @@ int main( )
 
     // Load json input
 //    std::string input_filename = "inputs_Genova2018.json"; // Messenger simulation done in Genova et al 2018, Nature Communications
-//    std::string input_filename = "inputs_Genova2018_test.json"; // 1-year version of the simulation above for quicker test
-    std::string input_filename = "inputs_Schettino2015.json"; // BepiColombo simulation done in Schettino et al 2015, IEEE
+    std::string input_filename = "inputs_Genova2018_test.json"; // 1-year version of the simulation above for quicker test
+//    std::string input_filename = "inputs_Schettino2015.json"; // BepiColombo simulation done in Schettino et al 2015, IEEE
 
     using json = nlohmann::json;
     std::string json_directory = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/InputsJSON/";
@@ -836,7 +836,9 @@ int main( )
     if (includeSpacecraftPositionError == true){
 
         std::cout << "Adding satellite estimation initial position error" << std::endl;
-        Eigen::Vector3d constantSatelliteError; constantSatelliteError << 10.0, 10.0, 10.0;
+//        Eigen::Vector3d constantSatelliteError; constantSatelliteError << 10.0, 10.0, 10.0;
+        Eigen::MatrixXd error_input = input_output::readMatrixFromFile("/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/error_inputs.txt", ",");
+
 
         // get to the location in the map where we can find the range observables
         PodInputDataType::iterator podInputIterator = observationsAndTimes.begin();
@@ -849,16 +851,25 @@ int main( )
                     ObservationVectorType allObservations = singleObservableIterator->second.first;
                     std::vector< double > allObservationTimes = singleObservableIterator->second.second.first;
 
+                    Eigen::MatrixXd interpolatedErrorMatrix = interpolatePositionErrors(error_input, allObservationTimes);
+
                     ObservationVectorType newObservations = Eigen::VectorXd(allObservations.size());
 
                     // for every observation, retrieve and add the range bias that should be added
                     for (unsigned int i=0; i<allObservationTimes.size(); i++){
                         double observationTime = allObservationTimes.at( i );
 
+                        Eigen::Vector3d currentSatelliteError = interpolatedErrorMatrix.row(i);
+
                         Eigen::Vector3d mercuryPositionWrtEarth = -getBodyCartesianStateAtEpoch("Earth","Mercury","IAU_Mercury","None",observationTime).segment(0,3);
                         Eigen::Vector3d rangeUnitVector = mercuryPositionWrtEarth / mercuryPositionWrtEarth.norm( );
-                        double rangeCorrection = constantSatelliteError.dot(rangeUnitVector);
+
+                        double rangeCorrection = currentSatelliteError.dot(rangeUnitVector);
                         if (podInputIterator->first == n_way_range){rangeCorrection *= 2.0;}
+
+                        std::cout<<observationTime<<" // "<<
+                                   currentSatelliteError.transpose()<<" // "<<
+                                   rangeCorrection<<std::endl;
 
                         newObservations(i) = allObservations(i) + rangeCorrection;
                     }

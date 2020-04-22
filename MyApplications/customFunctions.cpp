@@ -157,4 +157,39 @@ double averageOfDoubleVector(std::vector<double> input){
     return average;
 }
 
+Eigen::MatrixXd interpolatePositionErrors(Eigen::MatrixXd errorMatrix,
+                                          std::vector<double> timesAtWhichToInterpolate){
+
+    std::vector<double> t(errorMatrix.col(0).data(), errorMatrix.col(0).data() + errorMatrix.rows());
+    std::vector<double> x(errorMatrix.col(1).data(), errorMatrix.col(1).data() + errorMatrix.rows());
+    std::vector<double> y(errorMatrix.col(2).data(), errorMatrix.col(2).data() + errorMatrix.rows());
+    std::vector<double> z(errorMatrix.col(3).data(), errorMatrix.col(3).data() + errorMatrix.rows());
+
+    std::cout<<x.at(0)<<" "<<x.at(t.size()-1)<<" "<<x.size();
+    std::cout<<y.at(0)<<" "<<y.at(t.size()-1)<<" "<<y.size();
+    std::cout<<z.at(0)<<" "<<z.at(t.size()-1)<<" "<<z.size();
+
+    using namespace tudat::interpolators;
+    LinearInterpolatorDouble xInterpolator(t, x, huntingAlgorithm, use_boundary_value);
+    LinearInterpolatorDouble yInterpolator(t, y, huntingAlgorithm, use_boundary_value);
+    LinearInterpolatorDouble zInterpolator(t, z, huntingAlgorithm, use_boundary_value);
+
+    Eigen::MatrixXd interpolatedErrorMatrix(timesAtWhichToInterpolate.size(),3);
+    for( unsigned int i=0; i<timesAtWhichToInterpolate.size(); i++){
+        double currentTime = timesAtWhichToInterpolate.at(i);
+
+        interpolatedErrorMatrix(i,0) = xInterpolator.interpolate(currentTime);
+        interpolatedErrorMatrix(i,1) = yInterpolator.interpolate(currentTime);
+        interpolatedErrorMatrix(i,2) = zInterpolator.interpolate(currentTime);
+
+//        std::cout<<"t: " <<currentTime
+//                 <<" x: "<<interpolatedErrorMatrix(i,0)
+//                 <<" y: "<<interpolatedErrorMatrix(i,1)
+//                 <<" y: "<<interpolatedErrorMatrix(i,2)<<std::endl;
+
+    }
+
+    return interpolatedErrorMatrix;
+}
+
 
