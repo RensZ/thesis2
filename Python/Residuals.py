@@ -6,7 +6,7 @@ Purpose: to plot the residuals of the individual observations for inspection
 """
 
 
-def f(dir_output, dir_plots, bodies, no_arcs):
+def f(dir_output, dir_plots, body, no_arcs):
 
     import numpy as np
     import matplotlib.pyplot as plt
@@ -99,14 +99,14 @@ def f(dir_output, dir_plots, bodies, no_arcs):
             ax.plot(t_e[start_e:end_e]-t_e[0], e_data[start_e:end_e, j], linewidth=0.75)
         ax.set_xlabel("t [h]",horizontalalignment='left',x=0.01)
         if i == 1:
-            ax.set_ylabel("propagated velocity error [m]")
+            ax.set_ylabel("propagated velocity error [m/s]")
         ax.set_yscale(yscale)
         ax.set_ylim(np.min(e_data[:,4:7]), np.max(e_data[:,4:7]))
         format_spines(ax, i, no_arcs)
 
 
     plt.tight_layout()
-    plt.savefig(dir_plots+bodies[0]+"_observation_residuals_perarc")
+    plt.savefig(dir_plots+"_observation_residuals_perarc")
 
     t_av_r = 60.0 * 60.0 * np.asarray(t_av_r)
     t_av_e = 60.0*60.0*np.asarray(t_av_e)
@@ -137,11 +137,11 @@ def f(dir_output, dir_plots, bodies, no_arcs):
     plt.legend(["x", "y", "z"])
 
     plt.tight_layout()
-    plt.savefig(dir_plots+bodies[0]+"_residuals_averages")
+    plt.savefig(dir_plots+"_residuals_averages")
 
 
     #save averages to use as input for thesis_v1.cpp
     save_array = np.vstack((t_av_e, av_e[:,0], av_e[:,1], av_e[:,2], av_e[:,3], av_e[:,4], av_e[:,5])).T
-    averages_filename = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/error_inputs.txt"
+    averages_filename = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/error_inputs_"+body+".txt"
     np.savetxt(averages_filename, save_array, delimiter=",")
 

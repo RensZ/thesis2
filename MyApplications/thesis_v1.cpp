@@ -11,6 +11,7 @@
  */
 
 #include <Tudat/SimulationSetup/tudatEstimationHeader.h>
+#include <random>
 
 #include "tudatApplications/thesis/MyApplications/timeVaryingGravitationalParameterAcceleration.h"
 #include "Tudat/Astrodynamics/OrbitDetermination/AccelerationPartials/timeVaryingGravitationalParameterPartial.h"
@@ -113,7 +114,7 @@ int main( )
 //    std::string input_filename = "inputs_Schettino2015.json"; // BepiColombo simulation done in Schettino et al 2015, IEEE
 
     using json = nlohmann::json;
-    std::string json_directory = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/InputsJSON/";
+    std::string json_directory = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/";
     std::ifstream json_file(json_directory + input_filename);
     json json_input;
     json_file >> json_input;
@@ -126,6 +127,8 @@ int main( )
     Eigen::Vector6i initialTime(json1.data()); json1.clear();
     std::vector<int> json2 = json_input["finalTime"];
     Eigen::Vector6i finalTime(json2.data()); json2.clear();
+
+    std::string vehicle = json_input["vehicle"];
 
     // Acceleration settings
     const bool calculateSchwarzschildCorrection = json_input["calculateSchwarzschildCorrection"];
@@ -837,8 +840,12 @@ int main( )
 
         std::cout << "Adding satellite estimation initial position error" << std::endl;
 //        Eigen::Vector3d constantSatelliteError; constantSatelliteError << 10.0, 10.0, 10.0;
-        Eigen::MatrixXd error_input = input_output::readMatrixFromFile("/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/error_inputs.txt", ",");
 
+        std::string vehicleErrorFilename = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/error_inputs_"+vehicle+".txt";
+        Eigen::MatrixXd error_input = input_output::readMatrixFromFile(vehicleErrorFilename, ",");
+
+        std::random_device rd;
+        std::mt19937 gen(rd());
 
         // get to the location in the map where we can find the range observables
         PodInputDataType::iterator podInputIterator = observationsAndTimes.begin();
@@ -860,15 +867,22 @@ int main( )
                         double observationTime = allObservationTimes.at( i );
 
                         Eigen::Vector3d currentSatelliteError = interpolatedErrorMatrix.row(i);
+                        Eigen::Vector3d randomErrorSample;
+                        for (unsigned int j=0; j<3; j++){
+                            std::normal_distribution<double> d(0.0, currentSatelliteError( j ));
+                            randomErrorSample( j ) = d(gen);
+                        }
+
 
                         Eigen::Vector3d mercuryPositionWrtEarth = -getBodyCartesianStateAtEpoch("Earth","Mercury","IAU_Mercury","None",observationTime).segment(0,3);
                         Eigen::Vector3d rangeUnitVector = mercuryPositionWrtEarth / mercuryPositionWrtEarth.norm( );
 
-                        double rangeCorrection = currentSatelliteError.dot(rangeUnitVector);
+                        double rangeCorrection = randomErrorSample.dot(rangeUnitVector);
                         if (podInputIterator->first == n_way_range){rangeCorrection *= 2.0;}
 
                         std::cout<<observationTime<<" // "<<
                                    currentSatelliteError.transpose()<<" // "<<
+                                   randomErrorSample.transpose()<<" // "<<
                                    rangeCorrection<<std::endl;
 
                         newObservations(i) = allObservations(i) + rangeCorrection;

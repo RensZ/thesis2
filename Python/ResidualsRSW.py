@@ -6,13 +6,13 @@ Purpose: to plot the residuals of the individual observations for inspection
 """
 
 
-def f(dir_output, dir_plots, bodies, no_arcs):
+def f(dir_output, dir_plots, body, no_arcs):
 
     import numpy as np
     import matplotlib.pyplot as plt
     from ToolKit import format_spines
 
-    useAbs = False #plot absolute values of errors or not?
+    useAbs = True #plot absolute values of errors or not?
 
     #residual history
     t = np.genfromtxt(dir_output+"ObservationTimes.dat")/(60.0*60.0)
@@ -106,7 +106,7 @@ def f(dir_output, dir_plots, bodies, no_arcs):
 
 
     plt.tight_layout()
-    plt.savefig(dir_plots+bodies[0]+"_observation_residuals_perarc_RSW")
+    plt.savefig(dir_plots+"_observation_residuals_perarc_RSW")
 
     t_av_r = 60.0 * 60.0 * np.asarray(t_av_r)
     t_av_e = 60.0*60.0*np.asarray(t_av_e)
@@ -136,5 +136,5 @@ def f(dir_output, dir_plots, bodies, no_arcs):
     plt.legend(["r", "at", "ct"])
 
     plt.tight_layout()
-    plt.savefig(dir_plots+bodies[0]+"_residuals_averages_RSW")
+    plt.savefig(dir_plots+"_residuals_averages_RSW")
 

@@ -11,7 +11,7 @@ vehicles = ["MESSENGER",
 
 # User inputs
 no_bodies = 1
-no_arcs_v = [7, 4]
+no_arcs_v = [10, 12]
 bodies     = ["Vehicle"]
 parameters = []
 dependent_variables = []
@@ -28,6 +28,11 @@ for i in range(len(vehicles)):
     dir_plots = '/home/rens/Documents/PostProcessing_plots/MercuryStateOrbiter/' + v + '/'
 
 
+    # Plot integration error
+    print( "making plots of the integration errors after backward propagation..." )
+    import IntegrationError
+    IntegrationError.f(dir_cpp_output, dir_plots, bodies, no_arcs)
+
     # Make correlation heat map
     print(" making heat map of parameter correlations...")
     import HeatMap
@@ -41,11 +46,11 @@ for i in range(len(vehicles)):
     # Plot residuals over time
     print(" making plot of the observation residuals and propagated errors...")
     import Residuals
-    Residuals.f(dir_cpp_output, dir_plots, bodies, no_arcs)
+    Residuals.f(dir_cpp_output, dir_plots, v, no_arcs)
 
     print(" making plot of the observation residuals and propagated errors in the RSW frame...")
     import ResidualsRSW
-    ResidualsRSW.f(dir_cpp_output, dir_plots, bodies, no_arcs)
+    ResidualsRSW.f(dir_cpp_output, dir_plots, v, no_arcs)
 
 
 

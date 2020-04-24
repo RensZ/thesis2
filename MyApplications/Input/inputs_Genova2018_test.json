@@ -1,0 +1,38 @@
+{
+    "vehicle": "MESSENGER",
+
+    "initialTime": [2011, 3, 18, 0, 0, 0],
+    "finalTime": [2012, 4, 28, 0, 0, 0],
+
+    "calculateSchwarzschildCorrection": true,
+    "includeSEPViolationAcceleration": true,
+    "includeTVGPAcceleration": true,
+
+    "sunJ2": 2.1890E-7,
+    "sunAngularMomentum": 190.0E39,
+    "sunGravitationalParameter": 132712440041.9394E9,
+    "nordtvedtParameter": 0.0,
+    "timeVaryingGravitationalParameter": 0.0,
+
+    "sigmaGamma": 2.3E-5,
+    "sigmaBeta": 6.9E-5,
+    "sigmaNordtvedt": 3.0E-4,
+    "sigmaSunGM": 0.14E9,
+    "sigmaSunJ2": 0.25E-7,
+    "sigmaTVGP": 0.29E-13,
+
+    "observationInitialTime": [2011, 3, 18, 0, 0, 0],
+    "observationFinalTime": [2012, 4, 28, 0, 0, 0],
+    "observationTimeStep": 86400.0,
+    "maximumNumberOfObservations": 900,
+    "flybyObject": [],
+
+    "rangeNoise": 2.0,
+    "dopplerNoise": 1.0E-12,
+    "angularPositionNoise": 1.0E-7,
+
+    "noiseAtMinAngle": 0.5,
+    "noiseAtMaxAngle": 3.0,
+
+    "outputSubFolderName": "OutputGenova2018"
+}

@@ -80,11 +80,21 @@ int main( )
     const double sigmaPosition = 1000.0;
     const double sigmaVelocity = 1.0;
     const double sigmaRadiation = 0.5;
-    const double sigmaMercuryGM = (8.6276900083604273e-05)*(1E9); //sigma of SH coefficient at 0,0.
+    const double sigmaMercuryGM = (8.6276900083604273e-05)*(1E9);
     const double sigmaGamma = 2.3E-5; //Genova 2018
     const double sigmaSunJ2 = 0.25E-7; //Genova 2018
     std::vector<double> varianceVector;
 
+    // integrator settings
+    double initialStepSize = 1.0;
+    double minimumStepSize = 0.1; //epsilon
+    double maximumStepSize = 10.0;
+    double tolerance = 1.0E-15;
+
+    const unsigned int maxMercuryDegree = 2;
+    const unsigned int maxMercuryOrder = 2;
+
+    const unsigned int minMercuryDegree = 2; //only for estimatable parameters, SH field starts at d/o 0/0
 
     // run simulation for vehicle
     std::string vehicle = "MESSENGER";
@@ -130,9 +140,6 @@ int main( )
 
 
     std::string outputSubFolder = vehicle + "/";
-
-    const unsigned int maxMercuryDegree = 8;
-    const unsigned int maxMercuryOrder = 8;
 
     int numberOfSimulationDays = 20.0;
     double arcOverlap = 0.0;
@@ -273,22 +280,6 @@ int main( )
 
     setGlobalFrameBodyEphemerides( bodyMap, "SSB", "ECLIPJ2000" );
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////     CREATE GROUND STATIONS               //////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    // Create ground stations from geodetic positions.
-    std::vector< std::string > groundStationNames;
-    groundStationNames.push_back( "Station1" );
-    groundStationNames.push_back( "Station2" );
-    groundStationNames.push_back( "Station3" );
-
-    createGroundStation( bodyMap.at( "Earth" ), "Station1",
-                         ( Eigen::Vector3d( ) << 0.0, 1.25, 0.0 ).finished( ), geodetic_position );
-    createGroundStation( bodyMap.at( "Earth" ), "Station2",
-                         ( Eigen::Vector3d( ) << 0.0, -1.55, 2.0 ).finished( ), geodetic_position );
-    createGroundStation( bodyMap.at( "Earth" ), "Station3",
-                         ( Eigen::Vector3d( ) << 0.0, 0.8, 4.0 ).finished( ), geodetic_position );
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////            CREATE ACCELERATIONS          //////////////////////////////////////////////////////
@@ -327,8 +318,6 @@ int main( )
 
     accelerationMap[ vehicle ] = accelerationsOfVehicle;
 
-    std::cout<<"accelerations on Vehicle set"<<std::endl;
-
 
     // Set bodies for which initial state is to be estimated and integrated.
     std::vector< std::string > bodiesToIntegrate;
@@ -342,12 +331,13 @@ int main( )
     AccelerationMap accelerationModelMap = createAccelerationModelsMap(
                 bodyMap, accelerationMap, bodiesToIntegrate, centralBodies );
 
-    std::cout<<"acceleration models created"<<std::endl;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////             CREATE PROPAGATION SETTINGS            ////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+    std::cout<<"creating propagation settings"<<std::endl;
 
 //    Eigen::Vector6d vehicleInitialKeplerianState;
 //    vehicleInitialKeplerianState( semiMajorAxisIndex ) = (5.172314175394792E-05)*physical_constants::ASTRONOMICAL_UNIT;
@@ -356,7 +346,6 @@ int main( )
 //    vehicleInitialKeplerianState( argumentOfPeriapsisIndex ) = unit_conversions::convertDegreesToRadians( 0.0 );
 //    vehicleInitialKeplerianState( longitudeOfAscendingNodeIndex ) = unit_conversions::convertDegreesToRadians( 0.0 );
 //    vehicleInitialKeplerianState( trueAnomalyIndex ) = unit_conversions::convertDegreesToRadians( 0.0 );
-
 
 //    // MESSENGER state at 2012-9-4 from JPL HORIZON
 //    Eigen::Vector6d vehicleInitialStateKM;
@@ -377,8 +366,9 @@ int main( )
     // Create propagator settings (including initial state taken from Kepler orbit) for each arc
     std::vector< std::shared_ptr< SingleArcPropagatorSettings< double > > > propagatorSettingsList;
 
-
     std::vector< double > arcStartTimes;
+    std::vector< double > arcEndTimes;
+    std::vector< Eigen::VectorXd > arcInitialStates;
     double currentTime = initialEphemerisTime;
 
     while( currentTime <= finalEphemerisTime )
@@ -406,9 +396,17 @@ int main( )
             std::cout<<" TA: "<<unit_conversions::convertRadiansToDegrees(currentKeplerianState(5));
             std::cout<<" MSE: "<<currentMSEAngleDegrees<<std::endl;
 
+            double currentArcEndTime = currentTime + arcDuration + arcOverlap;
+            arcEndTimes.push_back( currentArcEndTime );
+
+            arcInitialStates.push_back( currentArcInitialState );
+
+            std::shared_ptr< PropagationTimeTerminationSettings > terminationSettings =
+                  std::make_shared< propagators::PropagationTimeTerminationSettings >( currentArcEndTime, true );
+
             propagatorSettingsList.push_back( std::make_shared< TranslationalStatePropagatorSettings< double > >(
                                                   centralBodies, accelerationModelMap, bodiesToIntegrate, currentArcInitialState,
-                                                  currentTime + arcDuration + arcOverlap ) );
+                                                   terminationSettings ) );
         } else{
             std::cout<<"arc at time "<<currentTime<<" not included, MSE: "<<currentMSEAngleDegrees <<std::endl;
         }
@@ -434,14 +432,17 @@ int main( )
 
     std::shared_ptr< IntegratorSettings< double > > integratorSettings =
             std::make_shared< RungeKuttaVariableStepSizeSettingsScalarTolerances< double > >(
-                double( initialEphemerisTime ), 1.0,
+                double( initialEphemerisTime ), initialStepSize,
                 RungeKuttaCoefficients::CoefficientSets::rungeKuttaFehlberg78,
-                0.01, 5.0,
-                1.0E-15, 1.0E-15);
+                minimumStepSize, maximumStepSize,
+                tolerance, tolerance);
 
 //        std::shared_ptr< IntegratorSettings< > > integratorSettings =
 //                std::make_shared< IntegratorSettings< > >
 //                ( rungeKutta4, initialEphemerisTime, 1.0 );
+
+
+
 
 
 
@@ -457,42 +458,117 @@ int main( )
                                                     arcStartTimes,
                                                     true,false,true);
 
-    std::cout << "saving integration result and dependent variables..." << std::endl;
+    std::cout << "saving integration result..." << std::endl;
 
     std::vector< std::map< double, Eigen::VectorXd > > integrationResult = dynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+    Eigen::MatrixXd finalStates(arcStartTimes.size(),6);
 
     // Retrieve numerically integrated state for each body.
-    std::vector< std::map< double, Eigen::VectorXd > > allBodiesPropagationHistory;
-    allBodiesPropagationHistory.resize( bodiesToIntegrate.size() );
+    std::map< double, Eigen::VectorXd > propagationHistory;
 
     for( unsigned int i = 0; i < arcStartTimes.size(); i++ ){
 
-        std::map< double, Eigen::VectorXd > intermediateIntegrationResult = integrationResult.at(i);
+        std::map< double, Eigen::VectorXd > intermediateIntegrationResult = integrationResult.at( i );
 
         for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateIntegrationResult.begin( );
              stateIterator != intermediateIntegrationResult.end( ); stateIterator++ )
         {
-            for( unsigned int i = 0; i < bodiesToIntegrate.size(); i++ )
-            {
-                allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
+            propagationHistory[ stateIterator->first ] = stateIterator->second.segment( 0, 6 );
+            if (stateIterator->first == arcEndTimes.at(i)){
+                finalStates.row(i) = stateIterator->second.segment( 0, 6 );
             }
         }
-
     }
 
-    for( unsigned int i = 0; i < bodiesToIntegrate.size(); i++ )
-    {
-        // Write propagation history to file.
-        input_output::writeDataMapToTextFile(
-                    allBodiesPropagationHistory[ i ],
-                    "StatePropagationHistoryVehicle.dat",
-                     tudat_applications::getOutputPath( ) + outputSubFolder,
-                    "",
-                    std::numeric_limits< double >::digits10,
-                    std::numeric_limits< double >::digits10,
-                    "," );
+    // Write propagation history to file.
+    input_output::writeDataMapToTextFile(
+                propagationHistory,
+                "StatePropagationHistoryVehicle.dat",
+                 tudat_applications::getOutputPath( ) + outputSubFolder,
+                "",
+                std::numeric_limits< double >::digits10,
+                std::numeric_limits< double >::digits10,
+                "," );
+
+
+
+    //////////////////////////////
+    //// BACKWARD PROPAGATION ////
+    //////////////////////////////
+
+    std::cout << "performing backward propagation..." << std::endl;
+
+    std::vector< std::shared_ptr< SingleArcPropagatorSettings< double > > > backwardPropagatorSettingsList;
+
+    for (unsigned i=0; i<arcStartTimes.size(); i++){
+
+        std::shared_ptr< PropagationTimeTerminationSettings > backwardTerminationSettings =
+              std::make_shared< propagators::PropagationTimeTerminationSettings >( arcStartTimes.at(i), true );
+
+        backwardPropagatorSettingsList.push_back( std::make_shared< TranslationalStatePropagatorSettings< double > >(
+                                              centralBodies, accelerationModelMap, bodiesToIntegrate, finalStates.row(i),
+                                               backwardTerminationSettings ) );
     }
 
+
+    std::shared_ptr< PropagatorSettings< double > > backwardPropagatorSettings =
+            std::make_shared< MultiArcPropagatorSettings< double > >( backwardPropagatorSettingsList );
+
+    std::shared_ptr< IntegratorSettings< double > > backwardIntegratorSettings =
+            std::make_shared< RungeKuttaVariableStepSizeSettingsScalarTolerances< double > >(
+                double( finalEphemerisTime ), -initialStepSize,
+                RungeKuttaCoefficients::CoefficientSets::rungeKuttaFehlberg78,
+                -minimumStepSize, -maximumStepSize,
+                tolerance, tolerance);
+
+    MultiArcDynamicsSimulator <> backwardDynamicsSimulator (bodyMap,
+                                                    backwardIntegratorSettings,
+                                                    backwardPropagatorSettings,
+                                                    arcEndTimes,
+                                                    true,false,true);
+
+
+    std::cout << "saving backward integration result..." << std::endl;
+
+    std::vector< std::map< double, Eigen::VectorXd > > backwardIntegrationResult = backwardDynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+
+    // Retrieve numerically integrated state for each body.
+    std::map< double, Eigen::VectorXd > backwardPropagationHistory;
+    Eigen::MatrixXd initialStatesFromBackwardPropagation(arcStartTimes.size(),6);
+    Eigen::MatrixXd arcInitialStatesMatrix(arcStartTimes.size(),6);
+
+
+    for( unsigned int i = 0; i < arcStartTimes.size(); i++ ){
+
+        std::map< double, Eigen::VectorXd > intermediateIntegrationResult = backwardIntegrationResult.at( i );
+
+        for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateIntegrationResult.begin( );
+             stateIterator != intermediateIntegrationResult.end( ); stateIterator++ )
+        {
+            backwardPropagationHistory[ stateIterator->first ] = stateIterator->second.segment( 0, 6 );
+            if (stateIterator->first == arcStartTimes.at(i)){
+                initialStatesFromBackwardPropagation.row(i) = stateIterator->second.segment( 0, 6 );
+                arcInitialStatesMatrix.row(i) = arcInitialStates.at(i);
+            }
+        }
+    }
+
+    Eigen::MatrixXd initialStatesIntegrationError = initialStatesFromBackwardPropagation - arcInitialStatesMatrix;
+//    std::cout<<"actual initial states: "<<std::endl<<arcInitialStatesMatrix<<std::endl;
+//    std::cout<<"result backward integration: "<<std::endl<<initialStatesFromBackwardPropagation<<std::endl;
+    std::cout<<"differences initial states: "<<std::endl<<initialStatesIntegrationError<<std::endl;
+//    std::cout<<"approximated numerical error per arc (difference divided by two):"<<std::endl<<initialStatesIntegrationError/2.0<<std::endl;
+
+
+    // Write propagation history to file.
+    input_output::writeDataMapToTextFile(
+                backwardPropagationHistory,
+                "StatePropagationHistoryVehicleBackwards.dat",
+                 tudat_applications::getOutputPath( ) + outputSubFolder,
+                "",
+                std::numeric_limits< double >::digits10,
+                std::numeric_limits< double >::digits10,
+                "," );
 
 
 
@@ -504,18 +580,16 @@ int main( )
     std::vector< LinkEnds > stationReceiverLinkEnds;
     std::vector< LinkEnds > stationTransmitterLinkEnds;
 
-    for( unsigned int i = 0; i < groundStationNames.size( ); i++ )
-    {
-        LinkEnds linkEnds;
-        linkEnds[ transmitter ] = std::make_pair( "Earth", groundStationNames.at( i ) );
-        linkEnds[ receiver ] = std::make_pair( vehicle, "" );
-        stationTransmitterLinkEnds.push_back( linkEnds );
 
-        linkEnds.clear( );
-        linkEnds[ receiver ] = std::make_pair( "Earth", groundStationNames.at( i ) );
-        linkEnds[ transmitter ] = std::make_pair( vehicle, "" );
-        stationReceiverLinkEnds.push_back( linkEnds );
-    }
+    LinkEnds linkEnds;
+    linkEnds[ transmitter ] = std::make_pair( "Earth", "" );
+    linkEnds[ receiver ] = std::make_pair( vehicle, "" );
+    stationTransmitterLinkEnds.push_back( linkEnds );
+
+    linkEnds.clear( );
+    linkEnds[ receiver ] = std::make_pair( "Earth", "" );
+    linkEnds[ transmitter ] = std::make_pair( vehicle, "" );
+    stationReceiverLinkEnds.push_back( linkEnds );
 
     LinkEnds twoWayDopplerLinkEnds;
     twoWayDopplerLinkEnds[ transmitter ] = std::make_pair( "Earth", "" );
@@ -528,10 +602,10 @@ int main( )
 //    linkEndsPerObservable[ one_way_range ].push_back( stationReceiverLinkEnds[ 0 ] );
 //    linkEndsPerObservable[ one_way_range ].push_back( stationTransmitterLinkEnds[ 0 ] );
 
-//    linkEndsPerObservable[ one_way_doppler ].push_back( stationReceiverLinkEnds[ 0 ] );
-//    linkEndsPerObservable[ one_way_doppler ].push_back( stationTransmitterLinkEnds[ 0 ] );
+    linkEndsPerObservable[ one_way_doppler ].push_back( stationReceiverLinkEnds[ 0 ] );
+    linkEndsPerObservable[ one_way_doppler ].push_back( stationTransmitterLinkEnds[ 0 ] );
 
-    linkEndsPerObservable[ two_way_doppler ].push_back( twoWayDopplerLinkEnds );
+//    linkEndsPerObservable[ two_way_doppler ].push_back( twoWayDopplerLinkEnds );
 
 //    linkEndsPerObservable[ one_way_differenced_range ].push_back( stationReceiverLinkEnds[ 0 ] );
 //    linkEndsPerObservable[ one_way_differenced_range ].push_back( stationTransmitterLinkEnds[ 0 ] );
@@ -570,29 +644,34 @@ int main( )
     //                             ("Mercury", gravitational_parameter));
     //    varianceVector.push_back(sigmaMercuryGM*sigmaMercuryGM);
 
-//        parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
-//                                      2, 0, maxMercuryDegree, maxMercuryOrder, "Mercury", spherical_harmonics_cosine_coefficient_block ) );
-//        for( unsigned int i = 0; i < HgM008.col(0).size(); i++ ){
-//            unsigned int d = HgM008i(i,0);
-//            unsigned int o = HgM008i(i,1);
-//            if (d >= 2 && o >= 0 && d <= maxMercuryDegree && o <= maxMercuryOrder){
-//                double sigma = HgM008(i,4);
-//                std::cout<<"Cnm d/o "<<d<<"/"<<o<<" sigma: "<<sigma<<std::endl;
-//                varianceVector.push_back( sigma*sigma );
-//            }
-//        }
 
-//        parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
-//                                      2, 1, maxMercuryDegree, maxMercuryOrder, "Mercury", spherical_harmonics_sine_coefficient_block ) );
-//        for( unsigned int i = 0; i < HgM008.col(0).size(); i++ ){
-//            unsigned int d = HgM008i(i,0);
-//            unsigned int o = HgM008i(i,1);
-//            if (d >= 2 && o >= 1 && d <= maxMercuryDegree && o <= maxMercuryOrder){
-//                double sigma = HgM008(i,5);
-//                std::cout<<"Snm d/o "<<d<<"/"<<o<<" sigma: "<<sigma<<std::endl;
-//                varianceVector.push_back( sigma*sigma );
-//            }
-//        }
+
+
+    if (maxMercuryDegree >= minMercuryDegree){
+        parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
+                                      minMercuryDegree, 0, maxMercuryDegree, maxMercuryOrder, "Mercury", spherical_harmonics_cosine_coefficient_block ) );
+        for( unsigned int i = 0; i < HgM008.col(0).size(); i++ ){
+            unsigned int d = HgM008i(i,0);
+            unsigned int o = HgM008i(i,1);
+            if (d >= minMercuryDegree && o >= 0 && d <= maxMercuryDegree && o <= maxMercuryOrder){
+                double sigma = HgM008(i,4);
+                std::cout<<"Cnm d/o "<<d<<"/"<<o<<" sigma: "<<sigma<<std::endl;
+                varianceVector.push_back( sigma*sigma );
+            }
+        }
+
+        parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
+                                      minMercuryDegree, 1, maxMercuryDegree, maxMercuryOrder, "Mercury", spherical_harmonics_sine_coefficient_block ) );
+        for( unsigned int i = 0; i < HgM008.col(0).size(); i++ ){
+            unsigned int d = HgM008i(i,0);
+            unsigned int o = HgM008i(i,1);
+            if (d >= minMercuryDegree && o >= 1 && d <= maxMercuryDegree && o <= maxMercuryOrder){
+                double sigma = HgM008(i,5);
+                std::cout<<"Snm d/o "<<d<<"/"<<o<<" sigma: "<<sigma<<std::endl;
+                varianceVector.push_back( sigma*sigma );
+            }
+        }
+    }
 
 //    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "global_metric", ppn_parameter_gamma ) );
 //    varianceVector.push_back( sigmaGamma*sigmaGamma );
