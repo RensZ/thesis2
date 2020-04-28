@@ -36,7 +36,7 @@ for i in range(len(vehicles)):
     # Make correlation heat map
     print(" making heat map of parameter correlations...")
     import HeatMap
-    HeatMap.f(dir_cpp_output, dir_plots, parameters)
+    HeatMap.f(dir_cpp_output, dir_plots, parameters, no_arcs)
 
     # Plot propagated bodies
     print(" making plots of propagated bodies...")

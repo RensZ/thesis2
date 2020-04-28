@@ -6,7 +6,7 @@ Purpose: to make a heat map of correlation coefficients between parameters
 """
 
 
-def f(dir_output, dir_plots, parameters):
+def f(dir_output, dir_plots, parameters, no_arcs):
 
     import seaborn as sns
     import pandas as pd
@@ -14,6 +14,18 @@ def f(dir_output, dir_plots, parameters):
     import matplotlib.pyplot as plt
 
     correlationmatrix = np.genfromtxt(dir_output+"EstimationCorrelations.dat")
+    cn = np.linalg.cond(correlationmatrix)
+    print("condition number full correlation matrix:", "{:e}".format(cn))
+
+    cm_arcs = correlationmatrix[:no_arcs*6-1, :no_arcs*6-1]
+    cn_arcs = np.linalg.cond(cm_arcs)
+    print("condition number arcs only:", "{:e}".format(cn_arcs))
+
+    cm_pars = correlationmatrix[no_arcs*6:, no_arcs*6:]
+    if len(cm_pars) > 0:
+        cn_pars = np.linalg.cond(cm_pars)
+        print("condition number parameters only:", "{:e}".format(cn_pars))
+
     if parameters:
         df = pd.DataFrame(correlationmatrix, index=parameters, columns=parameters)
     else:

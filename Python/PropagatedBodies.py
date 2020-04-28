@@ -29,6 +29,8 @@ def f(dir_output, dir_plots, bodies, no_arcs):
         dt = t_sorted[1:-1]-t_sorted[0:-2]
         gaps = np.concatenate([[0],np.where(dt>60.0*60.0*24.0*30.0)[0],[-1]])
 
+        print("minimum step size in entire simulation:", np.min(dt), "seconds")
+
         x = data[:,1]/AU
         y = data[:,2]/AU
         z = data[:,3]/AU
@@ -47,6 +49,10 @@ def f(dir_output, dir_plots, bodies, no_arcs):
         for j in range(1, no_arcs + 1):
             start = gaps[j-1] + 1
             end = gaps[j]
+
+            # dt_arc = dt[start:end]
+            # print("minimum step size for arc", str(j), "is", str(np.min(dt_arc)), "seconds" )
+
             ax.plot(x[start:end],y[start:end],z[start:end],linewidth=0.75)
             legend.append("arc" + str(j))
 

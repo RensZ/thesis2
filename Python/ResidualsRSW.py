@@ -19,9 +19,11 @@ def f(dir_output, dir_plots, body, no_arcs):
     r = np.genfromtxt(dir_output + "ResidualHistory.dat")
 
     r_rms = np.sqrt( np.sum(r**2, axis=0) / len(r) )
-    i_best = np.where(r_rms == np.min(r_rms))[0]
-
-    r_best = r[:,i_best]
+    if r.ndim == 2:
+        i_best = np.where(r_rms == np.min(r_rms))[0]
+        r_best = r[:,i_best]
+    else:
+        r_best = r
 
     #propagated errors
     if useAbs:
@@ -106,7 +108,7 @@ def f(dir_output, dir_plots, body, no_arcs):
 
 
     plt.tight_layout()
-    plt.savefig(dir_plots+"_observation_residuals_perarc_RSW")
+    plt.savefig(dir_plots+body+"_observation_residuals_perarc_RSW")
 
     t_av_r = 60.0 * 60.0 * np.asarray(t_av_r)
     t_av_e = 60.0*60.0*np.asarray(t_av_e)
@@ -136,5 +138,5 @@ def f(dir_output, dir_plots, body, no_arcs):
     plt.legend(["r", "at", "ct"])
 
     plt.tight_layout()
-    plt.savefig(dir_plots+"_residuals_averages_RSW")
+    plt.savefig(dir_plots+body+"_residuals_averages_RSW")
 

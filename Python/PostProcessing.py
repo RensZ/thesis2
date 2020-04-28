@@ -92,6 +92,6 @@ for ps in publication_string:
     # Make correlation heat map
     print(" making heat map of parameter correlations...")
     import HeatMap
-    HeatMap.f(dir_cpp_output, dir_plots, parameters)
+    HeatMap.f(dir_cpp_output, dir_plots, parameters, no_arcs)
 
     print("done!")

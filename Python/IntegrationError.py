@@ -36,6 +36,8 @@ def f(dir_output, dir_plots, bodies, no_arcs):
             dt_b = t_b[1:-1] - t_b[0:-2]
             gaps_b = np.concatenate([[0], np.where(dt_b > 30.0 * 24.0 * 60.0 * 60.0)[0], [-1]])
 
+
+
         for j in range(1, no_arcs + 1):
 
             start = gaps[j-1]
@@ -132,6 +134,9 @@ def f(dir_output, dir_plots, bodies, no_arcs):
         y_max_pos = np.max(allerrors_pos_norm2)
         y_min_vel = np.min(allerrors_vel_norm2[np.nonzero(allerrors_vel_norm2)])
         y_max_vel = np.max(allerrors_vel_norm2)
+
+        print("maximum integration error, position norm [mm]:", y_max_pos*1000.0)
+        print("maximum integration error, velocity norm [mm/s]:", y_max_vel*1000.0)
 
         for j in range(1, no_arcs + 1):
 

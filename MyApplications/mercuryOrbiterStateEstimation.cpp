@@ -86,15 +86,22 @@ int main( )
     std::vector<double> varianceVector;
 
     // integrator settings
-    double initialStepSize = 1.0;
-    double minimumStepSize = 0.1; //epsilon
-    double maximumStepSize = 10.0;
-    double tolerance = 1.0E-15;
+//    double initialStepSize = 1.0;
+//    double minimumStepSize = std::numeric_limits< double >::epsilon( );
+//    double maximumStepSize = 10.0;
+//    double tolerance = 1.0E-15;
+    double initialStepSize = 2.0;
+    double minimumStepSize = 2.0;
+    double maximumStepSize = 2.0;
+    double tolerance = 1.0;
 
-    const unsigned int maxMercuryDegree = 2;
-    const unsigned int maxMercuryOrder = 2;
+    const unsigned int maxMercuryDegree = 6;
+    const unsigned int maxMercuryOrder = 6;
 
     const unsigned int minMercuryDegree = 2; //only for estimatable parameters, SH field starts at d/o 0/0
+
+    // estimation settings
+    unsigned int numberOfIterations = 1;
 
     // run simulation for vehicle
     std::string vehicle = "MESSENGER";
@@ -877,12 +884,16 @@ int main( )
     Eigen::Matrix< double, Eigen::Dynamic, 1 > truthParameters = initialParameterEstimate;
     Eigen::Matrix< double, Eigen::Dynamic, 1 > parameterPerturbation =
             Eigen::Matrix< double, Eigen::Dynamic, 1 >::Zero( truthParameters.rows( ) );
-    for( unsigned int i = 0; i < arcStartTimes.size( ); i++ )
-    {
-        parameterPerturbation.segment( 6*i, 3 ) = Eigen::Vector3d::Constant( 1.0 );
-        parameterPerturbation.segment( 6*i+3, 3 ) = Eigen::Vector3d::Constant( 1.0E-3 );
+
+    if (numberOfIterations > 1){
+        for( unsigned int i = 0; i < arcStartTimes.size( ); i++ )
+        {
+            parameterPerturbation.segment( 6*i, 3 ) = Eigen::Vector3d::Constant( 1.0 );
+            parameterPerturbation.segment( 6*i+3, 3 ) = Eigen::Vector3d::Constant( 1.0E-3 );
+        }
+        initialParameterEstimate += parameterPerturbation;
     }
-    initialParameterEstimate += parameterPerturbation;
+
 
     std::cout << "truth parameters:" << truthParameters.transpose() << std::endl;
     std::cout << "added as initial guess:" << parameterPerturbation.transpose() << std::endl;
@@ -928,8 +939,7 @@ int main( )
 
 
 
-    // Perform estimation
-    const unsigned int numberOfIterations = 5;
+    // Perform estimation4
     std::shared_ptr< PodOutput< double > > podOutput = orbitDeterminationManager.estimateParameters(
                 podInput, std::make_shared< EstimationConvergenceChecker >( numberOfIterations ) );
 
