@@ -84,7 +84,7 @@ int main( )
     const bool useDirectSpice = false; // Use direct SPICE (more accurate than tabulated Spice)
 
     // Parameter estimation settings
-    const unsigned int maximumNumberOfIterations = 5;
+    const unsigned int maximumNumberOfIterations = 3;
 
     // ABM integrator settings (if RK4 is used instead, initialstepsize is taken)
     const double initialTimeStep = 3600;
@@ -109,8 +109,8 @@ int main( )
 
 
     // Load json input
-//    std::string input_filename = "inputs_Genova2018.json"; // Messenger simulation done in Genova et al 2018, Nature Communications
-    std::string input_filename = "inputs_Genova2018_test.json"; // 1-year version of the simulation above for quicker test
+    std::string input_filename = "inputs_Genova2018.json"; // Messenger simulation done in Genova et al 2018, Nature Communications
+//    std::string input_filename = "inputs_Genova2018_test.json"; // 1-year version of the simulation above for quicker test
 //    std::string input_filename = "inputs_Schettino2015.json"; // BepiColombo simulation done in Schettino et al 2015, IEEE
 
     using json = nlohmann::json;
@@ -163,7 +163,8 @@ int main( )
     std::vector<int> json4 = json_input["observationFinalTime"];
     Eigen::Vector6i observationFinalTime(json4.data()); json4.clear();
     const double observationTimeStep = json_input["observationTimeStep"];
-    const unsigned int maximumNumberOfObservations = json_input["maximumNumberOfObservations"];
+    const double trackingArcDuration = json_input["trackingArcDuration"];
+    const unsigned int maximumNumberOfTrackingDays = json_input["maximumNumberOfTrackingDays"];
 
     // retreive flybys
     std::vector<int> flybyObject = json_input["flybyObject"];
@@ -712,12 +713,10 @@ int main( )
             makeObservationTimeList(secondsAfterJ2000(observationInitialTime),
                                     secondsAfterJ2000(observationFinalTime),
                                     observationTimeStep,
-                                    maximumNumberOfObservations,
+                                    trackingArcDuration,
+                                    maximumNumberOfTrackingDays,
                                     unit_conversions::convertDegreesToRadians(180.0-35.0),
                                     flybyList);
-
-
-    std::cout << "amount of observation times (before implementing viability settings): " << baseTimeList.size() << std::endl;
 
     // Create measurement simulation input
     std::map< ObservableType, std::map< LinkEnds, std::shared_ptr< ObservationSimulationTimeSettings< double > > > >
@@ -1008,51 +1007,177 @@ int main( )
     std::cout << "True estimation error is:   " << std::endl << ( estimationError ).transpose( ) << std::endl;
     std::cout << "Formal estimation error is: " << std::endl << podOutput->getFormalErrorVector( ).transpose( ) << std::endl;
 
-    std::cout << "propagating errors..." << std::endl;
 
+
+    // Propagate errors to total time period
+    std::cout<<"propagating errors..."<<std::endl;
+
+    Eigen::MatrixXd fullStateHistory = input_output::readMatrixFromFile(
+                outputSubFolder + "/StatePropagationHistoryMercury.dat");
+
+
+    Eigen::MatrixXd initialCovarianceMatrix = podOutput->getUnnormalizedCovarianceMatrix( );
     std::map< double, Eigen::VectorXd > propagatedErrors;
     propagateFormalErrors(
-                propagatedErrors, podOutput->getUnnormalizedCovarianceMatrix( ),
+                propagatedErrors, initialCovarianceMatrix,
                 orbitDeterminationManager.getStateTransitionAndSensitivityMatrixInterface( ),
-                60.0, initialSimulationTime + 3600.0, finalSimulationTime - 3600.0 );
+                //baseTimeList);
+                3600.0, initialSimulationTime + 3600.0, finalSimulationTime - 3600.0 );
 
-    std::cout << "writing output to files..." << std::endl;
+    if (fullStateHistory.col(0).size() == static_cast<long>(propagatedErrors.size())){
+        std::cout<<"check!"<<std::endl;
+    } else{
+        std::cout<<fullStateHistory.col(0).size()<<propagatedErrors.size()<<std::endl;
+    }
+
+    std::map<double, Eigen::Vector6d> propagatedErrorsRSW;
+    Eigen::Vector6d currentPropagatedError;
+    std::map<double, Eigen::VectorXd>::iterator it = propagatedErrors.begin();
+    unsigned int i = 0;
+
+    while (it != propagatedErrors.end()){
+
+        Eigen::Matrix3d currentTransformationToRSW =
+                reference_frames::getInertialToRswSatelliteCenteredFrameRotationMatrix(fullStateHistory.block(i,1,1,3));
+
+        currentPropagatedError.segment(0,3) = currentTransformationToRSW * it->second.segment(0,3);
+        currentPropagatedError.segment(3,3) = currentTransformationToRSW * it->second.segment(3,3);
+
+        propagatedErrorsRSW.insert(std::make_pair( it->first, currentPropagatedError ) );
+
+        i++; it++;
+    }
+
+    // Propagate covariance matrix
+    std::cout<<"propagating covariance matrix..."<<std::endl;
+
+    std::map< double, Eigen::MatrixXd > propagatedCovariance;
+    propagateCovariance(propagatedCovariance, initialCovarianceMatrix,
+                        orbitDeterminationManager.getStateTransitionAndSensitivityMatrixInterface( ),
+                        //baseTimeList);
+                        3600.0, initialSimulationTime + 3600.0, finalSimulationTime - 3600.0 );
+
+    std::map<double, Eigen::VectorXd> propagatedErrorUsingCovMatrix;
+    std::map<double, Eigen::VectorXd> propagatedRSWErrorUsingCovMatrix;
+
+    unsigned int j = 0;
+    std::map<double, Eigen::MatrixXd>::iterator covit = propagatedCovariance.begin();
+    Eigen::Vector6d currentSigmaVectorRSW;
+    while (covit != propagatedCovariance.end()){
+
+        Eigen::VectorXd currentSigmaVector = covit->second.diagonal().cwiseSqrt();
+        Eigen::Matrix3d currentTransformationToRSW =
+                reference_frames::getInertialToRswSatelliteCenteredFrameRotationMatrix(fullStateHistory.block(j,1,1,3));
+
+        currentSigmaVectorRSW.segment(0,3) = currentTransformationToRSW * currentSigmaVector.segment(0,3);
+        currentSigmaVectorRSW.segment(3,3) = currentTransformationToRSW * currentSigmaVector.segment(3,3);
+
+        propagatedErrorUsingCovMatrix.insert(std::make_pair( covit->first, currentSigmaVector ) );
+        propagatedRSWErrorUsingCovMatrix.insert(std::make_pair( covit->first, currentSigmaVectorRSW ) );
+
+        j++; covit++;
+    }
+
+    // Save data in files
+    std::cout<<"writing output to files..."<<std::endl;
+
+
 
     input_output::writeDataMapToTextFile( propagatedErrors,
                                           "PropagatedErrors.dat",
                                           outputSubFolder );
 
+    input_output::writeDataMapToTextFile( propagatedErrorsRSW,
+                                          "PropagatedErrorsRSW.dat",
+                                          outputSubFolder );
+
+    input_output::writeDataMapToTextFile( propagatedCovariance,
+                                          "PropagatedCovariance.dat",
+                                          outputSubFolder );
+
+    input_output::writeDataMapToTextFile( propagatedErrorUsingCovMatrix,
+                                          "propagatedErrorUsingCovMatrix.dat",
+                                          outputSubFolder );
+
+    input_output::writeDataMapToTextFile( propagatedRSWErrorUsingCovMatrix,
+                                          "propagatedRSWErrorUsingCovMatrix.dat",
+                                          outputSubFolder );
+
+    input_output::writeMatrixToFile( podOutput->normalizedInformationMatrix_,
+                                     "EstimationInformationMatrix.dat", 16,
+                                     outputSubFolder );
+
     input_output::writeMatrixToFile( truthParameters,
-                                     "TruthParameters.dat", 16, outputSubFolder );
-    input_output::writeMatrixToFile( podOutput->getUnnormalizedCovarianceMatrix( ),
-                                     "EstimationCovariance.dat", 16, outputSubFolder );
-//    input_output::writeMatrixToFile( podOutput->normalizedInformationMatrix_,
-//                                     "EstimationInformationMatrix.dat", 16, outputSubFolder );
-//    input_output::writeMatrixToFile( podOutput->weightsMatrixDiagonal_,
-//                                     "EstimationWeightsDiagonal.dat", 16, outputSubFolder );
-//    input_output::writeMatrixToFile( podOutput->residuals_,
-//                                     "EstimationResiduals.dat", 16, outputSubFolder );
+                                     "TruthParameters.dat", 16,
+                                     outputSubFolder );
+
+
+    input_output::writeMatrixToFile( podOutput->informationMatrixTransformationDiagonal_,
+                                     "EstimationInformationMatrixNormalization.dat", 16,
+                                     outputSubFolder );
+
+    input_output::writeMatrixToFile( podOutput->weightsMatrixDiagonal_,
+                                     "EstimationWeightsDiagonal.dat", 16,
+                                     outputSubFolder );
+
+    input_output::writeMatrixToFile( podOutput->residuals_,
+                                     "EstimationResiduals.dat", 16,
+                                     outputSubFolder );
+
     input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ),
-                                     "EstimationCorrelations.dat", 16, outputSubFolder );
+                                     "EstimationCorrelations.dat", 16,
+                                     outputSubFolder );
+
     input_output::writeMatrixToFile( podOutput->getResidualHistoryMatrix( ),
-                                     "ResidualHistory.dat", 16, outputSubFolder );
+                                     "ResidualHistory.dat", 16,
+                                     outputSubFolder );
+
     input_output::writeMatrixToFile( podOutput->getParameterHistoryMatrix( ),
-                                     "ParameterHistory.dat", 16, outputSubFolder );
-//    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
-//                                     "ObservationMeasurements.dat", 16, outputSubFolder );
+                                     "ParameterHistory.dat", 16,
+                                     outputSubFolder );
+
+    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
+                                     "ObservationMeasurements.dat", 16,
+                                     outputSubFolder );
+
     input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
                                          getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
-                                     "ObservationTimes.dat", 16, outputSubFolder );
-//    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
-//                                         getConcatenatedGroundStationIndex( podInput->getObservationsAndTimes( ) ).first ),
-//                                     "ObservationLinkEnds.dat", 16, outputSubFolder );
-//    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
-//                                         getConcatenatedObservableTypes( podInput->getObservationsAndTimes( ) ) ),
-//                                     "ObservationObservableTypes.dat", 16, outputSubFolder );
+                                     "ObservationTimes.dat", 16,
+                                     outputSubFolder );
+
+    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
+                                         getConcatenatedGroundStationIndex( podInput->getObservationsAndTimes( ) ).first ),
+                                     "ObservationLinkEnds.dat", 16,
+                                     outputSubFolder );
+
+    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
+                                         getConcatenatedObservableTypes( podInput->getObservationsAndTimes( ) ) ),
+                                     "ObservationObservableTypes.dat", 16,
+                                     outputSubFolder );
+
+    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
+                                     "ObservationMeasurements.dat", 16,
+                                     outputSubFolder );
+
     input_output::writeMatrixToFile( estimationError,
-                                     "ObservationTrueEstimationError.dat", 16, outputSubFolder );
-    input_output::writeMatrixToFile( podOutput->getFormalErrorVector( ),
-                                     "ObservationFormalEstimationError.dat", 16, outputSubFolder );
+                                     "ObservationTrueEstimationError.dat", 16,
+                                     outputSubFolder );
+
+    input_output::writeMatrixToFile( podOutput->getFormalErrorVector(),
+                                     "ObservationFormalEstimationError.dat", 16,
+                                     outputSubFolder );
+
+    input_output::writeMatrixToFile( podInput->getInverseOfAprioriCovariance( ),
+                                     "InverseAPrioriCovariance.dat", 16,
+                                     outputSubFolder );
+
+    input_output::writeMatrixToFile( podOutput->inverseNormalizedCovarianceMatrix_,
+                                     "InverseNormalizedCovariance.dat", 16,
+                                     outputSubFolder );
+
+    input_output::writeMatrixToFile( podOutput->getUnnormalizedCovarianceMatrix( ),
+                                     "UnnormalizedCovariance.dat", 16,
+                                     outputSubFolder );
 
 
     // Final statement.

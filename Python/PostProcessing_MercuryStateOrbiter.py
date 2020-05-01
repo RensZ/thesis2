@@ -11,7 +11,7 @@ vehicles = ["MESSENGER",
 
 # User inputs
 no_bodies = 1
-no_arcs_v = [10, 12]
+no_arcs_v = [15,12]
 bodies     = ["Vehicle"]
 parameters = []
 dependent_variables = []
@@ -29,7 +29,7 @@ for i in range(len(vehicles)):
 
 
     # Plot integration error
-    print( "making plots of the integration errors after backward propagation..." )
+    print( " making plots of the integration errors after backward propagation..." )
     import IntegrationError
     IntegrationError.f(dir_cpp_output, dir_plots, bodies, no_arcs)
 
@@ -52,7 +52,10 @@ for i in range(len(vehicles)):
     import ResidualsRSW
     ResidualsRSW.f(dir_cpp_output, dir_plots, v, no_arcs)
 
-
+    # Plot residuals over time
+    print(" making plot of the propagated errors vs true anomaly...")
+    import TrueAnomalyVsError
+    TrueAnomalyVsError.f(dir_cpp_output, dir_plots)
 
 
     # # Plot parameter history

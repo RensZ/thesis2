@@ -92,7 +92,11 @@ def f(dir_output, dir_plots, body, no_arcs):
             ax.set_ylabel("propagated position error [m]")
             ax.legend(["r", "at", "ct"])
         ax.set_yscale(yscale)
-        ax.set_ylim(np.min(e_data[:, 1:4]), np.max(e_data[:, 1:4]))
+        ax.set_yscale(yscale)
+        plotdata = e_data[:,1:4]
+        y_min = np.min(plotdata[np.nonzero(plotdata)])
+        y_max = np.max(plotdata)
+        ax.set_ylim((y_min, y_max))
         format_spines(ax, i, no_arcs)
 
         ax = fig.add_subplot(3, no_arcs, i + 2*no_arcs)
@@ -102,7 +106,10 @@ def f(dir_output, dir_plots, body, no_arcs):
         if i == 1:
             ax.set_ylabel("propagated velocity error [m]")
         ax.set_yscale(yscale)
-        ax.set_ylim(np.min(e_data[:,4:7]), np.max(e_data[:,4:7]))
+        plotdata = e_data[:,4:7]
+        y_min = np.min(plotdata[np.nonzero(plotdata)])
+        y_max = np.max(plotdata)
+        ax.set_ylim((y_min, y_max))
         format_spines(ax, i, no_arcs)
 
 

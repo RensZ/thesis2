@@ -20,10 +20,6 @@ no_bodies = 1
 no_arcs = 1
 bodies     = ["Mercury"]
 
-# Default parameters
-parameters = ["X_Mer", "Y_Mer", "Z_Mer",
-              "Vx_Mer", "Vy_Mer", "Vz_Mer"]
-
 dependent_variables = ["Venus_CG", "Earth_CG", "Moon_CG", "Mars_CG", "Jupiter_CG", "Saturn_CG",
                        "Sun_CG",
                        "exclude", #J1
@@ -32,11 +28,14 @@ dependent_variables = ["Venus_CG", "Earth_CG", "Moon_CG", "Mars_CG", "Jupiter_CG
 for ps in publication_string:
     dir_cpp_output = dir_application + 'Output/' + 'Output' + ps + "/"
     dir_plots = '/home/rens/Documents/PostProcessing_plots/thesis_v1/' + ps + "/"
-    json_file = dir_application + 'InputsJSON/' + 'inputs_' + ps + '.json'
+    json_file = dir_application + 'Input/' + 'inputs_' + ps + '.json'
 
     print("for inputs of publication:", ps)
 
     # from input file, get which additional things were estimated and add to lists above
+    parameters = ["X_Mer", "Y_Mer", "Z_Mer",
+                  "Vx_Mer", "Vy_Mer", "Vz_Mer"]
+
     import json
     print(" json file used as input:" + json_file)
     with open(json_file) as f:
@@ -60,10 +59,17 @@ for ps in publication_string:
     parameters.append("mu_Sun")
     parameters.append("J2_Sun")
 
+    print(" ", parameters)
+
 
     #################
     #### OUTPUTS ####
     #################
+
+    # # Plot integration error
+    # print( "making plots of the integration errors after backward propagation..." )
+    # import IntegrationError
+    # IntegrationError.f(dir_cpp_output, dir_plots, bodies, no_arcs)
 
     # Plot propagated bodies
     print(" making plots of propagated bodies...")
@@ -73,11 +79,11 @@ for ps in publication_string:
     # Plot residuals over time
     print(" making plot of the observation residuals and propagated errors...")
     import Residuals
-    Residuals.f(dir_cpp_output, dir_plots, bodies, no_arcs)
+    Residuals.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
 
-    # print(" making plot of the observation residuals and propagated errors in the RSW frame...")
-    # import ResidualsRSW
-    # ResidualsRSW.f(dir_cpp_output, dir_plots, bodies, no_arcs)
+    print(" making plot of the observation residuals and propagated errors in the RSW frame...")
+    import ResidualsRSW
+    ResidualsRSW.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
 
     # Plot parameter history
     print(" making plots of parameter estimation history...")
@@ -94,4 +100,4 @@ for ps in publication_string:
     import HeatMap
     HeatMap.f(dir_cpp_output, dir_plots, parameters, no_arcs)
 
-    print("done!")
+print("done!")

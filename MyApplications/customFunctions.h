@@ -16,6 +16,7 @@ double angleBetween2Bodies(const double time,
 std::vector<double> makeObservationTimeList(const double initialTime,
                                             const double endTime,
                                             const double timeStep,
+                                            const double arcDuration,
                                             const unsigned int maximumNumberOfObservations, //if not applicable, set to a very large number.
                                             const double maxMSEangle, //radians. if not applicable, set to value greater than pi.
                                             const std::vector<double> flybyTimes);

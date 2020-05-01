@@ -86,34 +86,64 @@ double angleBetween2Bodies(const double time,
 std::vector<double> makeObservationTimeList(const double initialTime,
                                             const double endTime,
                                             const double timeStep,
-                                            const unsigned int maximumNumberOfObservations, //if not applicable, set to a very large number.
+                                            const double arcDuration,
+                                            const unsigned int maximumNumberOfTrackingDays, //if not applicable, set to a very large number.
                                             const double maxMSEangle, //radians. if not applicable, set to value greater than pi.
                                             const std::vector<double> flybyTimes)
 {
-    std::vector< double > observationTimeList;
+    std::vector< std::vector<double> > dailyObservationListCollection;
+    const double day = 86400.0; //assumed frequency of tracking arcs once per day
+
+    // add times to observation list until the duration of a tracking arc has passed
     double currentTime = initialTime;
-
-    // add times to observation list which satisfy MSE requirements
+    std::vector<double> currentDayObservationList;
     while (currentTime <= endTime){
-        double MSEangle = angleBetween2Bodies(currentTime, "Sun", "Mercury", "Earth");
-        if (MSEangle < maxMSEangle){
-            observationTimeList.push_back(currentTime);
+
+        // add data points that satisfy the MSE angle requirement
+        double trackingTime = currentTime;
+        while (trackingTime <= currentTime+arcDuration){
+            double MSEangle = angleBetween2Bodies(currentTime, "Sun", "Mercury", "Earth");
+            if (MSEangle < maxMSEangle){
+                currentDayObservationList.push_back(trackingTime);
+            }
+            trackingTime += timeStep;
         }
-            currentTime += timeStep;
+
+        // save data if more than 90% of the arc satisfied the MSE requirement
+        if (currentDayObservationList.size() > (arcDuration/timeStep)*0.90){
+            dailyObservationListCollection.push_back(currentDayObservationList);
+        }
+
+        // move on to next day
+        currentDayObservationList.clear();
+        currentTime += day;
     }
 
-    // if list is longer than the max number of observations, delete random entries
+    // if list is longer than the max number of days, delete random entries
     srand(0);
-    while ( observationTimeList.size() > maximumNumberOfObservations ){
-        unsigned int numberOfObservations = observationTimeList.size();
+    while ( dailyObservationListCollection.size() > maximumNumberOfTrackingDays ){
+        unsigned int numberOfObservations = dailyObservationListCollection.size();
         unsigned int randomIndex = rand()%(numberOfObservations-1);
-        observationTimeList.erase( observationTimeList.begin() + randomIndex );
+        dailyObservationListCollection.erase( dailyObservationListCollection.begin() + randomIndex );
+    }
+    std::cout<<"total number of tracking days: "<<dailyObservationListCollection.size()<<std::endl;
+
+
+    // append all entries of the collection to one big vector for output
+    std::vector< double > finalObservationList;
+    for( unsigned int i = 0; i < dailyObservationListCollection.size(); i++ ){
+        currentDayObservationList = dailyObservationListCollection.at(i);
+        for( unsigned int j = 0; j < currentDayObservationList.size(); j++ ){
+            finalObservationList.push_back(currentDayObservationList.at(j));
+        }
     }
 
-    // add times which are manually indicated
+    // add times which are manually indicated (flybys)
     for( unsigned int i = 0; i < flybyTimes.size(); i++ )
-        observationTimeList.push_back(flybyTimes.at(i));
-    return observationTimeList;
+        finalObservationList.push_back(flybyTimes.at(i));
+
+    std::cout<<"total number of observation epochs: "<<finalObservationList.size()<<std::endl;
+    return finalObservationList;
 }
 
 

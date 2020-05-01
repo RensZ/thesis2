@@ -86,22 +86,22 @@ int main( )
     std::vector<double> varianceVector;
 
     // integrator settings
-//    double initialStepSize = 1.0;
-//    double minimumStepSize = std::numeric_limits< double >::epsilon( );
-//    double maximumStepSize = 10.0;
-//    double tolerance = 1.0E-15;
     double initialStepSize = 2.0;
-    double minimumStepSize = 2.0;
-    double maximumStepSize = 2.0;
-    double tolerance = 1.0;
+    double minimumStepSize = std::numeric_limits< double >::epsilon( );
+    double maximumStepSize = 10.0;
+    double tolerance = 1.0E-15;
+//    double initialStepSize = 2.0;
+//    double minimumStepSize = 2.0;
+//    double maximumStepSize = 2.0;
+//    double tolerance = 1.0;
 
-    const unsigned int maxMercuryDegree = 6;
-    const unsigned int maxMercuryOrder = 6;
+    const unsigned int maxMercuryDegree = 10;
+    const unsigned int maxMercuryOrder = 10;
 
     const unsigned int minMercuryDegree = 2; //only for estimatable parameters, SH field starts at d/o 0/0
 
     // estimation settings
-    unsigned int numberOfIterations = 1;
+    const unsigned int numberOfIterations = 1;
 
     // run simulation for vehicle
     std::string vehicle = "MESSENGER";
@@ -148,7 +148,7 @@ int main( )
 
     std::string outputSubFolder = vehicle + "/";
 
-    int numberOfSimulationDays = 20.0;
+    int numberOfSimulationDays = 5.0;
     double arcOverlap = 0.0;
     double observationStartOffset = 1000.0; // or observation generation wil complain
     //    double arcDuration = 1.01 * 86400.0; // integrate for one day
@@ -384,7 +384,7 @@ int main( )
         double currentMSEAngleDegrees = unit_conversions::convertRadiansToDegrees(
                     angleBetween2Bodies(currentTime,"Sun","Mercury","Earth"));
 
-        if (currentMSEAngleDegrees < 90.0){
+        if (currentMSEAngleDegrees < 145.0){
 
             arcStartTimes.push_back( currentTime );
 
@@ -683,8 +683,8 @@ int main( )
 //    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "global_metric", ppn_parameter_gamma ) );
 //    varianceVector.push_back( sigmaGamma*sigmaGamma );
 
-//    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( vehicle, radiation_pressure_coefficient ) );
-//    varianceVector.push_back( sigmaRadiation*sigmaRadiation );
+    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( vehicle, radiation_pressure_coefficient ) );
+    varianceVector.push_back( sigmaRadiation*sigmaRadiation );
 
 //    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( vehicle, constant_drag_coefficient ) );
 //    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "Earth", constant_rotation_rate ) );
@@ -827,8 +827,11 @@ int main( )
     // Define noise levels
     double rangeNoise = 1.0;
     double angularPositionNoise = 1.0E-7;
-    double dopplerNoise = (dopplerNoiseUnnormalised)/physical_constants::SPEED_OF_LIGHT; // Mazarico et al. 2014: 0.1mm/s at 60s integration time
-    std::cout << "doppler noise: " << dopplerNoise << std::endl;
+    double twoWayDopplerNoise = (dopplerNoiseUnnormalised)/physical_constants::SPEED_OF_LIGHT; // Mazarico et al. 2014: 0.1mm/s at 60s integration time
+    double oneWayDopplerNoise = twoWayDopplerNoise/sqrt(2.0);
+    std::cout << "one way doppler noise: " << oneWayDopplerNoise << std::endl;
+    std::cout << "one way doppler noise: " << twoWayDopplerNoise << std::endl;
+
 
     // Defaults
 //    double rangeNoise = 0.1;
@@ -840,12 +843,12 @@ int main( )
     noiseFunctions[ one_way_doppler ] =
             std::bind( &utilities::evaluateFunctionWithoutInputArgumentDependency< double, const double >,
                        createBoostContinuousRandomVariableGeneratorFunction(
-                           normal_boost_distribution, { 0.0, dopplerNoise }, 0.0 ), std::placeholders::_1 );
+                           normal_boost_distribution, { 0.0, oneWayDopplerNoise }, 0.0 ), std::placeholders::_1 );
 
     noiseFunctions[ two_way_doppler ] =
             std::bind( &utilities::evaluateFunctionWithoutInputArgumentDependency< double, const double >,
                        createBoostContinuousRandomVariableGeneratorFunction(
-                           normal_boost_distribution, { 0.0, dopplerNoise }, 0.0 ), std::placeholders::_1 );
+                           normal_boost_distribution, { 0.0, twoWayDopplerNoise }, 0.0 ), std::placeholders::_1 );
 
 
     noiseFunctions[ one_way_range ] =
@@ -885,6 +888,7 @@ int main( )
     Eigen::Matrix< double, Eigen::Dynamic, 1 > parameterPerturbation =
             Eigen::Matrix< double, Eigen::Dynamic, 1 >::Zero( truthParameters.rows( ) );
 
+    bool reintegrateOnFirstIteration = false;
     if (numberOfIterations > 1){
         for( unsigned int i = 0; i < arcStartTimes.size( ); i++ )
         {
@@ -892,6 +896,7 @@ int main( )
             parameterPerturbation.segment( 6*i+3, 3 ) = Eigen::Vector3d::Constant( 1.0E-3 );
         }
         initialParameterEstimate += parameterPerturbation;
+        reintegrateOnFirstIteration = true;
     }
 
 
@@ -908,6 +913,7 @@ int main( )
 
     Eigen::MatrixXd aprioriCovariance =
         Eigen::MatrixXd::Zero( truthParameters.rows( ), truthParameters.rows( ));
+    Eigen::MatrixXd inverseOfAprioriCovariance;
 
     std::cout << "a priori variances:" << std::endl;
     for( unsigned int i = 0; i < truthParameters.size(); i++ ){
@@ -916,13 +922,15 @@ int main( )
     }
     std::cout << std::endl;
 
-    Eigen::MatrixXd inverseOfAprioriCovariance = aprioriCovariance.inverse();
+    inverseOfAprioriCovariance = aprioriCovariance.inverse();
+
 
 
     // Define estimation input
     std::shared_ptr< PodInput< double, double > > podInput =
             std::make_shared< PodInput< double, double > >(
-                observationsAndTimes, initialParameterEstimate.rows( ),
+                observationsAndTimes,
+                initialParameterEstimate.rows( ),
                 inverseOfAprioriCovariance,
                 initialParameterEstimate - truthParameters );
 
@@ -931,18 +939,20 @@ int main( )
     std::map< observation_models::ObservableType, double > weightPerObservable;
     weightPerObservable[ one_way_range ] = 1.0 / ( rangeNoise * rangeNoise );
     weightPerObservable[ angular_position ] = 1.0 / ( angularPositionNoise * angularPositionNoise );
-    weightPerObservable[ one_way_doppler ] = 1.0 / ( dopplerNoise * dopplerNoise );
-    weightPerObservable[ two_way_doppler ] = 1.0 / ( dopplerNoise * dopplerNoise );
-    weightPerObservable[ one_way_differenced_range ] = 1.0 / ( dopplerNoise * dopplerNoise );
+    weightPerObservable[ one_way_doppler ] = 1.0 / ( oneWayDopplerNoise * oneWayDopplerNoise );
+    weightPerObservable[ two_way_doppler ] = 1.0 / ( twoWayDopplerNoise * twoWayDopplerNoise );
+    weightPerObservable[ one_way_differenced_range ] = 1.0 / ( twoWayDopplerNoise * twoWayDopplerNoise );
     podInput->setConstantPerObservableWeightsMatrix( weightPerObservable );
-    podInput->defineEstimationSettings( true, false, true, true, true );
+    podInput->defineEstimationSettings( reintegrateOnFirstIteration, //reintegrate on first iteration
+                                        true, //reintegrate variational equations
+                                        true, //save information matrix
+                                        true, //print output
+                                        true ); //save state history
 
 
-
-    // Perform estimation4
+    // Perform estimation
     std::shared_ptr< PodOutput< double > > podOutput = orbitDeterminationManager.estimateParameters(
                 podInput, std::make_shared< EstimationConvergenceChecker >( numberOfIterations ) );
-
 
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -951,16 +961,23 @@ int main( )
 
     std::cout<< "provide output..." << std::endl;
 
+    // propagate according to integration history. earlier result is separated here as the times are needed on their own.
+    std::vector<double> fullStateHistoryTimes;
+    std::vector<Eigen::Vector6d> fullStateHistory;
+    std::map<double, Eigen::VectorXd>::iterator historyit = propagationHistory.begin();
 
-    Eigen::MatrixXd fullStateHistory = input_output::readMatrixFromFile(
-                tudat_applications::getOutputPath( ) + outputSubFolder + "StatePropagationHistoryVehicle.dat");
+    while (historyit != propagationHistory.end()){
+        fullStateHistoryTimes.push_back(historyit->first);
+        fullStateHistory.push_back(historyit->second);
+        historyit++;
+    }
 
-//    std::vector<double> stateHistoryTimestamps;
-//    for (unsigned int i=0; i<fullStateHistory.col(0).size(); i++){
-//            stateHistoryTimestamps.push_back(fullStateHistory(i,0));
-//    }
-//    std::vector<double> observationTimes =
-
+//    Eigen::MatrixXd fullStateHistory = input_output::readMatrixFromFile(
+//                tudat_applications::getOutputPath( ) + outputSubFolder + "StatePropagationHistoryVehicle.dat");
+//    //Eigen::VectorXd fullStateHistoryTimes = fullStateHistory.block(0,0,fullStateHistory.rows(),1);
+//    std::vector<double> fullStateHistoryTimes(
+//                fullStateHistory.block(0,0,fullStateHistory.rows(),1).data(),
+//                fullStateHistory.block(0,0,fullStateHistory.rows(),1).data() + fullStateHistory.rows());
 
     // Propagate errors to total time period
     std::cout<<"propagating errors..."<<std::endl;
@@ -969,16 +986,18 @@ int main( )
     propagateFormalErrors(
                 propagatedErrors, initialCovarianceMatrix,
                 orbitDeterminationManager.getStateTransitionAndSensitivityMatrixInterface( ),
-                baseTimeList );
+                fullStateHistoryTimes );
                 //baseTimeList);
                 //60.0, initialEphemerisTime + 3600.0, finalEphemerisTime - 3600.0 );
 
-    if (fullStateHistory.col(0).size() == static_cast<long>(propagatedErrors.size())){
+    if (fullStateHistory.size() == propagatedErrors.size()){
         std::cout<<"check!"<<std::endl;
     } else{
-        std::cout<<fullStateHistory.col(0).size()<<propagatedErrors.size()<<std::endl;
+        std::cout<<"Lists not equal in length!!"<<std::endl;
+        std::cout<<fullStateHistory.size()<<" // "<<propagatedErrors.size()<<std::endl;
     }
 
+    std::map<double, double> trueAnomalyMap;
     std::map<double, Eigen::Vector6d> propagatedErrorsRSW;
     Eigen::Vector6d currentPropagatedError;
     std::map<double, Eigen::VectorXd>::iterator it = propagatedErrors.begin();
@@ -986,8 +1005,22 @@ int main( )
 
     while (it != propagatedErrors.end()){
 
+        if (fullStateHistoryTimes.at(i) != it->first){
+            std::cout<<"times not equal! "<<fullStateHistoryTimes.at(i)<<" "<<it->first<<std::endl;
+        }
+        Eigen::Vector6d currentCartesianState = fullStateHistory.at(i);
+
+        // get true anomaly
+        Eigen::Vector6d currentKeplerianState = convertCartesianToKeplerianElements(
+                    currentCartesianState, mercuryGravitationalParameter);
+        double currentTrueAnomaly = currentKeplerianState(5);
+
+        trueAnomalyMap.insert(std::make_pair( it->first, currentTrueAnomaly ) );
+
+
+        // transform cartesian to RSW
         Eigen::Matrix3d currentTransformationToRSW =
-                reference_frames::getInertialToRswSatelliteCenteredFrameRotationMatrix(fullStateHistory.block(i,1,1,3));
+                reference_frames::getInertialToRswSatelliteCenteredFrameRotationMatrix(currentCartesianState.segment(0,3));
 
         currentPropagatedError.segment(0,3) = currentTransformationToRSW * it->second.segment(0,3);
         currentPropagatedError.segment(3,3) = currentTransformationToRSW * it->second.segment(3,3);
@@ -1003,7 +1036,8 @@ int main( )
     std::map< double, Eigen::MatrixXd > propagatedCovariance;
     propagateCovariance(propagatedCovariance, initialCovarianceMatrix,
                         orbitDeterminationManager.getStateTransitionAndSensitivityMatrixInterface( ),
-                        baseTimeList);
+                        fullStateHistoryTimes);
+                        //baseTimeList
                         //60.0, initialEphemerisTime + 3600.0, finalEphemerisTime - 3600.0 );
 
     std::map<double, Eigen::VectorXd> propagatedErrorUsingCovMatrix;
@@ -1016,7 +1050,7 @@ int main( )
 
         Eigen::VectorXd currentSigmaVector = covit->second.diagonal().cwiseSqrt();
         Eigen::Matrix3d currentTransformationToRSW =
-                reference_frames::getInertialToRswSatelliteCenteredFrameRotationMatrix(fullStateHistory.block(j,1,1,3));
+                reference_frames::getInertialToRswSatelliteCenteredFrameRotationMatrix(fullStateHistory.at(j));
 
         currentSigmaVectorRSW.segment(0,3) = currentTransformationToRSW * currentSigmaVector.segment(0,3);
         currentSigmaVectorRSW.segment(3,3) = currentTransformationToRSW * currentSigmaVector.segment(3,3);
@@ -1098,6 +1132,10 @@ int main( )
 
     input_output::writeDataMapToTextFile( propagatedErrorsRSW,
                                           "PropagatedErrorsRSW.dat",
+                                          tudat_applications::getOutputPath( ) + outputSubFolder );
+
+    input_output::writeDataMapToTextFile( trueAnomalyMap,
+                                          "TrueAnomaly.dat",
                                           tudat_applications::getOutputPath( ) + outputSubFolder );
 
     input_output::writeDataMapToTextFile( propagatedCovariance,
@@ -1189,6 +1227,11 @@ int main( )
 
     input_output::writeMatrixToFile( podOutput->getUnnormalizedCovarianceMatrix( ),
                                      "UnnormalizedCovariance.dat", 16,
+                                     tudat_applications::getOutputPath( ) + outputSubFolder );
+
+    Eigen::MatrixXd partialDerivatives = podOutput->getUnnormalizedPartialDerivatives();
+    input_output::writeMatrixToFile( partialDerivatives,
+                                     "UnnormalizedPartialDerivatives.dat", 16,
                                      tudat_applications::getOutputPath( ) + outputSubFolder );
 
 

@@ -37,47 +37,50 @@ def f(dir_output, dir_plots, bodies, no_arcs):
             gaps_b = np.concatenate([[0], np.where(dt_b > 30.0 * 24.0 * 60.0 * 60.0)[0], [-1]])
 
 
+        if np.array_equal(t, t_b):
+            data_b_interp = data_b[:,1:7]
+            print("  timestamps equal for forward and backward integration")
+        else:
+            for j in range(1, no_arcs + 1):
 
-        for j in range(1, no_arcs + 1):
+                start = gaps[j-1]
+                start_b = gaps_b[j-1]
+                end = gaps[j]
+                end_b = gaps_b[j]
 
-            start = gaps[j-1]
-            start_b = gaps_b[j-1]
-            end = gaps[j]
-            end_b = gaps_b[j]
-
-            if end == -1:
-                t_arc = t[start:]
-                t_arc_b = t_b[start_b:]
-                data_arc = data[start:, 1:7]
-            else:
-                t_arc = t[start:end]
-                t_arc_b = t_b[start_b:end_b]
-                data_arc = data[start:end, 1:7]
-
-            data_arc_b = np.zeros((len(data_arc),6))
-            for k in range(0, 6):
-                # #linear interpolator
-                # data_k = np.interp(t_arc, t_b, data_b[:, k+1])
-
-                # cubic spline interpolator
-                from scipy.interpolate import CubicSpline
                 if end == -1:
-                    cs = CubicSpline(t_arc_b, data_b[start_b:, k+1])
+                    t_arc = t[start:]
+                    t_arc_b = t_b[start_b:]
+                    data_arc = data[start:, 1:7]
                 else:
-                    cs = CubicSpline(t_arc_b, data_b[start_b:end_b, k+1])
-                data_k = cs(t_arc)
+                    t_arc = t[start:end]
+                    t_arc_b = t_b[start_b:end_b]
+                    data_arc = data[start:end, 1:7]
 
-                data_arc_b[:,k] = data_k
+                data_arc_b = np.zeros((len(data_arc),6))
+                for k in range(0, 6):
+                    # #linear interpolator
+                    # data_k = np.interp(t_arc, t_b, data_b[:, k+1])
 
-            # fig3 = plt.figure(figsize=(16, 10))
-            # plt.plot(t_arc_b,data_b[start_b:end_b,1])
-            # plt.plot(t_arc, data_arc_b[:,0])
-            # plt.savefig(dir_plots + body + str(j) + '_check_interpolation.png')
+                    # cubic spline interpolator
+                    from scipy.interpolate import CubicSpline
+                    if end == -1:
+                        cs = CubicSpline(t_arc_b, data_b[start_b:, k+1])
+                    else:
+                        cs = CubicSpline(t_arc_b, data_b[start_b:end_b, k+1])
+                    data_k = cs(t_arc)
 
-            if j == 1:
-                data_b_interp = data_arc_b
-            else:
-                data_b_interp = np.vstack([data_b_interp,data_arc_b])
+                    data_arc_b[:,k] = data_k
+
+                # fig3 = plt.figure(figsize=(16, 10))
+                # plt.plot(t_arc_b,data_b[start_b:end_b,1])
+                # plt.plot(t_arc, data_arc_b[:,0])
+                # plt.savefig(dir_plots + body + str(j) + '_check_interpolation.png')
+
+                if j == 1:
+                    data_b_interp = data_arc_b
+                else:
+                    data_b_interp = np.vstack([data_b_interp,data_arc_b])
 
 
         fig = plt.figure(figsize=(16, 10))
@@ -135,8 +138,8 @@ def f(dir_output, dir_plots, bodies, no_arcs):
         y_min_vel = np.min(allerrors_vel_norm2[np.nonzero(allerrors_vel_norm2)])
         y_max_vel = np.max(allerrors_vel_norm2)
 
-        print("maximum integration error, position norm [mm]:", y_max_pos*1000.0)
-        print("maximum integration error, velocity norm [mm/s]:", y_max_vel*1000.0)
+        print("  maximum integration error, position norm [m]:", y_max_pos)
+        print("  maximum integration error, velocity norm [m/s]:", y_max_vel)
 
         for j in range(1, no_arcs + 1):
 
