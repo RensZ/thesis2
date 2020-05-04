@@ -11,7 +11,7 @@ vehicles = ["MESSENGER",
 
 # User inputs
 no_bodies = 1
-no_arcs_v = [15,12]
+no_arcs_v = [11,12]
 bodies     = ["Vehicle"]
 parameters = []
 dependent_variables = []

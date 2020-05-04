@@ -109,9 +109,9 @@ int main( )
 
 
     // Load json input
-    std::string input_filename = "inputs_Genova2018.json"; // Messenger simulation done in Genova et al 2018, Nature Communications
+//    std::string input_filename = "inputs_Genova2018.json"; // Messenger simulation done in Genova et al 2018, Nature Communications
 //    std::string input_filename = "inputs_Genova2018_test.json"; // 1-year version of the simulation above for quicker test
-//    std::string input_filename = "inputs_Schettino2015.json"; // BepiColombo simulation done in Schettino et al 2015, IEEE
+    std::string input_filename = "inputs_Schettino2015.json"; // BepiColombo simulation done in Schettino et al 2015, IEEE
 
     using json = nlohmann::json;
     std::string json_directory = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/";
@@ -832,6 +832,8 @@ int main( )
                 measurementSimulationInput, orbitDeterminationManager.getObservationSimulators( ),
                 noiseFunctions);
 
+    // similar container, but the "observation" will be the noise value instead of the actual observation
+    PodInputDataType observationWeightsAndTimes = observationsAndTimes;
 
     // add spacecraft initial position error to the observations
 //    PodInputDataType oldObservationsAndTimes = observationsAndTimes; //to verify
@@ -848,9 +850,13 @@ int main( )
 
         // get to the location in the map where we can find the range observables
         PodInputDataType::iterator podInputIterator = observationsAndTimes.begin();
+        PodInputDataType::iterator weightsIterator = observationWeightsAndTimes.begin();
         while (podInputIterator != observationsAndTimes.end()){
+
             if (podInputIterator->first == one_way_range || podInputIterator->first == n_way_range){
+
                 SingleObservablePodInputType::iterator singleObservableIterator = podInputIterator->second.begin();
+                SingleObservablePodInputType::iterator weightsIterator2 = weightsIterator->second.begin();
                 while (singleObservableIterator != podInputIterator->second.end()){
 
                     // retrieve observations and their respective times for current observable type
@@ -860,6 +866,7 @@ int main( )
                     Eigen::MatrixXd interpolatedErrorMatrix = interpolatePositionErrors(error_input, allObservationTimes);
 
                     ObservationVectorType newObservations = Eigen::VectorXd(allObservations.size());
+                    ObservationVectorType observationWeights = Eigen::VectorXd(allObservations.size());
 
                     // for every observation, retrieve and add the range bias that should be added
                     for (unsigned int i=0; i<allObservationTimes.size(); i++){
@@ -871,7 +878,6 @@ int main( )
                             std::normal_distribution<double> d(0.0, currentSatelliteError( j ));
                             randomErrorSample( j ) = d(gen);
                         }
-
 
                         Eigen::Vector3d mercuryPositionWrtEarth = -getBodyCartesianStateAtEpoch("Earth","Mercury","IAU_Mercury","None",observationTime).segment(0,3);
                         Eigen::Vector3d rangeUnitVector = mercuryPositionWrtEarth / mercuryPositionWrtEarth.norm( );
@@ -885,15 +891,29 @@ int main( )
                                    rangeCorrection<<std::endl;
 
                         newObservations(i) = allObservations(i) + rangeCorrection;
+                        observationWeights(i) = 1.0/(rangeCorrection*rangeCorrection);
                     }
 
                     singleObservableIterator->second.first = newObservations;
-                    singleObservableIterator++;
+                    weightsIterator2->second.first = observationWeights;
+                    singleObservableIterator++; weightsIterator2++;
                 }
             }
-            podInputIterator++;
+            podInputIterator++; weightsIterator++;
         }
     }
+
+
+
+
+//    // Define observation weights (constant per observable type)
+//    std::map< observation_models::ObservableType, double > weightPerObservable;
+//    weightPerObservable[ one_way_range ] = 1.0 / ( averageRangeNoise * averageRangeNoise );
+//    weightPerObservable[ n_way_range ] = 1.0 / ( averageRangeNoise * averageRangeNoise );
+//    weightPerObservable[ angular_position ] = 1.0 / ( angularPositionNoise * angularPositionNoise );
+//    weightPerObservable[ one_way_doppler ] = 1.0 / ( dopplerNoise * dopplerNoise );
+//    weightPerObservable[ position_observable ] = 1.0 / ( averagePositionObservableNoise * averagePositionObservableNoise );
+
 
 
     /////////////////////////////
@@ -968,8 +988,6 @@ int main( )
     }
 
 
-
-
     // Define estimation input
     std::shared_ptr< PodInput< double, double > > podInput =
             std::make_shared< PodInput< double, double > >(
@@ -977,15 +995,8 @@ int main( )
                 inverseOfAprioriCovariance,
                 initialParameterEstimate - truthParameters );
     podInput->defineEstimationSettings( true, true, false, true );
-
-    // Define observation weights (constant per observable type)
-    std::map< observation_models::ObservableType, double > weightPerObservable;
-    weightPerObservable[ one_way_range ] = 1.0 / ( averageRangeNoise * averageRangeNoise );
-    weightPerObservable[ n_way_range ] = 1.0 / ( averageRangeNoise * averageRangeNoise );
-//    weightPerObservable[ angular_position ] = 1.0 / ( angularPositionNoise * angularPositionNoise );
-//    weightPerObservable[ one_way_doppler ] = 1.0 / ( dopplerNoise * dopplerNoise );
-//    weightPerObservable[ position_observable ] = 1.0 / ( averagePositionObservableNoise * averagePositionObservableNoise );
-    podInput->setConstantPerObservableWeightsMatrix( weightPerObservable );
+//    podInput->setConstantPerObservableWeightsMatrix( weightPerObservable );
+    podInput->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
 
     // Perform estimation
     std::shared_ptr< PodOutput< double > > podOutput = orbitDeterminationManager.estimateParameters(

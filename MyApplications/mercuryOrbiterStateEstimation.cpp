@@ -95,8 +95,8 @@ int main( )
 //    double maximumStepSize = 2.0;
 //    double tolerance = 1.0;
 
-    const unsigned int maxMercuryDegree = 10;
-    const unsigned int maxMercuryOrder = 10;
+    const unsigned int maxMercuryDegree = 8;
+    const unsigned int maxMercuryOrder = 8;
 
     const unsigned int minMercuryDegree = 2; //only for estimatable parameters, SH field starts at d/o 0/0
 
@@ -104,8 +104,8 @@ int main( )
     const unsigned int numberOfIterations = 1;
 
     // run simulation for vehicle
-    std::string vehicle = "MESSENGER";
-//    std::string vehicle = "BepiColombo";
+//    std::string vehicle = "MESSENGER";
+    std::string vehicle = "BepiColombo";
 
     // define mission dependent variables
     double initialEphemerisTime;
@@ -148,7 +148,7 @@ int main( )
 
     std::string outputSubFolder = vehicle + "/";
 
-    int numberOfSimulationDays = 5.0;
+    int numberOfSimulationDays = 15.0;
     double arcOverlap = 0.0;
     double observationStartOffset = 1000.0; // or observation generation wil complain
     //    double arcDuration = 1.01 * 86400.0; // integrate for one day
