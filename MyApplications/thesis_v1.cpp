@@ -26,16 +26,6 @@
 static inline std::string getOutputPath(
         const std::string& extraDirectory = "" )
 {
-//    // Declare file path string assigned to filePath.
-//    // __FILE__ only gives the absolute path of the header file!
-//    std::string filePath_( __FILE__ );
-
-//    // Strip filename from temporary string and return root-path string.
-//    std::string outputPath = filePath_.substr( 0, filePath_.length( )
-//                                - std::string( "MyApplications" ).length( ) )
-//                                + std::string( "/" );
-//    if( extraDirectory != "" ){outputPath += extraDirectory;}
-//    if( outputPath.at( outputPath.size( ) - 1 ) != '/' ){outputPath += "/";}
 
     std::string outputPath = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Output/" + extraDirectory;
     return outputPath;
@@ -84,7 +74,7 @@ int main( )
     const bool useDirectSpice = false; // Use direct SPICE (more accurate than tabulated Spice)
 
     // Parameter estimation settings
-    const unsigned int maximumNumberOfIterations = 3;
+    const unsigned int maximumNumberOfIterations = 5;
 
     // ABM integrator settings (if RK4 is used instead, initialstepsize is taken)
     const double initialTimeStep = 3600;
@@ -109,9 +99,9 @@ int main( )
 
 
     // Load json input
-//    std::string input_filename = "inputs_Genova2018.json"; // Messenger simulation done in Genova et al 2018, Nature Communications
+    std::string input_filename = "inputs_Genova2018.json"; // Messenger simulation done in Genova et al 2018, Nature Communications
 //    std::string input_filename = "inputs_Genova2018_test.json"; // 1-year version of the simulation above for quicker test
-    std::string input_filename = "inputs_Schettino2015.json"; // BepiColombo simulation done in Schettino et al 2015, IEEE
+//    std::string input_filename = "inputs_Schettino2015.json"; // BepiColombo simulation done in Schettino et al 2015, IEEE
 
     using json = nlohmann::json;
     std::string json_directory = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/";
@@ -509,21 +499,9 @@ int main( )
     // Create ground stations from geodetic positions.
     std::vector< std::string > groundStationNames;
 
-
     groundStationNames.push_back( "Station1" );
     createGroundStation( bodyMap.at( "Earth" ), "Station1",
                          ( Eigen::Vector3d( ) << 0.0, 1.25, 0.0 ).finished( ), geodetic_position );
-
-//    groundStationNames.push_back( "Station2" );
-//    createGroundStation( bodyMap.at( "Earth" ), "Station2",
-//                         ( Eigen::Vector3d( ) << 0.0, -1.55, 2.0 ).finished( ), geodetic_position );
-
-//    groundStationNames.push_back( "Station3" );
-//    createGroundStation( bodyMap.at( "Earth" ), "Station3",
-//                         ( Eigen::Vector3d( ) << 0.0, 0.8, 4.0 ).finished( ), geodetic_position );
-
-
-
 
 
     ///////////////////////////////////////////
@@ -557,29 +535,10 @@ int main( )
     twoWayRangeLinkEnds[ reflector1 ] = std::make_pair( "Mercury", "" );
     twoWayRangeLinkEnds[ receiver ] = std::make_pair( "Earth", groundStationNames.at( 0 ) );
 
-
-    // Position Observable link ends
-//    std::vector< LinkEnds> positionObservableLinkEnds;
-//    LinkEnds linkEnds2;
-//    linkEnds2[ observed_body ] = std::make_pair( "Mercury", "" );
-//    positionObservableLinkEnds.push_back( linkEnds2 );
-
-
     // Define (arbitrarily) link ends to be used for 1-way range, 1-way doppler and angular position observables
     std::map< ObservableType, std::vector< LinkEnds > > linkEndsPerObservable;
 
-//    linkEndsPerObservable[ one_way_range ].push_back( stationReceiverLinkEnds[ 0 ] );
-//    linkEndsPerObservable[ one_way_range ].push_back( stationTransmitterLinkEnds[ 0 ] );
-
     linkEndsPerObservable[ n_way_range ].push_back( twoWayRangeLinkEnds );
-
-//    linkEndsPerObservable[ one_way_doppler ].push_back( stationReceiverLinkEnds[ 0 ] );
-//    linkEndsPerObservable[ one_way_doppler ].push_back( stationTransmitterLinkEnds[ 0 ] );
-
-//    linkEndsPerObservable[ angular_position ].push_back( stationReceiverLinkEnds[ 2 ] );
-//    linkEndsPerObservable[ angular_position ].push_back( stationTransmitterLinkEnds[ 1 ] );
-
-//    linkEndsPerObservable[ position_observable ].push_back( positionObservableLinkEnds[ 0 ] );
 
 
 
@@ -743,14 +702,6 @@ int main( )
         }
     }
 
-//    // Create observation viability settings and calculators
-//    std::vector< std::shared_ptr< ObservationViabilitySettings > > observationViabilitySettings;
-//    observationViabilitySettings.push_back( std::make_shared< ObservationViabilitySettings >(
-//                                                body_avoidance_angle, std::make_pair( "Mercury", "" ), "Sun",
-//                                                unit_conversions::convertDegreesToRadians( 35.0 ) ) );
-//    PerObservableObservationViabilityCalculatorList viabilityCalculators = createObservationViabilityCalculators(
-//                bodyMap, linkEndsPerObservable, observationViabilitySettings );
-
 
     // Create noise functions per observable
     if (simulateObservationNoise == false){
@@ -761,51 +712,11 @@ int main( )
 
     std::map< ObservableType, std::function< double( const double ) > > noiseFunctions;
 
-//    noiseFunctions[ one_way_range ] =
-//            std::bind( &utilities::evaluateFunctionWithoutInputArgumentDependency< double, const double >,
-//                       createBoostContinuousRandomVariableGeneratorFunction(
-//                           normal_boost_distribution, { 0.0, rangeNoise }, 0.0 ), std::placeholders::_1 );
 
-//    noiseFunctions[ angular_position ] =
-//            std::bind( &utilities::evaluateFunctionWithoutInputArgumentDependency< double, const double >,
-//                       createBoostContinuousRandomVariableGeneratorFunction(
-//                           normal_boost_distribution, { 0.0, angularPositionNoise }, 0.0 ), std::placeholders::_1 );
-
-//    noiseFunctions[ one_way_doppler ] =
-//            std::bind( &utilities::evaluateFunctionWithoutInputArgumentDependency< double, const double >,
-//                       createBoostContinuousRandomVariableGeneratorFunction(
-//                           normal_boost_distribution, { 0.0, dopplerNoise }, 0.0 ), std::placeholders::_1 );
-
-//    noiseFunctions[ position_observable ] =
-//            std::bind( &utilities::evaluateFunctionWithoutInputArgumentDependency< double, const double >,
-//                       createBoostContinuousRandomVariableGeneratorFunction(
-//                           normal_boost_distribution, { 0.0, positionObservableNoise }, 0.0 ), std::placeholders::_1 );
-
-
-    // rms of two noise sources
-//    double effectiveNoiseAtMinAngle = sqrt(noiseAtMinAngle*noiseAtMinAngle
-//                                           + positionObservableNoise*positionObservableNoise);
-//    double effectiveNoiseAtMaxAngle = sqrt(noiseAtMaxAngle*noiseAtMaxAngle
-//                                           + positionObservableNoise*positionObservableNoise);
-
-//    std::function< double( const double ) > linearNoiseFunction;
-//    linearNoiseFunction = [effectiveNoiseAtMinAngle, effectiveNoiseAtMaxAngle](const double time){
-//        return noiseBasedOnMSEangle(time, effectiveNoiseAtMinAngle, effectiveNoiseAtMaxAngle);
-//    };
-
-
-
-//    std::cout<<"position obs noise min: "<<effectiveNoiseAtMinAngle
-//             <<" max: "<<effectiveNoiseAtMaxAngle
-//             <<" avg: "<<averagePositionObservableNoise
-//             <<std::endl;
-
-    double averageRangeNoise = (noiseAtMinAngle + noiseAtMaxAngle)/2.0;
 
     std::function< double( const double ) > mercuryOrbiterNoiseFunction;
     mercuryOrbiterNoiseFunction = [noiseAtMinAngle, noiseAtMaxAngle](const double time){
-        return noiseBasedOnMSEangle(time, noiseAtMinAngle, noiseAtMaxAngle);
-//               + mercuryOrbiterEstimationError(time);
+        return noiseSampleBasedOnMSEangle(time, noiseAtMinAngle, noiseAtMaxAngle);
     };
 
 
@@ -885,13 +796,17 @@ int main( )
                         double rangeCorrection = randomErrorSample.dot(rangeUnitVector);
                         if (podInputIterator->first == n_way_range){rangeCorrection *= 2.0;}
 
+                        newObservations(i) = allObservations(i) + rangeCorrection;
+
+                        double noiseLevel = abs(rangeCorrection)
+                                + noiseLevelBasedOnMSEangle(observationTime, noiseAtMinAngle, noiseAtMaxAngle);
+                        observationWeights(i) = 1.0/(noiseLevel*noiseLevel);
+
                         std::cout<<observationTime<<" // "<<
                                    currentSatelliteError.transpose()<<" // "<<
                                    randomErrorSample.transpose()<<" // "<<
-                                   rangeCorrection<<std::endl;
-
-                        newObservations(i) = allObservations(i) + rangeCorrection;
-                        observationWeights(i) = 1.0/(rangeCorrection*rangeCorrection);
+                                   rangeCorrection<<" // "<<
+                                   noiseLevel<<std::endl;
                     }
 
                     singleObservableIterator->second.first = newObservations;
@@ -902,17 +817,6 @@ int main( )
             podInputIterator++; weightsIterator++;
         }
     }
-
-
-
-
-//    // Define observation weights (constant per observable type)
-//    std::map< observation_models::ObservableType, double > weightPerObservable;
-//    weightPerObservable[ one_way_range ] = 1.0 / ( averageRangeNoise * averageRangeNoise );
-//    weightPerObservable[ n_way_range ] = 1.0 / ( averageRangeNoise * averageRangeNoise );
-//    weightPerObservable[ angular_position ] = 1.0 / ( angularPositionNoise * angularPositionNoise );
-//    weightPerObservable[ one_way_doppler ] = 1.0 / ( dopplerNoise * dopplerNoise );
-//    weightPerObservable[ position_observable ] = 1.0 / ( averagePositionObservableNoise * averagePositionObservableNoise );
 
 
 

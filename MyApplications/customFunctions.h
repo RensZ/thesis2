@@ -21,7 +21,11 @@ std::vector<double> makeObservationTimeList(const double initialTime,
                                             const double maxMSEangle, //radians. if not applicable, set to value greater than pi.
                                             const std::vector<double> flybyTimes);
 
-double noiseBasedOnMSEangle(const double time,
+double noiseLevelBasedOnMSEangle(const double time,
+                            const double noiseAtMinAngle,
+                            const double noiseAtMaxAngle);
+
+double noiseSampleBasedOnMSEangle(const double time,
                             const double noiseAtMinAngle,
                             const double noiseAtMaxAngle);
 

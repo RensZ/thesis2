@@ -117,33 +117,35 @@ def f(dir_output, dir_plots, body, no_arcs):
     plt.tight_layout()
     plt.savefig(dir_plots+body+"_observation_residuals_perarc_RSW")
 
-    t_av_r = 60.0 * 60.0 * np.asarray(t_av_r)
-    t_av_e = 60.0*60.0*np.asarray(t_av_e)
+    if no_arcs > 1:
 
-    # plot average per arc, errobars are the sigmas
-    fig2 = plt.figure(figsize=(16, 10))
-    plt.subplot(3,1,1)
-    plt.errorbar(t_av_r,av_r,std_r,fmt='--o')
-    plt.xlabel("time since J2000 [s]")
-    plt.ylabel("residual [m]")
-    plt.yscale(yscale)
+        t_av_r = 60.0 * 60.0 * np.asarray(t_av_r)
+        t_av_e = 60.0*60.0*np.asarray(t_av_e)
 
-    plt.subplot(3,1,2)
-    for j in range(0, 3):
-        plt.errorbar(t_av_e,av_e[:,j],std_e[:,j],fmt='--o')
-    plt.xlabel("time since J2000 [s]")
-    plt.ylabel("propagated position error [m]")
-    plt.yscale(yscale)
-    plt.legend(["r", "at", "ct"])
+        # plot average per arc, errobars are the sigmas
+        fig2 = plt.figure(figsize=(16, 10))
+        plt.subplot(3,1,1)
+        plt.errorbar(t_av_r,av_r,std_r,fmt='--o')
+        plt.xlabel("time since J2000 [s]")
+        plt.ylabel("residual [m]")
+        plt.yscale(yscale)
 
-    plt.subplot(3,1,3)
-    for j in range(3, 6):
-        plt.errorbar(t_av_e,av_e[:,j],std_e[:,j],fmt='--o')
-    plt.xlabel("time since J2000 [s]")
-    plt.ylabel("propagated velocity error [m/s]")
-    plt.yscale(yscale)
-    plt.legend(["r", "at", "ct"])
+        plt.subplot(3,1,2)
+        for j in range(0, 3):
+            plt.errorbar(t_av_e,av_e[:,j],std_e[:,j],fmt='--o')
+        plt.xlabel("time since J2000 [s]")
+        plt.ylabel("propagated position error [m]")
+        plt.yscale(yscale)
+        plt.legend(["r", "at", "ct"])
 
-    plt.tight_layout()
-    plt.savefig(dir_plots+body+"_residuals_averages_RSW")
+        plt.subplot(3,1,3)
+        for j in range(3, 6):
+            plt.errorbar(t_av_e,av_e[:,j],std_e[:,j],fmt='--o')
+        plt.xlabel("time since J2000 [s]")
+        plt.ylabel("propagated velocity error [m/s]")
+        plt.yscale(yscale)
+        plt.legend(["r", "at", "ct"])
+
+        plt.tight_layout()
+        plt.savefig(dir_plots+body+"_residuals_averages_RSW")
 

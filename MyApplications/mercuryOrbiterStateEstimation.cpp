@@ -19,19 +19,6 @@ namespace tudat_applications
     static inline std::string getOutputPath(
             const std::string& extraDirectory = "" )
     {
-//        // Declare file path string assigned to filePath.
-//        // __FILE__ only gives the absolute path of the header file!
-//        std::string filePath_( __FILE__ );
-//        std::cout<<filePath_<<std::endl;
-
-//        // Strip filename from temporary string and return root-path string.
-//        std::string outputPath = filePath_.substr( 0, filePath_.length( )
-//                                    - std::string( "MyApplications" ).length( ) )
-//                                    + std::string( "/Output/" );
-//        std::cout<<outputPath<<std::endl;
-//        if( extraDirectory != "" ){outputPath += extraDirectory;}
-//        if( outputPath.at( outputPath.size( ) - 1 ) != '/' ){outputPath += "/";}
-
         std::string outputPath = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Output/" + extraDirectory;
         return outputPath;
     }
@@ -128,7 +115,7 @@ int main( )
         vehicleName = "BEPICOLOMBO MPO";
         trackingPeriod = 8.0*60.0*60.0;
         observationInterval = 1000.0;
-        dopplerNoiseUnnormalised = 3.0E-6;
+        dopplerNoiseUnnormalised = 1.5E-6; //Ka tracking only
     }
     else if (vehicle == "MESSENGER"){
         initialEphemerisTime = 354888000.0; // April 1st 2011, 12 days after insertion
@@ -180,10 +167,6 @@ int main( )
     std::map< std::string, std::shared_ptr< BodySettings > > bodySettings =
             getDefaultBodySettings( bodyNames, initialEphemerisTime - 2*86400.0, finalEphemerisTime + 2*86400.0);
 
-//    bodySettings[ "Sun" ]->rotationModelSettings = std::make_shared< SimpleRotationModelSettings >(
-//                "ECLIPJ2000", "IAU_Sun", spice_interface::computeRotationQuaternionBetweenFrames(
-//                    "ECLIPJ2000", "IAU_Sun", initialEphemerisTime ),
-//                initialEphemerisTime, 2.0 * mathematical_constants::PI / physical_constants::JULIAN_DAY );
 
     double dayOnMercury = 58.785 * physical_constants::JULIAN_DAY; //https://nssdc.gsfc.nasa.gov/planetary/factsheet/mercuryfact.html
     bodySettings[ "Mercury" ]->rotationModelSettings = std::make_shared< SimpleRotationModelSettings >(
@@ -257,17 +240,6 @@ int main( )
     NamedBodyMap bodyMap = createBodies( bodySettings );
     bodyMap[ vehicle ] = std::make_shared< Body >( );
     bodyMap[ vehicle ]->setConstantBodyMass( spacecraftMass );
-
-//    // Create aerodynamic coefficient interface settings.
-//    double referenceArea = 4.0;
-//    double aerodynamicCoefficient = 1.2;
-//    std::shared_ptr< AerodynamicCoefficientSettings > aerodynamicCoefficientSettings =
-//            std::make_shared< ConstantAerodynamicCoefficientSettings >(
-//                referenceArea, aerodynamicCoefficient * ( Eigen::Vector3d( ) << 1.2, -0.01, 0.1 ).finished( ), 1, 1 );
-
-//    // Create and set aerodynamic coefficients object
-//    bodyMap[ vehicle ]->setAerodynamicCoefficientInterface(
-//                createAerodynamicCoefficientInterface( aerodynamicCoefficientSettings, vehicle ) );
 
     // Create radiation pressure settings
     double radiationPressureCoefficient = 1.2;
@@ -345,24 +317,6 @@ int main( )
 
 
     std::cout<<"creating propagation settings"<<std::endl;
-
-//    Eigen::Vector6d vehicleInitialKeplerianState;
-//    vehicleInitialKeplerianState( semiMajorAxisIndex ) = (5.172314175394792E-05)*physical_constants::ASTRONOMICAL_UNIT;
-//    vehicleInitialKeplerianState( eccentricityIndex ) = 6.330051519045469E-01;
-//    vehicleInitialKeplerianState( inclinationIndex ) = unit_conversions::convertDegreesToRadians( 8.811002404818556E+01 );
-//    vehicleInitialKeplerianState( argumentOfPeriapsisIndex ) = unit_conversions::convertDegreesToRadians( 0.0 );
-//    vehicleInitialKeplerianState( longitudeOfAscendingNodeIndex ) = unit_conversions::convertDegreesToRadians( 0.0 );
-//    vehicleInitialKeplerianState( trueAnomalyIndex ) = unit_conversions::convertDegreesToRadians( 0.0 );
-
-//    // MESSENGER state at 2012-9-4 from JPL HORIZON
-//    Eigen::Vector6d vehicleInitialStateKM;
-//    vehicleInitialStateKM <<  -3.903241060109104E+03, 1.132080847551607E+03,  3.115447461584540E+02
-//                              -1.543646767332147E+00, 1.748791694677803E-01, -2.355773564131267E+00;
-
-//    Eigen::Vector6d vehicleInitialState = (10^3)*vehicleInitialStateKM;
-
-//    Eigen::Vector6d vehicleInitialKeplerianState = convertCartesianToKeplerianElements(vehicleInitialState,mercuryGravitationalParameter);
-//    std::cout<<vehicleInitialKeplerianState<<std::endl;
 
     if (vehicle == "BepiColombo"){
         loadSpiceKernelInTudat(input_output::getSpiceKernelPath() + "bc_sci_v04.tf");
@@ -447,8 +401,6 @@ int main( )
 //        std::shared_ptr< IntegratorSettings< > > integratorSettings =
 //                std::make_shared< IntegratorSettings< > >
 //                ( rungeKutta4, initialEphemerisTime, 1.0 );
-
-
 
 
 
@@ -561,10 +513,7 @@ int main( )
     }
 
     Eigen::MatrixXd initialStatesIntegrationError = initialStatesFromBackwardPropagation - arcInitialStatesMatrix;
-//    std::cout<<"actual initial states: "<<std::endl<<arcInitialStatesMatrix<<std::endl;
-//    std::cout<<"result backward integration: "<<std::endl<<initialStatesFromBackwardPropagation<<std::endl;
     std::cout<<"differences initial states: "<<std::endl<<initialStatesIntegrationError<<std::endl;
-//    std::cout<<"approximated numerical error per arc (difference divided by two):"<<std::endl<<initialStatesIntegrationError/2.0<<std::endl;
 
 
     // Write propagation history to file.
@@ -606,19 +555,11 @@ int main( )
 
     // Define (arbitrarily) link ends to be used for 1-way range, 1-way doppler and angular position observables
     std::map< ObservableType, std::vector< LinkEnds > > linkEndsPerObservable;
-//    linkEndsPerObservable[ one_way_range ].push_back( stationReceiverLinkEnds[ 0 ] );
-//    linkEndsPerObservable[ one_way_range ].push_back( stationTransmitterLinkEnds[ 0 ] );
 
     linkEndsPerObservable[ one_way_doppler ].push_back( stationReceiverLinkEnds[ 0 ] );
     linkEndsPerObservable[ one_way_doppler ].push_back( stationTransmitterLinkEnds[ 0 ] );
 
-//    linkEndsPerObservable[ two_way_doppler ].push_back( twoWayDopplerLinkEnds );
 
-//    linkEndsPerObservable[ one_way_differenced_range ].push_back( stationReceiverLinkEnds[ 0 ] );
-//    linkEndsPerObservable[ one_way_differenced_range ].push_back( stationTransmitterLinkEnds[ 0 ] );
-
-//    linkEndsPerObservable[ angular_position ].push_back( stationReceiverLinkEnds[ 2 ] );
-//    linkEndsPerObservable[ angular_position ].push_back( stationTransmitterLinkEnds[ 1 ] );
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////    DEFINE PARAMETERS THAT ARE TO BE ESTIMATED      ////////////////////////////////////////////
@@ -646,11 +587,6 @@ int main( )
 
     parameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
                                   vehicle, systemInitialState, arcStartTimes, "Mercury" ) );
-
-    //    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-    //                             ("Mercury", gravitational_parameter));
-    //    varianceVector.push_back(sigmaMercuryGM*sigmaMercuryGM);
-
 
 
 
@@ -680,39 +616,8 @@ int main( )
         }
     }
 
-//    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "global_metric", ppn_parameter_gamma ) );
-//    varianceVector.push_back( sigmaGamma*sigmaGamma );
-
     parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( vehicle, radiation_pressure_coefficient ) );
     varianceVector.push_back( sigmaRadiation*sigmaRadiation );
-
-//    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( vehicle, constant_drag_coefficient ) );
-//    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "Earth", constant_rotation_rate ) );
-//    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "Earth", rotation_pole_position ) );
-//    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "Earth", ground_station_position, "Station1" ) );
-//    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( "Earth", ground_station_position, "Station2" ) );
-//    parameterNames.push_back( std::make_shared< ConstantObservationBiasEstimatableParameterSettings >(
-//                                  linkEndsPerObservable.at( one_way_range ).at( 0 ), one_way_range, true ) );
-//    parameterNames.push_back( std::make_shared< ConstantObservationBiasEstimatableParameterSettings >(
-//                                  linkEndsPerObservable.at( one_way_range ).at( 1 ), one_way_range, true ) );
-
-//    parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
-//                                  2, 0, 2, 0, "Sun", spherical_harmonics_cosine_coefficient_block ) );
-//    varianceVector.push_back( sigmaSunJ2*sigmaSunJ2 );
-
-//    // Define required settings for arc-wise empirical accelerations
-//    std::map< EmpiricalAccelerationComponents, std::vector< EmpiricalAccelerationFunctionalShapes > > empiricalAccelerationComponents;
-//    empiricalAccelerationComponents[ across_track_empirical_acceleration_component ].push_back( cosine_empirical );
-//    empiricalAccelerationComponents[ across_track_empirical_acceleration_component ].push_back( sine_empirical );
-//    empiricalAccelerationComponents[ along_track_empirical_acceleration_component ].push_back( cosine_empirical );
-//    empiricalAccelerationComponents[ along_track_empirical_acceleration_component ].push_back( sine_empirical );
-//    std::vector< double > empiricalAccelerationArcTimes;
-//    for (int i=0; i<numberOfSimulationDays; i++){
-//        empiricalAccelerationArcTimes.push_back( arcStartTimes.at(i) );
-//    }
-//    empiricalAccelerationArcTimes.push_back( arcStartTimes.at(static_cast<int>(numberOfSimulationDays/2.0)) );
-//    parameterNames.push_back( std::make_shared< ArcWiseEmpiricalAccelerationEstimatableParameterSettings >(
-//                                  vehicle, "Mercury", empiricalAccelerationComponents, empiricalAccelerationArcTimes ) );
 
     // Create parameters
     std::shared_ptr< estimatable_parameters::EstimatableParameterSet< double > > parametersToEstimate =
@@ -809,13 +714,6 @@ int main( )
         }
     }
 
-    // Create observation viability settings and calculators
-//    std::vector< std::shared_ptr< ObservationViabilitySettings > > observationViabilitySettings;
-//    observationViabilitySettings.push_back( std::make_shared< ObservationViabilitySettings >(
-//                                                minimum_elevation_angle, std::make_pair( "Earth", "" ), "",
-//                                                unit_conversions::convertDegreesToRadians( 5.0 ) ) );
-//    PerObservableObservationViabilityCalculatorList viabilityCalculators = createObservationViabilityCalculators(
-//                bodyMap, linkEndsPerObservable, observationViabilitySettings );
 
     // Set typedefs for POD input (observation types, observation link ends, observation values, associated times with
     // reference link ends.
@@ -832,11 +730,6 @@ int main( )
     std::cout << "one way doppler noise: " << oneWayDopplerNoise << std::endl;
     std::cout << "one way doppler noise: " << twoWayDopplerNoise << std::endl;
 
-
-    // Defaults
-//    double rangeNoise = 0.1;
-//    double angularPositionNoise = 1.0E-7;
-//    double dopplerNoise = 1.0E-12;
 
     // Create noise functions per observable
     std::map< ObservableType, std::function< double( const double ) > > noiseFunctions;
@@ -855,16 +748,6 @@ int main( )
             std::bind( &utilities::evaluateFunctionWithoutInputArgumentDependency< double, const double >,
                        createBoostContinuousRandomVariableGeneratorFunction(
                            normal_boost_distribution, { 0.0, rangeNoise }, 0.0 ), std::placeholders::_1 );
-
-//    noiseFunctions[ angular_position ] =
-//            std::bind( &utilities::evaluateFunctionWithoutInputArgumentDependency< double, const double >,
-//                       createBoostContinuousRandomVariableGeneratorFunction(
-//                           normal_boost_distribution, { 0.0, angularPositionNoise }, 0.0 ), std::placeholders::_1 );
-
-//    noiseFunctions[ one_way_differenced_range ] =
-//            std::bind( &utilities::evaluateFunctionWithoutInputArgumentDependency< double, const double >,
-//                       createBoostContinuousRandomVariableGeneratorFunction(
-//                           normal_boost_distribution, { 0.0, dopplerNoise }, 0.0 ), std::placeholders::_1 );
 
 
     std::cout<< "simulating observations..." << std::endl;
@@ -972,63 +855,17 @@ int main( )
         historyit++;
     }
 
-//    Eigen::MatrixXd fullStateHistory = input_output::readMatrixFromFile(
-//                tudat_applications::getOutputPath( ) + outputSubFolder + "StatePropagationHistoryVehicle.dat");
-//    //Eigen::VectorXd fullStateHistoryTimes = fullStateHistory.block(0,0,fullStateHistory.rows(),1);
-//    std::vector<double> fullStateHistoryTimes(
-//                fullStateHistory.block(0,0,fullStateHistory.rows(),1).data(),
-//                fullStateHistory.block(0,0,fullStateHistory.rows(),1).data() + fullStateHistory.rows());
+//    // Propagate errors to total time period
+//    std::cout<<"propagating errors..."<<std::endl;
+//    Eigen::MatrixXd initialCovarianceMatrix = podOutput->getUnnormalizedCovarianceMatrix( );
+//    std::map< double, Eigen::VectorXd > propagatedErrors;
+//    propagateFormalErrors(
+//                propagatedErrors, initialCovarianceMatrix,
+//                orbitDeterminationManager.getStateTransitionAndSensitivityMatrixInterface( ),
+//                fullStateHistoryTimes );
+//                //baseTimeList);
+//                //60.0, initialEphemerisTime + 3600.0, finalEphemerisTime - 3600.0 );
 
-    // Propagate errors to total time period
-    std::cout<<"propagating errors..."<<std::endl;
-    Eigen::MatrixXd initialCovarianceMatrix = podOutput->getUnnormalizedCovarianceMatrix( );
-    std::map< double, Eigen::VectorXd > propagatedErrors;
-    propagateFormalErrors(
-                propagatedErrors, initialCovarianceMatrix,
-                orbitDeterminationManager.getStateTransitionAndSensitivityMatrixInterface( ),
-                fullStateHistoryTimes );
-                //baseTimeList);
-                //60.0, initialEphemerisTime + 3600.0, finalEphemerisTime - 3600.0 );
-
-    if (fullStateHistory.size() == propagatedErrors.size()){
-        std::cout<<"check!"<<std::endl;
-    } else{
-        std::cout<<"Lists not equal in length!!"<<std::endl;
-        std::cout<<fullStateHistory.size()<<" // "<<propagatedErrors.size()<<std::endl;
-    }
-
-    std::map<double, double> trueAnomalyMap;
-    std::map<double, Eigen::Vector6d> propagatedErrorsRSW;
-    Eigen::Vector6d currentPropagatedError;
-    std::map<double, Eigen::VectorXd>::iterator it = propagatedErrors.begin();
-    unsigned int i = 0;
-
-    while (it != propagatedErrors.end()){
-
-        if (fullStateHistoryTimes.at(i) != it->first){
-            std::cout<<"times not equal! "<<fullStateHistoryTimes.at(i)<<" "<<it->first<<std::endl;
-        }
-        Eigen::Vector6d currentCartesianState = fullStateHistory.at(i);
-
-        // get true anomaly
-        Eigen::Vector6d currentKeplerianState = convertCartesianToKeplerianElements(
-                    currentCartesianState, mercuryGravitationalParameter);
-        double currentTrueAnomaly = currentKeplerianState(5);
-
-        trueAnomalyMap.insert(std::make_pair( it->first, currentTrueAnomaly ) );
-
-
-        // transform cartesian to RSW
-        Eigen::Matrix3d currentTransformationToRSW =
-                reference_frames::getInertialToRswSatelliteCenteredFrameRotationMatrix(currentCartesianState.segment(0,3));
-
-        currentPropagatedError.segment(0,3) = currentTransformationToRSW * it->second.segment(0,3);
-        currentPropagatedError.segment(3,3) = currentTransformationToRSW * it->second.segment(3,3);
-
-        propagatedErrorsRSW.insert(std::make_pair( it->first, currentPropagatedError ) );
-
-        i++; it++;
-    }
 
     // Propagate covariance matrix
     std::cout<<"propagating covariance matrix..."<<std::endl;
@@ -1040,28 +877,41 @@ int main( )
                         //baseTimeList
                         //60.0, initialEphemerisTime + 3600.0, finalEphemerisTime - 3600.0 );
 
-    std::map<double, Eigen::VectorXd> propagatedErrorUsingCovMatrix;
-    std::map<double, Eigen::VectorXd> propagatedRSWErrorUsingCovMatrix;
+    std::map<double, double> trueAnomalyMap;
+    std::map<double, Eigen::Vector6d> propagatedErrorUsingCovMatrix;
+    std::map<double, Eigen::Vector6d> propagatedRSWErrorUsingCovMatrix;
 
-    unsigned int j = 0;
-    std::map<double, Eigen::MatrixXd>::iterator covit = propagatedCovariance.begin();
-    Eigen::Vector6d currentSigmaVectorRSW;
-    while (covit != propagatedCovariance.end()){
+    std::map<double, Eigen::MatrixXd>::iterator it = propagatedCovariance.begin();
 
-        Eigen::VectorXd currentSigmaVector = covit->second.diagonal().cwiseSqrt();
+    while (it != propagatedCovariance.end()){
+
+        Eigen::Vector6d currentCartesianState = fullStateHistory.at(it->first);
+
+        // save true anomaly of MESSENGER around Mercury at this time step
+        Eigen::Vector6d currentKeplerianState = convertCartesianToKeplerianElements(
+                    currentCartesianState, mercuryGravitationalParameter);
+        double currentTrueAnomaly = currentKeplerianState(5);
+
+        trueAnomalyMap.insert(std::make_pair( it->first, currentTrueAnomaly ) );
+
+        // save propagated error (using covariance) in Cartesian and RSW frame
+        Eigen::VectorXd currentCovariance = it->second;
         Eigen::Matrix3d currentTransformationToRSW =
-                reference_frames::getInertialToRswSatelliteCenteredFrameRotationMatrix(fullStateHistory.at(j));
+                reference_frames::getInertialToRswSatelliteCenteredFrameRotationMatrix(currentCartesianState);
 
-        currentSigmaVectorRSW.segment(0,3) = currentTransformationToRSW * currentSigmaVector.segment(0,3);
-        currentSigmaVectorRSW.segment(3,3) = currentTransformationToRSW * currentSigmaVector.segment(3,3);
+        Eigen::Vector6d currentSigmaVector = currentCovariance.diagonal( ).cwiseSqrt( );
 
-        propagatedErrorUsingCovMatrix.insert(std::make_pair( covit->first, currentSigmaVector ) );
-        propagatedRSWErrorUsingCovMatrix.insert(std::make_pair( covit->first, currentSigmaVectorRSW ) );
+        Eigen::Vector6d currentSigmaVectorRSW;
+        currentSigmaVectorRSW.segment(0,3) =
+                ( currentTransformationToRSW * currentCovariance.block(0,3,0,3) * currentTransformationToRSW.transpose( ) ).diagonal( ).cwiseSqrt( );
+        currentSigmaVectorRSW.segment(3,3) =
+                ( currentTransformationToRSW * currentCovariance.block(3,3,3,3) * currentTransformationToRSW.transpose( ) ).diagonal( ).cwiseSqrt( );
 
-        j++; covit++;
+        propagatedErrorUsingCovMatrix.insert(std::make_pair( it->first, currentSigmaVector ) );
+        propagatedRSWErrorUsingCovMatrix.insert(std::make_pair( it->first, currentSigmaVectorRSW ) );
+
+        it++;
     }
-
-
 
 
     // Print true estimation error, limited mostly by numerical error
@@ -1120,19 +970,8 @@ int main( )
 
 
 
-
-
-
     // Save data in files
     std::cout<<"writing output to files..."<<std::endl;
-
-    input_output::writeDataMapToTextFile( propagatedErrors,
-                                          "PropagatedErrors.dat",
-                                          tudat_applications::getOutputPath( ) + outputSubFolder );
-
-    input_output::writeDataMapToTextFile( propagatedErrorsRSW,
-                                          "PropagatedErrorsRSW.dat",
-                                          tudat_applications::getOutputPath( ) + outputSubFolder );
 
     input_output::writeDataMapToTextFile( trueAnomalyMap,
                                           "TrueAnomaly.dat",

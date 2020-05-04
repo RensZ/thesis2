@@ -6,7 +6,7 @@ Purpose: to plot the residuals of the individual observations for inspection
 """
 
 
-def f(dir_output, dir_plots, body, no_arcs):
+def f(dir_output, dir_plots, body, no_arcs, useRSW):
 
     import numpy as np
     import matplotlib.pyplot as plt
@@ -15,7 +15,7 @@ def f(dir_output, dir_plots, body, no_arcs):
     useAbs = True
 
     #residual history
-    t = np.genfromtxt(dir_output+"ObservationTimes.dat")/(60.0*60.0)
+    t = np.genfromtxt(dir_output+"ObservationTimes.dat")
     r = np.genfromtxt(dir_output + "ResidualHistory.dat")
 
     r_rms = np.sqrt( np.sum(r**2, axis=0) / len(r) )
@@ -25,14 +25,23 @@ def f(dir_output, dir_plots, body, no_arcs):
     else:
         r_best = r
 
+    if useRSW:
+        filename = "propagatedRSWErrorUsingCovMatrix.dat"
+        legend = ["x", "y", "z"]
+        saveRSW = ""
+    else:
+        filename = "propagatedErrorUsingCovMatrix.dat"
+        legend = ["r", "at", "ct"]
+        saveRSW = "_RSW"
+
     #propagated errors
     if useAbs:
-        e_data = np.abs(np.genfromtxt(dir_output + "propagatedErrorUsingCovMatrix.dat"))
+        e_data = np.abs(np.genfromtxt(dir_output + filename))
         yscale = "log"
     else:
-        e_data = np.genfromtxt(dir_output + "propagatedErrorUsingCovMatrix.dat")
+        e_data = np.genfromtxt(dir_output + filename)
         yscale = "symlog"
-    t_e = e_data[:,0]/(60.0*60.0)
+    t_e = e_data[:,0]
 
     #plot per arc the residuals and propagated errors
     if no_arcs == 1:
@@ -46,8 +55,8 @@ def f(dir_output, dir_plots, body, no_arcs):
         r_sorted = r_best[i_sorted]
         dt_r = t_sorted[1:-1]-t_sorted[0:-2]
         dt_e = t_e[1:-1]-t_e[0:-2]
-        gaps_r = np.concatenate([[0],np.where(dt_r>24.0*30.0)[0],[-1]])
-        gaps_e = np.concatenate([[0],np.where(dt_e>24.0*30.0)[0],[-1]])
+        gaps_r = np.concatenate([[0],np.where(dt_r>24.0*30.0*60.0*60.0)[0],[-1]])
+        gaps_e = np.concatenate([[0],np.where(dt_e>24.0*30.0*60.0*60.0)[0],[-1]])
 
     fig = plt.figure(figsize=(16, 10))
 
@@ -78,7 +87,7 @@ def f(dir_output, dir_plots, body, no_arcs):
 
         ax = fig.add_subplot(3, no_arcs, i)
         ax.plot(t_sorted[start_r:end_r]-t_sorted[0],r_arc,"ro",markersize=1)
-        ax.set_xlabel("t [h]",horizontalalignment='left',x=0.01)
+        ax.set_xlabel("t [s]",horizontalalignment='left',x=0.01)
         if i == 1:
             ax.set_ylabel("residual [m]")
         ax.set_yscale("log")
@@ -88,10 +97,10 @@ def f(dir_output, dir_plots, body, no_arcs):
         ax = fig.add_subplot(3, no_arcs, i+no_arcs)
         for j in range(1, 4):
             ax.plot(t_e[start_e:end_e]-t_e[0],e_data[start_e:end_e,j],linewidth=0.75)
-        ax.set_xlabel("t [h]", horizontalalignment='left',x=0.01)
+        ax.set_xlabel("t [s]", horizontalalignment='left',x=0.01)
         if i == 1:
             ax.set_ylabel("propagated position error [m]")
-            ax.legend(["x", "y", "z"])
+            ax.legend(legend)
         ax.set_yscale(yscale)
         plotdata = e_data[:,1:4]
         y_min = np.min(plotdata[np.nonzero(plotdata)])
@@ -102,7 +111,7 @@ def f(dir_output, dir_plots, body, no_arcs):
         ax = fig.add_subplot(3, no_arcs, i + 2*no_arcs)
         for j in range(4, 7):
             ax.plot(t_e[start_e:end_e]-t_e[0], e_data[start_e:end_e, j], linewidth=0.75)
-        ax.set_xlabel("t [h]",horizontalalignment='left',x=0.01)
+        ax.set_xlabel("t [s]",horizontalalignment='left',x=0.01)
         if i == 1:
             ax.set_ylabel("propagated velocity error [m/s]")
         ax.set_yscale(yscale)
@@ -114,42 +123,44 @@ def f(dir_output, dir_plots, body, no_arcs):
 
 
     plt.tight_layout()
-    plt.savefig(dir_plots+body+"_observation_residuals_perarc")
+    plt.savefig(dir_plots+body+"_observation_residuals_perarc"+saveRSW)
 
-    t_av_r = 60.0 * 60.0 * np.asarray(t_av_r)
-    t_av_e = 60.0*60.0*np.asarray(t_av_e)
+    if no_arcs > 1:
 
-    # plot average per arc, errobars are the sigmas
-    fig2 = plt.figure(figsize=(16, 10))
-    plt.subplot(3,1,1)
-    plt.errorbar(t_av_r,av_r,std_r,fmt='--o')
-    plt.xlabel("time since J2000 [s]")
-    plt.ylabel("residual [m]")
-    plt.yscale(yscale)
+        t_av_r = np.asarray(t_av_r)
+        t_av_e = np.asarray(t_av_e)
+
+        # plot average per arc, errobars are the sigmas
+        fig2 = plt.figure(figsize=(16, 10))
+        plt.subplot(3,1,1)
+        plt.errorbar(t_av_r,av_r,std_r,fmt='--o')
+        plt.xlabel("time since J2000 [s]")
+        plt.ylabel("residual [m]")
+        plt.yscale(yscale)
 
 
-    plt.subplot(3,1,2)
-    for j in range(0, 3):
-        plt.errorbar(t_av_e,av_e[:,j],std_e[:,j],fmt='--o')
-    plt.xlabel("time since J2000 [s]")
-    plt.ylabel("propagated position error [m]")
-    plt.yscale(yscale)
-    plt.legend(["x", "y", "z"])
+        plt.subplot(3,1,2)
+        for j in range(0, 3):
+            plt.errorbar(t_av_e,av_e[:,j],std_e[:,j],fmt='--o')
+        plt.xlabel("time since J2000 [s]")
+        plt.ylabel("propagated position error [m]")
+        plt.yscale(yscale)
+        plt.legend(legend)
 
-    plt.subplot(3,1,3)
-    for j in range(3, 6):
-        plt.errorbar(t_av_e,av_e[:,j],std_e[:,j],fmt='--o')
-    plt.xlabel("time since J2000 [s]")
-    plt.ylabel("propagated velocity error [m/s]")
-    plt.yscale(yscale)
-    plt.legend(["x", "y", "z"])
+        plt.subplot(3,1,3)
+        for j in range(3, 6):
+            plt.errorbar(t_av_e,av_e[:,j],std_e[:,j],fmt='--o')
+        plt.xlabel("time since J2000 [s]")
+        plt.ylabel("propagated velocity error [m/s]")
+        plt.yscale(yscale)
 
-    plt.tight_layout()
-    plt.savefig(dir_plots+body+"_residuals_averages")
+        plt.tight_layout()
+        plt.savefig(dir_plots+body+"_residuals_averages"+saveRSW)
 
 
     #save averages to use as input for thesis_v1.cpp
-    save_array = np.vstack((t_av_e, av_e[:,0], av_e[:,1], av_e[:,2], av_e[:,3], av_e[:,4], av_e[:,5])).T
-    averages_filename = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/error_inputs_"+body+".txt"
-    np.savetxt(averages_filename, save_array, delimiter=",")
+    if not useRSW:
+        save_array = np.vstack((t_av_e, av_e[:, 0], av_e[:, 1], av_e[:, 2], av_e[:, 3], av_e[:, 4], av_e[:, 5])).T
+        averages_filename = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/error_inputs_"+body+".txt"
+        np.savetxt(averages_filename, save_array, delimiter=",")
 

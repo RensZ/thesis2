@@ -23,8 +23,9 @@
 
     "observationInitialTime": [2011, 3, 18, 0, 0, 0],
     "observationFinalTime": [2012, 4, 28, 0, 0, 0],
-    "observationTimeStep": 86400.0,
-    "maximumNumberOfObservations": 900,
+    "observationTimeStep": 300.0,
+    "trackingArcDuration": 21600.0,
+    "maximumNumberOfTrackingDays": 900,
     "flybyObject": [],
 
     "rangeNoise": 2.0,

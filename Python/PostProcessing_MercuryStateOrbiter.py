@@ -46,11 +46,8 @@ for i in range(len(vehicles)):
     # Plot residuals over time
     print(" making plot of the observation residuals and propagated errors...")
     import Residuals
-    Residuals.f(dir_cpp_output, dir_plots, v, no_arcs)
-
-    print(" making plot of the observation residuals and propagated errors in the RSW frame...")
-    import ResidualsRSW
-    ResidualsRSW.f(dir_cpp_output, dir_plots, v, no_arcs)
+    Residuals.f(dir_cpp_output, dir_plots, v, no_arcs, False)
+    Residuals.f(dir_cpp_output, dir_plots, v, no_arcs, True)
 
     # Plot residuals over time
     print(" making plot of the propagated errors vs true anomaly...")

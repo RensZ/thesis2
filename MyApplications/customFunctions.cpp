@@ -147,12 +147,9 @@ std::vector<double> makeObservationTimeList(const double initialTime,
 }
 
 
-//! Function to make the noise level dependent on the Mercury-Sun-Earth angle,
-//! based on a linear relation constructed with the minimum and maximum noise.
-double noiseBasedOnMSEangle(const double time,
-                            const double noiseAtMinAngle,
-                            const double noiseAtMaxAngle){
-
+double noiseLevelBasedOnMSEangle(const double time,
+                                 const double noiseAtMinAngle,
+                                 const double noiseAtMaxAngle){
     // calculate MSE angle with previous function
 //    double relativeAngle = mercurySunEarthAngle(time);
     double relativeAngle = angleBetween2Bodies(time, "Sun", "Mercury", "Earth");
@@ -166,6 +163,18 @@ double noiseBasedOnMSEangle(const double time,
     const double intercept = noiseAtMaxAngle - slope*maxAngle;
     const double noise = slope*relativeAngle + intercept;
 
+    return noise;
+}
+
+
+//! Function to make the noise level dependent on the Mercury-Sun-Earth angle,
+//! based on a linear relation constructed with the minimum and maximum noise.
+double noiseSampleBasedOnMSEangle(const double time,
+                            const double noiseAtMinAngle,
+                            const double noiseAtMaxAngle){
+
+    double noise = noiseLevelBasedOnMSEangle(time, noiseAtMinAngle, noiseAtMaxAngle);
+
     // create a gaussian sample
     boost::random::mt19937 rng(time);
     boost::random::normal_distribution<> nd(0.0,noise);
@@ -177,6 +186,7 @@ double noiseBasedOnMSEangle(const double time,
 
     return sample;
 }
+
 
 double averageOfDoubleVector(std::vector<double> input){
     double average = 0.0;
