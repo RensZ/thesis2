@@ -55,8 +55,9 @@ def f(dir_output, dir_plots, body, no_arcs, useRSW):
         r_sorted = r_best[i_sorted]
         dt_r = t_sorted[1:-1]-t_sorted[0:-2]
         dt_e = t_e[1:-1]-t_e[0:-2]
-        gaps_r = np.concatenate([[0],np.where(dt_r>24.0*30.0*60.0*60.0)[0],[-1]])
-        gaps_e = np.concatenate([[0],np.where(dt_e>24.0*30.0*60.0*60.0)[0],[-1]])
+        gaps_r = np.concatenate([[0],np.where(dt_r>24.0*60.0*60.0)[0],[-1]])
+        gaps_e = np.concatenate([[0],np.where(dt_e>24.0*60.0*60.0)[0],[-1]])
+
 
     fig = plt.figure(figsize=(16, 10))
 
@@ -124,6 +125,7 @@ def f(dir_output, dir_plots, body, no_arcs, useRSW):
 
     plt.tight_layout()
     plt.savefig(dir_plots+body+"_observation_residuals_perarc"+saveRSW)
+
 
     if no_arcs > 1:
 

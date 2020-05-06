@@ -197,8 +197,9 @@ double averageOfDoubleVector(std::vector<double> input){
     return average;
 }
 
-Eigen::MatrixXd interpolatePositionErrors(Eigen::MatrixXd errorMatrix,
-                                          std::vector<double> timesAtWhichToInterpolate){
+
+Eigen::MatrixXd interpolatePositionErrors(const Eigen::MatrixXd errorMatrix,
+                                          const std::vector<double> timesAtWhichToInterpolate){
 
     std::vector<double> t(errorMatrix.col(0).data(), errorMatrix.col(0).data() + errorMatrix.rows());
     std::vector<double> x(errorMatrix.col(1).data(), errorMatrix.col(1).data() + errorMatrix.rows());
@@ -233,3 +234,133 @@ Eigen::MatrixXd interpolatePositionErrors(Eigen::MatrixXd errorMatrix,
 }
 
 
+
+
+
+Eigen::MatrixXd interpolatePositionErrorsBasedOnTrueAnomaly(const Eigen::MatrixXd errorMatrix,
+                                                            const std::vector<double> timesAtWhichToInterpolate,
+                                                            const std::string vehicle,
+                                                            const double mercuryGravitationalParameter){
+
+    using namespace tudat::spice_interface;
+    using namespace tudat::orbital_element_conversions;
+    using namespace tudat::input_output;
+    using namespace tudat::interpolators;
+
+    // load SPICE data of vehicles
+    std::string vehicleName; std::string vehicleKernel;
+    if (vehicle == "BepiColombo"){
+        vehicleName = "BEPICOLOMBO MPO";
+        vehicleKernel = "bc_mpo_mlt_50037_20260314_20280529_v01.bsp";
+        loadSpiceKernelInTudat(getSpiceKernelPath() + "bc_sci_v04.tf");
+    }
+    else if (vehicle == "MESSENGER"){
+        vehicleName = "MESSENGER";
+        vehicleKernel = "msgr_040803_150430_150430_od431sc_2.bsp";
+    } else{
+        std::runtime_error("ERROR: vehicle name not recognised");
+    }
+    loadSpiceKernelInTudat(getSpiceKernelPath() + vehicleKernel);
+
+
+    // load True Anomaly data (output of python)
+    std::string vehicleArcIndicesFilename = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/arcindices_"+vehicle+".txt";
+    std::string vehicleTrueAnomalyFilename = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/trueanomaly_inputs_"+vehicle+".txt";
+    Eigen::VectorXd arcIndices = readMatrixFromFile(vehicleArcIndicesFilename, ",");
+    Eigen::MatrixXd trueAnomalyInput = readMatrixFromFile(vehicleTrueAnomalyFilename, ",");
+
+    // iterate over times at which an error value is desired
+    Eigen::MatrixXd interpolatedErrorMatrix(timesAtWhichToInterpolate.size(),3);
+    for( unsigned int i=0; i<timesAtWhichToInterpolate.size(); i++){
+
+        double currentTime = timesAtWhichToInterpolate.at(i);
+        std::cout<<"t: "<<currentTime<<" // ";
+
+        // find indices of previous and next arc
+        bool inBetweenTwoArcsFlag = false;
+        Eigen::VectorXd arcAverageTimes = errorMatrix.col(0);
+        unsigned int numberOfArcs = arcAverageTimes.size();
+        int previousArc = -1;
+
+        for (unsigned int i=0; i<numberOfArcs-1; i++){
+            if (arcAverageTimes(i) <= currentTime
+                    && arcAverageTimes(i+1) >= currentTime ){
+                previousArc = i;
+                inBetweenTwoArcsFlag = true;
+            }
+        }
+
+        // if not found, check if the asked time is before the first arc or after the last
+        if (previousArc == -1){
+            if (arcAverageTimes(0) >= currentTime){
+                previousArc = 0;
+            } else if (arcAverageTimes(numberOfArcs) <= currentTime){
+                previousArc = numberOfArcs-1;
+            } else{
+                std::runtime_error("ERROR: the previous and next arc could not be found");
+            }
+        }
+
+        std::cout<<"prev arc: "<<previousArc<<" flag: "<<inBetweenTwoArcsFlag<<std::endl;
+
+        // find true anomaly of vehicle at current time
+        Eigen::Vector6d vehicleState = getBodyCartesianStateAtEpoch(vehicleName,"Mercury","ECLIPJ2000","None",currentTime);
+        double vehicleTrueAnomaly = convertCartesianToKeplerianElements(vehicleState, mercuryGravitationalParameter)(5);
+
+        // if before the first arc or after the last arc,
+        // find error corresponding to the given TA of the nearest arc
+        if (inBetweenTwoArcsFlag == false){
+
+            unsigned int arcStart = arcIndices(previousArc);
+            unsigned int arcFinish = arcIndices(previousArc+1);
+
+            Eigen::VectorXd arcDataTA = trueAnomalyInput.block(arcStart,2,arcFinish-arcStart,1);
+            Eigen::MatrixXd arcDataPosition = trueAnomalyInput.block(arcStart,3,arcFinish-arcStart,3);
+
+            Eigen::VectorXd arcDataTADif = (arcDataTA - vehicleTrueAnomaly*Eigen::VectorXd::Ones(arcDataTA.size())).cwiseAbs();
+            std::ptrdiff_t ind; arcDataTADif.minCoeff(&ind);
+
+            interpolatedErrorMatrix.block(i,0,1,3) = arcDataPosition.block(ind,0,1,3);
+
+        }
+
+        // if in between two arcs,
+        // find error corresponding to the given TA for both arcs and interpolate based on time
+        else{
+
+            std::vector<double> arct, arcx, arcy, arcz;
+
+            for (int j = previousArc; j<previousArc+2; j++){
+                unsigned int arcStart = arcIndices(j);
+                unsigned int arcFinish = arcIndices(j+1);
+
+                Eigen::VectorXd arcDataTA = trueAnomalyInput.block(arcStart,2,arcFinish-arcStart,1);
+                Eigen::MatrixXd arcDataPosition = trueAnomalyInput.block(arcStart,3,arcFinish-arcStart,3);
+
+                Eigen::VectorXd arcDataTADif = (arcDataTA - vehicleTrueAnomaly*Eigen::VectorXd::Ones(arcDataTA.size())).cwiseAbs();
+                std::ptrdiff_t ind; arcDataTADif.minCoeff(&ind);
+
+                arct.push_back(arcAverageTimes(j));
+                arcx.push_back(arcDataPosition(ind,0));
+                arcy.push_back(arcDataPosition(ind,1));
+                arcz.push_back(arcDataPosition(ind,2));
+
+            }
+
+            LinearInterpolatorDouble xInterpolator2(arct, arcx, huntingAlgorithm, use_boundary_value);
+            LinearInterpolatorDouble yInterpolator2(arct, arcy, huntingAlgorithm, use_boundary_value);
+            LinearInterpolatorDouble zInterpolator2(arct, arcz, huntingAlgorithm, use_boundary_value);
+
+            interpolatedErrorMatrix(i,0) = xInterpolator2.interpolate(currentTime);
+            interpolatedErrorMatrix(i,1) = yInterpolator2.interpolate(currentTime);
+            interpolatedErrorMatrix(i,2) = zInterpolator2.interpolate(currentTime);
+
+            arct.clear(); arcx.clear(); arcy.clear(); arcz.clear();
+        }
+
+        std::cout<<interpolatedErrorMatrix.block(i,0,1,3)<<std::endl;
+
+    }
+
+    return interpolatedErrorMatrix;
+}

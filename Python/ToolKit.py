@@ -41,12 +41,14 @@ def format_spines(ax, i, no_arcs):
     kwargs = dict(transform=ax.transAxes, color='k', clip_on=False)
     d = .015
 
+    #leftmost plot
     if i == 1:
         ax.spines['right'].set_visible(False)
 
         ax.plot((1 - d, 1 + d), (-d, +d), **kwargs)
         ax.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)
 
+    #middle plots
     if (i != 1) and (i != no_arcs):
         ax.spines['left'].set_visible(False)
         ax.spines['right'].set_visible(False)
@@ -59,6 +61,7 @@ def format_spines(ax, i, no_arcs):
         ax.plot((-d, +d), (1 - d, 1 + d), **kwargs)
         ax.plot((-d, +d), (-d, +d), **kwargs)
 
+    #rightmost plots
     if i == no_arcs:
         ax.spines['left'].set_visible(False)
         ax.spines['right'].set_visible(True)

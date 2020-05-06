@@ -189,7 +189,7 @@ int main( )
     const double sigmaPosition = 1000.0; //educated guess
     const double sigmaVelocity = 1.0; //educated guess
 
-    double positionObservableNoise = 2.0;
+    const double mercuryGravitationalParameter = (2.2031870798779644e+04)*(1E9); //m3/s2, from https://pgda.gsfc.nasa.gov/products/71
 
 
 
@@ -774,7 +774,9 @@ int main( )
                     ObservationVectorType allObservations = singleObservableIterator->second.first;
                     std::vector< double > allObservationTimes = singleObservableIterator->second.second.first;
 
-                    Eigen::MatrixXd interpolatedErrorMatrix = interpolatePositionErrors(error_input, allObservationTimes);
+//                    Eigen::MatrixXd interpolatedErrorMatrix = interpolatePositionErrors(error_input, allObservationTimes);
+                    Eigen::MatrixXd interpolatedErrorMatrix = interpolatePositionErrorsBasedOnTrueAnomaly(
+                                error_input, allObservationTimes, vehicle, mercuryGravitationalParameter);
 
                     ObservationVectorType newObservations = Eigen::VectorXd(allObservations.size());
                     ObservationVectorType observationWeights = Eigen::VectorXd(allObservations.size());
@@ -908,103 +910,84 @@ int main( )
 
 
 
-    /////////////////////////////////////////////
-    //// PROVIDE OUTPUT TO CONSOLE AND FILES ////
-    /////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////        PROVIDE OUTPUT TO CONSOLE AND FILES           //////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // Print true estimation error, limited mostly by numerical error
-    Eigen::VectorXd parameterOutcome = podOutput->parameterEstimate_;
-    std::cout << "Outcome estimation:" << std::endl << ( parameterOutcome ).transpose( ) << std::endl;
+    std::cout<< "provide output..." << std::endl;
 
-//    std::cout << podOutput->getParameterHistoryMatrix( ) << std::endl;
+    // propagate according to integration history. earlier result is separated here as the times are needed on their own.
+    std::vector<double> fullStateHistoryTimes;
+    std::map<double, Eigen::VectorXd> propagationHistory = allBodiesPropagationHistory.at( 0 );
+    std::map<double, Eigen::VectorXd>::iterator historyit = propagationHistory.begin();
 
-    Eigen::VectorXd estimationError = parameterOutcome - truthParameters;
-    std::cout << "True estimation error is:   " << std::endl << ( estimationError ).transpose( ) << std::endl;
-    std::cout << "Formal estimation error is: " << std::endl << podOutput->getFormalErrorVector( ).transpose( ) << std::endl;
-
-
-
-    // Propagate errors to total time period
-    std::cout<<"propagating errors..."<<std::endl;
-
-    Eigen::MatrixXd fullStateHistory = input_output::readMatrixFromFile(
-                outputSubFolder + "/StatePropagationHistoryMercury.dat");
-
-
-    Eigen::MatrixXd initialCovarianceMatrix = podOutput->getUnnormalizedCovarianceMatrix( );
-    std::map< double, Eigen::VectorXd > propagatedErrors;
-    propagateFormalErrors(
-                propagatedErrors, initialCovarianceMatrix,
-                orbitDeterminationManager.getStateTransitionAndSensitivityMatrixInterface( ),
-                //baseTimeList);
-                3600.0, initialSimulationTime + 3600.0, finalSimulationTime - 3600.0 );
-
-    if (fullStateHistory.col(0).size() == static_cast<long>(propagatedErrors.size())){
-        std::cout<<"check!"<<std::endl;
-    } else{
-        std::cout<<fullStateHistory.col(0).size()<<propagatedErrors.size()<<std::endl;
+    while (historyit != propagationHistory.end()){
+        fullStateHistoryTimes.push_back(historyit->first);
+        historyit++;
     }
 
-    std::map<double, Eigen::Vector6d> propagatedErrorsRSW;
-    Eigen::Vector6d currentPropagatedError;
-    std::map<double, Eigen::VectorXd>::iterator it = propagatedErrors.begin();
-    unsigned int i = 0;
-
-    while (it != propagatedErrors.end()){
-
-        Eigen::Matrix3d currentTransformationToRSW =
-                reference_frames::getInertialToRswSatelliteCenteredFrameRotationMatrix(fullStateHistory.block(i,1,1,3));
-
-        currentPropagatedError.segment(0,3) = currentTransformationToRSW * it->second.segment(0,3);
-        currentPropagatedError.segment(3,3) = currentTransformationToRSW * it->second.segment(3,3);
-
-        propagatedErrorsRSW.insert(std::make_pair( it->first, currentPropagatedError ) );
-
-        i++; it++;
-    }
 
     // Propagate covariance matrix
     std::cout<<"propagating covariance matrix..."<<std::endl;
 
+    Eigen::MatrixXd initialCovarianceMatrix = podOutput->getUnnormalizedCovarianceMatrix( );
+
     std::map< double, Eigen::MatrixXd > propagatedCovariance;
     propagateCovariance(propagatedCovariance, initialCovarianceMatrix,
                         orbitDeterminationManager.getStateTransitionAndSensitivityMatrixInterface( ),
-                        //baseTimeList);
-                        3600.0, initialSimulationTime + 3600.0, finalSimulationTime - 3600.0 );
+                        fullStateHistoryTimes);
+                        //baseTimeList
+                        //60.0, initialEphemerisTime + 3600.0, finalEphemerisTime - 3600.0 );
 
-    std::map<double, Eigen::VectorXd> propagatedErrorUsingCovMatrix;
-    std::map<double, Eigen::VectorXd> propagatedRSWErrorUsingCovMatrix;
+    std::map<double, double> trueAnomalyMap;
+    std::map<double, Eigen::Vector6d> propagatedErrorUsingCovMatrix;
+    std::map<double, Eigen::Vector6d> propagatedRSWErrorUsingCovMatrix;
 
-    unsigned int j = 0;
-    std::map<double, Eigen::MatrixXd>::iterator covit = propagatedCovariance.begin();
-    Eigen::Vector6d currentSigmaVectorRSW;
-    while (covit != propagatedCovariance.end()){
+    std::map<double, Eigen::MatrixXd>::iterator it = propagatedCovariance.begin();
 
-        Eigen::VectorXd currentSigmaVector = covit->second.diagonal().cwiseSqrt();
+    while (it != propagatedCovariance.end()){
+
+        Eigen::Vector6d currentCartesianState = propagationHistory.at(it->first);
+
+        // save true anomaly of MESSENGER around Mercury at this time step
+        Eigen::Vector6d currentKeplerianState = convertCartesianToKeplerianElements(
+                    currentCartesianState, sunGravitationalParameter);
+        double currentTrueAnomaly = currentKeplerianState(5);
+
+        trueAnomalyMap.insert(std::make_pair( it->first, currentTrueAnomaly ) );
+
+        // save propagated error (using covariance) in Cartesian and RSW frame
+        Eigen::MatrixXd currentCovariance = it->second;
         Eigen::Matrix3d currentTransformationToRSW =
-                reference_frames::getInertialToRswSatelliteCenteredFrameRotationMatrix(fullStateHistory.block(j,1,1,3));
+                reference_frames::getInertialToRswSatelliteCenteredFrameRotationMatrix(currentCartesianState);
 
-        currentSigmaVectorRSW.segment(0,3) = currentTransformationToRSW * currentSigmaVector.segment(0,3);
-        currentSigmaVectorRSW.segment(3,3) = currentTransformationToRSW * currentSigmaVector.segment(3,3);
+        Eigen::Vector6d currentSigmaVector = currentCovariance.diagonal( ).cwiseSqrt( );
 
-        propagatedErrorUsingCovMatrix.insert(std::make_pair( covit->first, currentSigmaVector ) );
-        propagatedRSWErrorUsingCovMatrix.insert(std::make_pair( covit->first, currentSigmaVectorRSW ) );
+        Eigen::Vector6d currentSigmaVectorRSW;
+        currentSigmaVectorRSW.segment(0,3) =
+                ( currentTransformationToRSW * currentCovariance.block(0,0,3,3) * currentTransformationToRSW.transpose( ) ).diagonal( ).cwiseSqrt( );
+        currentSigmaVectorRSW.segment(3,3) =
+                ( currentTransformationToRSW * currentCovariance.block(3,3,3,3) * currentTransformationToRSW.transpose( ) ).diagonal( ).cwiseSqrt( );
 
-        j++; covit++;
+        propagatedErrorUsingCovMatrix.insert(std::make_pair( it->first, currentSigmaVector ) );
+        propagatedRSWErrorUsingCovMatrix.insert(std::make_pair( it->first, currentSigmaVectorRSW ) );
+
+        it++;
     }
+
+
+    // Print true estimation error, limited mostly by numerical error
+    Eigen::VectorXd estimationError = podOutput->parameterEstimate_ - truthParameters;
+    Eigen::VectorXd formalError = podOutput->getFormalErrorVector( );
+
+    std::cout << "True estimation error is:   " << std::endl << ( estimationError ).transpose( ) << std::endl;
+    std::cout << "Formal estimation error is: " << std::endl << podOutput->getFormalErrorVector( ).transpose( ) << std::endl;
+    std::cout << "True to form estimation error ratio is: " << std::endl <<
+                 ( podOutput->getFormalErrorVector( ).cwiseQuotient( estimationError ) ).transpose( ) << std::endl;
 
     // Save data in files
     std::cout<<"writing output to files..."<<std::endl;
 
-
-
-    input_output::writeDataMapToTextFile( propagatedErrors,
-                                          "PropagatedErrors.dat",
-                                          outputSubFolder );
-
-    input_output::writeDataMapToTextFile( propagatedErrorsRSW,
-                                          "PropagatedErrorsRSW.dat",
-                                          outputSubFolder );
 
     input_output::writeDataMapToTextFile( propagatedCovariance,
                                           "PropagatedCovariance.dat",

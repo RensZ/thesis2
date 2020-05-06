@@ -31,8 +31,13 @@ double noiseSampleBasedOnMSEangle(const double time,
 
 double averageOfDoubleVector(std::vector<double> input);
 
-Eigen::MatrixXd interpolatePositionErrors(Eigen::MatrixXd errorMatrix,
-                                          std::vector<double> timesAtWhichToInterpolate);
+Eigen::MatrixXd interpolatePositionErrors(const Eigen::MatrixXd errorMatrix,
+                                          const std::vector<double> timesAtWhichToInterpolate);
+
+Eigen::MatrixXd interpolatePositionErrorsBasedOnTrueAnomaly(const Eigen::MatrixXd errorMatrix,
+                                                            const std::vector<double> timesAtWhichToInterpolate,
+                                                            const std::string vehicle,
+                                                            const double mercuryGravitationalParameter);
 
 
 #endif // CUSTOMFUNCTIONS_H

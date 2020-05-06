@@ -91,8 +91,8 @@ int main( )
     const unsigned int numberOfIterations = 1;
 
     // run simulation for vehicle
-//    std::string vehicle = "MESSENGER";
-    std::string vehicle = "BepiColombo";
+    std::string vehicle = "MESSENGER";
+//    std::string vehicle = "BepiColombo";
 
     // define mission dependent variables
     double initialEphemerisTime;
@@ -135,7 +135,7 @@ int main( )
 
     std::string outputSubFolder = vehicle + "/";
 
-    int numberOfSimulationDays = 15.0;
+    int numberOfSimulationDays = 30.0;
     double arcOverlap = 0.0;
     double observationStartOffset = 1000.0; // or observation generation wil complain
     //    double arcDuration = 1.01 * 86400.0; // integrate for one day
@@ -846,29 +846,18 @@ int main( )
 
     // propagate according to integration history. earlier result is separated here as the times are needed on their own.
     std::vector<double> fullStateHistoryTimes;
-    std::vector<Eigen::Vector6d> fullStateHistory;
     std::map<double, Eigen::VectorXd>::iterator historyit = propagationHistory.begin();
 
     while (historyit != propagationHistory.end()){
         fullStateHistoryTimes.push_back(historyit->first);
-        fullStateHistory.push_back(historyit->second);
         historyit++;
     }
-
-//    // Propagate errors to total time period
-//    std::cout<<"propagating errors..."<<std::endl;
-//    Eigen::MatrixXd initialCovarianceMatrix = podOutput->getUnnormalizedCovarianceMatrix( );
-//    std::map< double, Eigen::VectorXd > propagatedErrors;
-//    propagateFormalErrors(
-//                propagatedErrors, initialCovarianceMatrix,
-//                orbitDeterminationManager.getStateTransitionAndSensitivityMatrixInterface( ),
-//                fullStateHistoryTimes );
-//                //baseTimeList);
-//                //60.0, initialEphemerisTime + 3600.0, finalEphemerisTime - 3600.0 );
 
 
     // Propagate covariance matrix
     std::cout<<"propagating covariance matrix..."<<std::endl;
+
+    Eigen::MatrixXd initialCovarianceMatrix = podOutput->getUnnormalizedCovarianceMatrix( );
 
     std::map< double, Eigen::MatrixXd > propagatedCovariance;
     propagateCovariance(propagatedCovariance, initialCovarianceMatrix,
@@ -885,7 +874,7 @@ int main( )
 
     while (it != propagatedCovariance.end()){
 
-        Eigen::Vector6d currentCartesianState = fullStateHistory.at(it->first);
+        Eigen::Vector6d currentCartesianState = propagationHistory.at(it->first);
 
         // save true anomaly of MESSENGER around Mercury at this time step
         Eigen::Vector6d currentKeplerianState = convertCartesianToKeplerianElements(
@@ -895,7 +884,7 @@ int main( )
         trueAnomalyMap.insert(std::make_pair( it->first, currentTrueAnomaly ) );
 
         // save propagated error (using covariance) in Cartesian and RSW frame
-        Eigen::VectorXd currentCovariance = it->second;
+        Eigen::MatrixXd currentCovariance = it->second;
         Eigen::Matrix3d currentTransformationToRSW =
                 reference_frames::getInertialToRswSatelliteCenteredFrameRotationMatrix(currentCartesianState);
 
@@ -903,7 +892,7 @@ int main( )
 
         Eigen::Vector6d currentSigmaVectorRSW;
         currentSigmaVectorRSW.segment(0,3) =
-                ( currentTransformationToRSW * currentCovariance.block(0,3,0,3) * currentTransformationToRSW.transpose( ) ).diagonal( ).cwiseSqrt( );
+                ( currentTransformationToRSW * currentCovariance.block(0,0,3,3) * currentTransformationToRSW.transpose( ) ).diagonal( ).cwiseSqrt( );
         currentSigmaVectorRSW.segment(3,3) =
                 ( currentTransformationToRSW * currentCovariance.block(3,3,3,3) * currentTransformationToRSW.transpose( ) ).diagonal( ).cwiseSqrt( );
 
@@ -923,7 +912,7 @@ int main( )
     std::cout << "True to form estimation error ratio is: " << std::endl <<
                  ( podOutput->getFormalErrorVector( ).cwiseQuotient( estimationError ) ).transpose( ) << std::endl;
 
-    // get initial state errors in the RSW frame
+    // print initial state errors in the RSW frame
     Eigen::Vector6d averageTrueError = Eigen::Vector6d::Zero();
     Eigen::Vector6d averageFormalError = Eigen::Vector6d::Zero();
     Eigen::Vector6d averageTrueErrorRSW = Eigen::Vector6d::Zero();
@@ -967,7 +956,6 @@ int main( )
 
     std::cout<<"true to formal ratio:"<<std::endl
              <<averageTrueErrorRSW.cwiseQuotient(averageFormalErrorRSW).transpose()<<std::endl;
-
 
 
     // Save data in files
