@@ -113,7 +113,7 @@ int main( )
         referenceAreaRadiation = 6.0;
         vehicleKernel = "bc_mpo_mlt_50037_20260314_20280529_v01.bsp";
         vehicleName = "BEPICOLOMBO MPO";
-        trackingPeriod = 8.0*60.0*60.0;
+        trackingPeriod = 8.0*60.0*60.0; //Ka tracking only
         observationInterval = 1000.0;
         dopplerNoiseUnnormalised = 1.5E-6; //Ka tracking only
     }
@@ -442,7 +442,7 @@ int main( )
     // Write propagation history to file.
     input_output::writeDataMapToTextFile(
                 propagationHistory,
-                "StatePropagationHistoryVehicle.dat",
+                "StatePropagationHistory"+vehicle+".dat",
                  tudat_applications::getOutputPath( ) + outputSubFolder,
                 "",
                 std::numeric_limits< double >::digits10,
@@ -519,7 +519,7 @@ int main( )
     // Write propagation history to file.
     input_output::writeDataMapToTextFile(
                 backwardPropagationHistory,
-                "StatePropagationHistoryVehicleBackwards.dat",
+                "StatePropagationHistory"+vehicle+"Backwards.dat",
                  tudat_applications::getOutputPath( ) + outputSubFolder,
                 "",
                 std::numeric_limits< double >::digits10,

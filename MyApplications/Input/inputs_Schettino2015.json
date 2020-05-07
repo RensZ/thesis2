@@ -1,8 +1,8 @@
 {
     "vehicle": "BepiColombo",
 
-    "initialTime": [2025, 4, 10, 18, 41, 45],
-    "finalTime": [2026, 4, 18, 0, 0, 0],
+    "initialTime": [2026, 3, 14, 0, 0, 0],
+    "finalTime": [2027, 5, 2, 0, 0, 0],
 
     "calculateSchwarzschildCorrection": true,
     "includeSEPViolationAcceleration": true,
@@ -18,11 +18,13 @@
     "sigmaBeta": 1.1E-4,
     "sigmaNordtvedt": 4.5E-4,
     "sigmaSunGM": 0.14E9,
-    "sigmaSunJ2": 0.25E-7,
+    "sigmaSunJ2": 0.03E-7,
     "sigmaTVGP": 1.5E-13,
 
-    "observationInitialTime": [2025, 4, 10, 18, 41, 45],
-    "observationFinalTime": [2026, 4, 18, 0, 0, 0],
+    "useNordtvedtConstraint": true,
+
+    "observationInitialTime": [2026, 3, 15, 0, 0, 0],
+    "observationFinalTime": [2027, 5, 1, 0, 0, 0],
     "observationTimeStep": 300.0,
     "trackingArcDuration": 28800.0,
     "maximumNumberOfTrackingDays": 1E6,
@@ -35,6 +37,14 @@
 
     "noiseAtMinAngle": 0.20,
     "noiseAtMaxAngle": 0.20,
+    "maxMSEAngleDeg": 180.0,
 
-    "outputSubFolderName": "OutputSchettino2015"
+    "outputSubFolderName": "OutputSchettino2015",
+
+    "formalSigma_beta": 3.8E-7,
+    "formalSigma_gamma": 8.9E-7,
+    "formalSigma_Nordtvedt": 2.0E-6,
+    "formalSigma_mu_Sun": 4.0E7,
+    "formalSigma_J2_Sun": 3.7E-10,
+    "formalSigma_TVGP": 2.0E-14
 }

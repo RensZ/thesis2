@@ -47,9 +47,8 @@ for ps in publication_string:
         dependent_variables.append("Sun_SS")
 
     if json_input["includeSEPViolationAcceleration"]:
-        with open(dir_application + 'thesis_v1.cpp') as f:
-            if 'useNordtvedtConstraint = false' in f.read():
-                parameters.append("Nordtvedt")
+        if not json_input["useNordtvedtConstraint"]:
+            parameters.append("Nordtvedt")
         dependent_variables.append("Sun_SEP")
 
     if json_input["includeTVGPAcceleration"]:
@@ -61,6 +60,7 @@ for ps in publication_string:
 
     print(" ", parameters)
 
+    vehicle = json_input["vehicle"]
 
     #################
     #### OUTPUTS ####
@@ -74,21 +74,24 @@ for ps in publication_string:
     # Plot propagated bodies
     print(" making plots of propagated bodies...")
     import PropagatedBodies
-    PropagatedBodies.f(dir_cpp_output, dir_plots, bodies, no_arcs)
-
-    # Plot residuals over time
-    print(" making plot of the observation residuals and propagated errors...")
-    import Residuals
-    Residuals.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
-
-    print(" making plot of the observation residuals and propagated errors in the RSW frame...")
-    import ResidualsRSW
-    ResidualsRSW.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
+    PropagatedBodies.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
 
     # Plot parameter history
     print(" making plots of parameter estimation history...")
     import ParameterHistory
-    ParameterHistory.f(dir_cpp_output, dir_plots, parameters, bodies)
+    ParameterHistory.f(dir_cpp_output, dir_plots, parameters, bodies, json_input)
+
+    # Plot residuals over time
+    print(" making plot of the observation residuals and propagated errors...")
+    import Residuals
+    Residuals.f(dir_cpp_output, dir_plots, bodies[0], no_arcs, False)
+
+    print(" making plot of the observation residuals and propagated errors in the RSW frame...")
+    Residuals.f(dir_cpp_output, dir_plots, bodies[0], no_arcs, True)
+
+    print(" plotting errors interpolated from results of the mercury orbiter...")
+    import InterpolatedErrors
+    InterpolatedErrors.f(dir_cpp_output, dir_plots, bodies[0], no_arcs, vehicle)
 
     # Plot dependent variable history
     print(" making plots of dependent variable history...")

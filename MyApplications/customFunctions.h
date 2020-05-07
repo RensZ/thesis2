@@ -23,11 +23,13 @@ std::vector<double> makeObservationTimeList(const double initialTime,
 
 double noiseLevelBasedOnMSEangle(const double time,
                             const double noiseAtMinAngle,
-                            const double noiseAtMaxAngle);
+                            const double noiseAtMaxAngle,
+                            const double maxAngleDeg);
 
 double noiseSampleBasedOnMSEangle(const double time,
                             const double noiseAtMinAngle,
-                            const double noiseAtMaxAngle);
+                            const double noiseAtMaxAngle,
+                            const double maxAngleDeg);
 
 double averageOfDoubleVector(std::vector<double> input);
 

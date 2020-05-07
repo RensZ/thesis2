@@ -14,7 +14,7 @@ def f(dir_output, dir_plots, body, no_arcs):
 
     AU = 149597870700.0 #m
 
-    filename = "StatePropagationHistoryVehicle.dat"
+    filename = "StatePropagationHistory"+body+".dat"
     data = np.genfromtxt(dir_output+filename,delimiter=',')
 
     t = data[:,0]

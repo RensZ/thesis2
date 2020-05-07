@@ -149,19 +149,29 @@ std::vector<double> makeObservationTimeList(const double initialTime,
 
 double noiseLevelBasedOnMSEangle(const double time,
                                  const double noiseAtMinAngle,
-                                 const double noiseAtMaxAngle){
-    // calculate MSE angle with previous function
-//    double relativeAngle = mercurySunEarthAngle(time);
-    double relativeAngle = angleBetween2Bodies(time, "Sun", "Mercury", "Earth");
+                                 const double noiseAtMaxAngle,
+                                 const double maxAngleDeg){ //in degrees
 
-    // get noise level (linear function between a minimum and maximum point)
-    const double pi = 3.14159265359;
-    const double maxAngle = pi-35.0*pi/180.0;
-    const double minAngle = 0;
+    double noise;
 
-    const double slope = (noiseAtMaxAngle-noiseAtMinAngle)/(maxAngle-minAngle);
-    const double intercept = noiseAtMaxAngle - slope*maxAngle;
-    const double noise = slope*relativeAngle + intercept;
+    if (noiseAtMaxAngle == noiseAtMinAngle){
+        noise = noiseAtMaxAngle;
+    } else{
+
+        using namespace tudat::unit_conversions;
+
+        // calculate MSE angle with previous function
+        double relativeAngle = angleBetween2Bodies(time, "Sun", "Mercury", "Earth");
+
+        // get noise level (linear function between a minimum and maximum point)
+        const double maxAngle = convertDegreesToRadians(maxAngleDeg);
+        const double minAngle = 0;
+
+        const double slope = (noiseAtMaxAngle-noiseAtMinAngle)/(maxAngle-minAngle);
+        const double intercept = noiseAtMaxAngle - slope*maxAngle;
+        noise = slope*relativeAngle + intercept;
+
+    }
 
     return noise;
 }
@@ -171,9 +181,10 @@ double noiseLevelBasedOnMSEangle(const double time,
 //! based on a linear relation constructed with the minimum and maximum noise.
 double noiseSampleBasedOnMSEangle(const double time,
                             const double noiseAtMinAngle,
-                            const double noiseAtMaxAngle){
+                            const double noiseAtMaxAngle,
+                            const double maxAngleDeg){ //in degrees
 
-    double noise = noiseLevelBasedOnMSEangle(time, noiseAtMinAngle, noiseAtMaxAngle);
+    double noise = noiseLevelBasedOnMSEangle(time, noiseAtMinAngle, noiseAtMaxAngle, maxAngleDeg);
 
     // create a gaussian sample
     boost::random::mt19937 rng(time);
@@ -246,6 +257,7 @@ Eigen::MatrixXd interpolatePositionErrorsBasedOnTrueAnomaly(const Eigen::MatrixX
     using namespace tudat::orbital_element_conversions;
     using namespace tudat::input_output;
     using namespace tudat::interpolators;
+    using namespace tudat::unit_conversions;
 
     // load SPICE data of vehicles
     std::string vehicleName; std::string vehicleKernel;
@@ -274,7 +286,6 @@ Eigen::MatrixXd interpolatePositionErrorsBasedOnTrueAnomaly(const Eigen::MatrixX
     for( unsigned int i=0; i<timesAtWhichToInterpolate.size(); i++){
 
         double currentTime = timesAtWhichToInterpolate.at(i);
-        std::cout<<"t: "<<currentTime<<" // ";
 
         // find indices of previous and next arc
         bool inBetweenTwoArcsFlag = false;
@@ -301,11 +312,9 @@ Eigen::MatrixXd interpolatePositionErrorsBasedOnTrueAnomaly(const Eigen::MatrixX
             }
         }
 
-        std::cout<<"prev arc: "<<previousArc<<" flag: "<<inBetweenTwoArcsFlag<<std::endl;
-
         // find true anomaly of vehicle at current time
         Eigen::Vector6d vehicleState = getBodyCartesianStateAtEpoch(vehicleName,"Mercury","ECLIPJ2000","None",currentTime);
-        double vehicleTrueAnomaly = convertCartesianToKeplerianElements(vehicleState, mercuryGravitationalParameter)(5);
+        double vehicleTrueAnomaly = convertRadiansToDegrees(convertCartesianToKeplerianElements(vehicleState, mercuryGravitationalParameter)(5));
 
         // if before the first arc or after the last arc,
         // find error corresponding to the given TA of the nearest arc
@@ -358,7 +367,11 @@ Eigen::MatrixXd interpolatePositionErrorsBasedOnTrueAnomaly(const Eigen::MatrixX
             arct.clear(); arcx.clear(); arcy.clear(); arcz.clear();
         }
 
+    if (interpolatedErrorMatrix(i,0) == 0.0 && interpolatedErrorMatrix(i,1) == 0.0 && interpolatedErrorMatrix(i,2) == 0.0){
+        std::runtime_error("ERROR: satellite error cannot be equal to 0");
+        std::cout<<"prev arc: "<<previousArc<<" flag: "<<inBetweenTwoArcsFlag<<std::endl;
         std::cout<<interpolatedErrorMatrix.block(i,0,1,3)<<std::endl;
+    }
 
     }
 

@@ -8,12 +8,13 @@ Purpose: to plot the parameter history along the iterations
 
 
 
-def f(dir_output, dir_plots, parameters, bodies):
+def f(dir_output, dir_plots, parameters, bodies, json_input):
 
     import numpy as np
     import matplotlib.pyplot as plt
     from math import ceil
     from ToolKit import Knm
+    import pandas as pd
 
     no_bodies = len(bodies)
     no_parameters = (len(parameters) - no_bodies * 6)
@@ -27,6 +28,7 @@ def f(dir_output, dir_plots, parameters, bodies):
 
     data = np.genfromtxt(dir_output + "ParameterHistory.dat")
     truth = np.genfromtxt(dir_output + "TruthParameters.dat")
+    parameterFormalSigmas = np.genfromtxt(dir_output + "ObservationFormalEstimationError.dat")
 
     fig = plt.figure(figsize=(16,10))
     plt.title("True error vs iterations")
@@ -73,9 +75,13 @@ def f(dir_output, dir_plots, parameters, bodies):
             plt.xlabel('number of iterations')
 
         if parameters[i] == "gamma":
+            indexgamma = i
             gamma = data[i]
+            gammaFormalError = parameterFormalSigmas[i]
         if parameters[i] == "beta":
+            indexbeta = i
             beta = data[i]
+            betaFormalError = parameterFormalSigmas[i]
 
         if parameters[i] == "J2_Sun":
             J2 = data[i,-1]*Knm(2,0)
@@ -98,5 +104,36 @@ def f(dir_output, dir_plots, parameters, bodies):
 
     plt.tight_layout()
     plt.savefig(dir_plots + 'paremeter_history.png')
+
+    parameters2 = []
+    outputFormalSigmas = []
+    paperFormalSigmas = []
+    ratioFormalSigmas = []
+
+    for i in range(6 * no_bodies, len(parameters)):
+        p = parameters[i]
+        parameters2.append(p)
+        outputFormalSigmas.append(parameterFormalSigmas[i])
+        fs = json_input["formalSigma_" + p]
+        paperFormalSigmas.append(fs)
+        ratioFormalSigmas.append(parameterFormalSigmas[i]/fs)
+
+    if ("gamma" in parameters) and ("beta" in parameters):
+        CovMatrix = np.genfromtxt(dir_output + "UnnormalizedCovariance.dat")
+        gammaBetaCovariance = CovMatrix[indexgamma,indexbeta]
+        nordtvedtFormalError = np.sqrt((4*betaFormalError)**2
+                                       +gammaFormalError**2
+                                       -2*4*gammaBetaCovariance)
+        fs = json_input["formalSigma_Nordtvedt"]
+        outputFormalSigmas.append(nordtvedtFormalError)
+        paperFormalSigmas.append(fs)
+        ratioFormalSigmas.append(nordtvedtFormalError/fs)
+        parameters2.append("NordtvedtEq")
+
+    df = pd.DataFrame(data={"parameter":parameters2,
+                            "estimation":outputFormalSigmas,
+                            "publication":paperFormalSigmas,
+                            "ratio e/p":ratioFormalSigmas})
+    print(df)
 
     return

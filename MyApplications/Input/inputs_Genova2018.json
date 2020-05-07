@@ -15,11 +15,13 @@
     "nordtvedtParameter": 0.0,
     "timeVaryingGravitationalParameter": 0.0,
 
+    "useNordtvedtConstraint": true,
+
     "sigmaGamma": 2.3E-5,
     "sigmaBeta": 6.9E-5,
     "sigmaNordtvedt": 3.0E-4,
     "sigmaSunGM": 0.14E9,
-    "sigmaSunJ2": 0.25E-7,
+    "sigmaSunJ2": 0.03E-7,
     "sigmaTVGP": 0.29E-13,
 
     "observationInitialTime": [2011, 3, 18, 0, 0, 0],
@@ -39,6 +41,15 @@
 
     "noiseAtMinAngle": 0.5,
     "noiseAtMaxAngle": 3.0,
+    "maxMSEAngleDeg": 145.0,
 
-    "outputSubFolderName": "OutputGenova2018"
+    "outputSubFolderName": "OutputGenova2018",
+
+    "formalSigma_beta": 1.8E-5,
+    "formalSigma_gamma": 2.3E-5,
+    "formalSigma_Nordtvedt": 7.2E-5,
+    "formalSigma_mu_Sun": 0.35E9,
+    "formalSigma_J2_Sun": 0.02E-7,
+    "formalSigma_TVGP": 1.47E-14
+
 }

@@ -89,9 +89,6 @@ int main( )
     const bool simulateObservationNoise = true;
     const bool includeSpacecraftPositionError = true;
 
-    // Use constraint nordtvedt=4*beta-gamma-3
-    const bool useNordtvedtConstraint = true;
-
 
     ////////////////////////
     //// MISSION INPUTS ////
@@ -99,9 +96,9 @@ int main( )
 
 
     // Load json input
-    std::string input_filename = "inputs_Genova2018.json"; // Messenger simulation done in Genova et al 2018, Nature Communications
+//    std::string input_filename = "inputs_Genova2018.json"; // Messenger simulation done in Genova et al 2018, Nature Communications
 //    std::string input_filename = "inputs_Genova2018_test.json"; // 1-year version of the simulation above for quicker test
-//    std::string input_filename = "inputs_Schettino2015.json"; // BepiColombo simulation done in Schettino et al 2015, IEEE
+    std::string input_filename = "inputs_Schettino2015.json"; // BepiColombo simulation done in Schettino et al 2015, IEEE
 
     using json = nlohmann::json;
     std::string json_directory = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/";
@@ -147,6 +144,9 @@ int main( )
     //    Eigen::VectorXd aprioriParameters(aprioriGamma, aprioriBeta, aprioriSunGM, aprioriSunJ2);
 
 
+    // Use constraint nordtvedt=4*beta-gamma-3
+    const bool useNordtvedtConstraint = json_input["useNordtvedtConstraint"];
+
     // retreive regular observation schedule
     std::vector<int> json3 = json_input["observationInitialTime"];
     Eigen::Vector6i observationInitialTime(json3.data()); json3.clear();
@@ -176,6 +176,7 @@ int main( )
 
     const double noiseAtMinAngle = json_input["noiseAtMinAngle"];
     const double noiseAtMaxAngle = json_input["noiseAtMaxAngle"];
+    const double maxMSEAngleDeg = json_input["maxMSEAngleDeg"];
 
     // Location of simulation output
     std::string outputSubFolderName = json_input["outputSubFolderName"];
@@ -674,7 +675,7 @@ int main( )
                                     observationTimeStep,
                                     trackingArcDuration,
                                     maximumNumberOfTrackingDays,
-                                    unit_conversions::convertDegreesToRadians(180.0-35.0),
+                                    unit_conversions::convertDegreesToRadians(maxMSEAngleDeg),
                                     flybyList);
 
     // Create measurement simulation input
@@ -715,8 +716,8 @@ int main( )
 
 
     std::function< double( const double ) > mercuryOrbiterNoiseFunction;
-    mercuryOrbiterNoiseFunction = [noiseAtMinAngle, noiseAtMaxAngle](const double time){
-        return noiseSampleBasedOnMSEangle(time, noiseAtMinAngle, noiseAtMaxAngle);
+    mercuryOrbiterNoiseFunction = [noiseAtMinAngle, noiseAtMaxAngle, maxMSEAngleDeg](const double time){
+        return noiseSampleBasedOnMSEangle(time, noiseAtMinAngle, noiseAtMaxAngle, maxMSEAngleDeg);
     };
 
 
@@ -747,10 +748,10 @@ int main( )
     PodInputDataType observationWeightsAndTimes = observationsAndTimes;
 
     // add spacecraft initial position error to the observations
-//    PodInputDataType oldObservationsAndTimes = observationsAndTimes; //to verify
+    std::map<double, Eigen::Vector3d> saveSatelliteError;
     if (includeSpacecraftPositionError == true){
 
-        std::cout << "Adding satellite estimation initial position error" << std::endl;
+        std::cout << "Adding satellite estimation initial position error..." << std::endl;
 //        Eigen::Vector3d constantSatelliteError; constantSatelliteError << 10.0, 10.0, 10.0;
 
         std::string vehicleErrorFilename = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/error_inputs_"+vehicle+".txt";
@@ -801,14 +802,17 @@ int main( )
                         newObservations(i) = allObservations(i) + rangeCorrection;
 
                         double noiseLevel = abs(rangeCorrection)
-                                + noiseLevelBasedOnMSEangle(observationTime, noiseAtMinAngle, noiseAtMaxAngle);
+                                + noiseLevelBasedOnMSEangle(observationTime, noiseAtMinAngle, noiseAtMaxAngle, maxMSEAngleDeg);
                         observationWeights(i) = 1.0/(noiseLevel*noiseLevel);
 
-                        std::cout<<observationTime<<" // "<<
-                                   currentSatelliteError.transpose()<<" // "<<
-                                   randomErrorSample.transpose()<<" // "<<
-                                   rangeCorrection<<" // "<<
-                                   noiseLevel<<std::endl;
+//                        std::cout<<observationTime<<" // "<<
+//                                   currentSatelliteError.transpose()<<" // "<<
+//                                   randomErrorSample.transpose()<<" // "<<
+//                                   rangeCorrection<<" // "<<
+//                                   noiseLevelBasedOnMSEangle(observationTime, noiseAtMinAngle, noiseAtMaxAngle, maxMSEAngleDeg)<<" // "<<
+//                                   noiseLevel<<std::endl;
+
+                        saveSatelliteError.insert(std::make_pair(observationTime,currentSatelliteError));
                     }
 
                     singleObservableIterator->second.first = newObservations;
@@ -999,6 +1003,10 @@ int main( )
 
     input_output::writeDataMapToTextFile( propagatedRSWErrorUsingCovMatrix,
                                           "propagatedRSWErrorUsingCovMatrix.dat",
+                                          outputSubFolder );
+
+    input_output::writeDataMapToTextFile( saveSatelliteError,
+                                          vehicle+"ErrorBasedOnTrueAnomaly.dat",
                                           outputSubFolder );
 
     input_output::writeMatrixToFile( podOutput->normalizedInformationMatrix_,

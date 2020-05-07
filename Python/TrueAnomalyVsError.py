@@ -30,8 +30,17 @@ def f(dir_output, dir_plots, body, no_arcs, useRSW):
     else:
         TA_data = np.genfromtxt(dir_output + filename)
         yscale = "symlog"
-    TA_data = np.genfromtxt(dir_output + "TrueAnomaly.dat")
-    errors = np.genfromtxt(dir_output + filename)
+    TA_data_raw = np.genfromtxt(dir_output + "TrueAnomaly.dat")
+    errors_raw = np.genfromtxt(dir_output + filename)
+
+    goodrows = []
+    for i in range(0, len(errors_raw)):
+        if not np.array_equal(errors_raw[i, 1:7], np.zeros(6)):
+            goodrows.append(i)
+    print(" ",len(errors_raw)-len(goodrows), "rows are taken out due to being zero, this figure should be equal to:", no_arcs*2)
+
+    errors = errors_raw[goodrows,:]
+    TA_data = TA_data_raw[goodrows,:]
 
     t = TA_data[:,0]
     t2 = errors[:,0]
