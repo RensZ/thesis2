@@ -12,8 +12,8 @@ def f(dir_output, dir_plots, body, no_arcs):
     import matplotlib.pyplot as plt
     from ToolKit import format_spines
 
-    filename = "StatePropagationHistoryVehicle.dat"
-    filename_b = "StatePropagationHistoryVehicleBackwards.dat"
+    filename = "StatePropagationHistory"+body+".dat"
+    filename_b = "StatePropagationHistory"+body+"Backwards.dat"
 
     data = np.genfromtxt(dir_output+filename,delimiter=',')
     data_b = np.genfromtxt(dir_output+filename_b, delimiter=',')

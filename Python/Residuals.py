@@ -76,28 +76,37 @@ def f(dir_output, dir_plots, body, no_arcs, useRSW):
         end_r = gaps_r[i]
         end_e = gaps_e[i]
 
-        r_arc = np.abs(r_sorted[start_r:end_r])
-        arc = e_data[start_e:end_e,1:7]
+        if no_arcs > 1:
+            t_arc = t_sorted[start_r:end_r]-t_sorted[0]
+            r_arc = np.abs(r_sorted[start_r:end_r])
+            e_arc = e_data[start_e:end_e,:]
+            te_arc = t_e[start_e:end_e]-t_e[0]
+        else:
+            t_arc = t_sorted-t_sorted[0]
+            r_arc = np.abs(r_sorted)
+            e_arc = e_data
+            te_arc = t_e - t_e[0]
 
         t_av_r.append(t_sorted[start_r])
         t_av_e.append(t_e[start_e])
         av_r.append(np.mean(r_arc))
         std_r.append(np.std(r_arc))
-        av_e[i-1,:] = np.mean(arc,axis=0)
-        std_e[i-1,:] = np.std(arc,axis=0)
+        av_e[i-1,:] = np.mean(e_arc[:,1:7],axis=0)
+        std_e[i-1,:] = np.std(e_arc[:,1:7],axis=0)
 
         ax = fig.add_subplot(3, no_arcs, i)
-        ax.plot(t_sorted[start_r:end_r]-t_sorted[0],r_arc,"ro",markersize=1)
+        ax.plot(t_arc,r_arc,"ro",markersize=1)
         ax.set_xlabel("t [s]",horizontalalignment='left',x=0.01)
         if i == 1:
             ax.set_ylabel("residual [m]")
         ax.set_yscale("log")
-        ax.set_ylim(np.min(np.abs(r_sorted)),np.max(np.abs(r_sorted)))
+        if no_arcs > 1:
+            ax.set_ylim(np.min(np.abs(r_sorted)),np.max(np.abs(r_sorted)))
         format_spines(ax, i, no_arcs)
 
         ax = fig.add_subplot(3, no_arcs, i+no_arcs)
         for j in range(1, 4):
-            ax.plot(t_e[start_e:end_e]-t_e[0],e_data[start_e:end_e,j],linewidth=0.75)
+            ax.plot(te_arc,e_arc[:,j],linewidth=0.75)
         ax.set_xlabel("t [s]", horizontalalignment='left',x=0.01)
         if i == 1:
             ax.set_ylabel("propagated position error [m]")
@@ -111,7 +120,7 @@ def f(dir_output, dir_plots, body, no_arcs, useRSW):
 
         ax = fig.add_subplot(3, no_arcs, i + 2*no_arcs)
         for j in range(4, 7):
-            ax.plot(t_e[start_e:end_e]-t_e[0], e_data[start_e:end_e, j], linewidth=0.75)
+            ax.plot(te_arc,e_arc[:,j], linewidth=0.75)
         ax.set_xlabel("t [s]",horizontalalignment='left',x=0.01)
         if i == 1:
             ax.set_ylabel("propagated velocity error [m/s]")

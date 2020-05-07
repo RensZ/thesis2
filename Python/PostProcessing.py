@@ -30,7 +30,8 @@ for ps in publication_string:
     dir_plots = '/home/rens/Documents/PostProcessing_plots/thesis_v1/' + ps + "/"
     json_file = dir_application + 'Input/' + 'inputs_' + ps + '.json'
 
-    print("for inputs of publication:", ps)
+    print(" ")
+    print(">>>> FOR INPUTS OF PUBLICATION:", ps)
 
     # from input file, get which additional things were estimated and add to lists above
     parameters = ["X_Mer", "Y_Mer", "Z_Mer",
@@ -67,40 +68,39 @@ for ps in publication_string:
     #################
 
     # # Plot integration error
-    # print( "making plots of the integration errors after backward propagation..." )
+    # print("---- making plots of the integration errors after backward propagation ----" )
     # import IntegrationError
     # IntegrationError.f(dir_cpp_output, dir_plots, bodies, no_arcs)
 
     # Plot propagated bodies
-    print(" making plots of propagated bodies...")
+    print("---- making plots of propagated bodies ----")
     import PropagatedBodies
     PropagatedBodies.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
 
     # Plot parameter history
-    print(" making plots of parameter estimation history...")
+    print("---- making plots of parameter estimation history ----")
     import ParameterHistory
     ParameterHistory.f(dir_cpp_output, dir_plots, parameters, bodies, json_input)
 
     # Plot residuals over time
-    print(" making plot of the observation residuals and propagated errors...")
+    print("---- making plot of the observation residuals and propagated errors ----")
     import Residuals
     Residuals.f(dir_cpp_output, dir_plots, bodies[0], no_arcs, False)
 
-    print(" making plot of the observation residuals and propagated errors in the RSW frame...")
+    print("---- making plot of the observation residuals and propagated errors in the RSW frame ----")
     Residuals.f(dir_cpp_output, dir_plots, bodies[0], no_arcs, True)
 
-    print(" plotting errors interpolated from results of the mercury orbiter...")
+    print("---- plotting errors interpolated from results of the mercury orbiter ----")
     import InterpolatedErrors
     InterpolatedErrors.f(dir_cpp_output, dir_plots, bodies[0], no_arcs, vehicle)
 
     # Plot dependent variable history
-    print(" making plots of dependent variable history...")
+    print("---- making plots of dependent variable history ----")
     import DependentVariableHistory
     DependentVariableHistory.f(dir_cpp_output, dir_plots, dependent_variables)
 
     # Make correlation heat map
-    print(" making heat map of parameter correlations...")
+    print("---- making heat map of parameter correlations ----")
     import HeatMap
     HeatMap.f(dir_cpp_output, dir_plots, parameters, no_arcs)
 
-print("done!")

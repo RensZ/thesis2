@@ -96,9 +96,9 @@ int main( )
 
 
     // Load json input
-//    std::string input_filename = "inputs_Genova2018.json"; // Messenger simulation done in Genova et al 2018, Nature Communications
+    std::string input_filename = "inputs_Genova2018.json"; // Messenger simulation done in Genova et al 2018, Nature Communications
 //    std::string input_filename = "inputs_Genova2018_test.json"; // 1-year version of the simulation above for quicker test
-    std::string input_filename = "inputs_Schettino2015.json"; // BepiColombo simulation done in Schettino et al 2015, IEEE
+//    std::string input_filename = "inputs_Schettino2015.json"; // BepiColombo simulation done in Schettino et al 2015, IEEE
 
     using json = nlohmann::json;
     std::string json_directory = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/";
@@ -629,11 +629,15 @@ int main( )
 
     std::vector< std::pair< int, int > > blockIndices;
     blockIndices.push_back(std::make_pair(2,0));
-    varianceVector.push_back(sigmaSunJ2*sigmaSunJ2);
+    double normalizedSigmaSunJ2 = sigmaSunJ2/calculateLegendreGeodesyNormalizationFactor(2,0);
+    varianceVector.push_back(normalizedSigmaSunJ2*normalizedSigmaSunJ2);
+
     if (estimateJ4 == true){
         blockIndices.push_back(std::make_pair(4,0));
-        varianceVector.push_back(sigmaSunJ4*sigmaSunJ4);
+        double normalizedSigmaSunJ4 = sigmaSunJ2/calculateLegendreGeodesyNormalizationFactor(4,0);
+        varianceVector.push_back(normalizedSigmaSunJ4*normalizedSigmaSunJ4);
     }
+
     parameterNames.push_back(std::make_shared<SphericalHarmonicEstimatableParameterSettings>
                              (blockIndices,"Sun",spherical_harmonics_cosine_coefficient_block));
 

@@ -91,8 +91,8 @@ int main( )
     const unsigned int numberOfIterations = 1;
 
     // run simulation for vehicle
-    std::string vehicle = "MESSENGER";
-//    std::string vehicle = "BepiColombo";
+//    std::string vehicle = "MESSENGER";
+    std::string vehicle = "BepiColombo";
 
     // define mission dependent variables
     double initialEphemerisTime;

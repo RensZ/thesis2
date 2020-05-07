@@ -16,6 +16,9 @@ def f(dir_output, dir_plots, parameters, bodies, json_input):
     from ToolKit import Knm
     import pandas as pd
 
+
+    #### PART 1: PLOT PARAMETER HISTORY
+
     no_bodies = len(bodies)
     no_parameters = (len(parameters) - no_bodies * 6)
 
@@ -93,7 +96,7 @@ def f(dir_output, dir_plots, parameters, bodies, json_input):
     #if both gamma and beta are included, also plot nordtvedt parameter using the linear relation
     if ("gamma" in parameters) and ("beta" in parameters):
         nordtvedt = 4*beta-gamma-3
-        print("  nordtvedt parameter from gamma and beta:", nordtvedt)
+        #print("  nordtvedt parameter from gamma and beta:", nordtvedt)
 
         k = no_bodies * 2 + 1 + len(parameters) - 6 * no_bodies
         plt.subplot(subplotrows, subplotcolumns, k)
@@ -105,6 +108,9 @@ def f(dir_output, dir_plots, parameters, bodies, json_input):
     plt.tight_layout()
     plt.savefig(dir_plots + 'paremeter_history.png')
 
+
+    #### PART 2: PRINT FORMAL ERRORS
+
     parameters2 = []
     outputFormalSigmas = []
     paperFormalSigmas = []
@@ -113,10 +119,16 @@ def f(dir_output, dir_plots, parameters, bodies, json_input):
     for i in range(6 * no_bodies, len(parameters)):
         p = parameters[i]
         parameters2.append(p)
-        outputFormalSigmas.append(parameterFormalSigmas[i])
+
+        if p == "J2_Sun":
+            K = Knm(2,0)
+        else:
+            K = 1.0
+
+        outputFormalSigmas.append(K*parameterFormalSigmas[i])
         fs = json_input["formalSigma_" + p]
         paperFormalSigmas.append(fs)
-        ratioFormalSigmas.append(parameterFormalSigmas[i]/fs)
+        ratioFormalSigmas.append(K*parameterFormalSigmas[i]/fs)
 
     if ("gamma" in parameters) and ("beta" in parameters):
         CovMatrix = np.genfromtxt(dir_output + "UnnormalizedCovariance.dat")

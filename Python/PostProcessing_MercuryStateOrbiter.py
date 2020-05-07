@@ -22,38 +22,38 @@ for i in range(len(vehicles)):
     v = vehicles[i]
     no_arcs = no_arcs_v[i]
 
-    print("for vehicle:", v)
+    print(" ")
+    print(">>>> FOR INPUTS OF VEHICLE:", v)
 
     dir_cpp_output = '/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Output/' + v + '/'
     dir_plots = '/home/rens/Documents/PostProcessing_plots/MercuryStateOrbiter/' + v + '/'
 
 
     # Plot integration error
-    print( " making plots of the integration errors after backward propagation..." )
+    print("---- making plots of the integration errors after backward propagation ----" )
     import IntegrationError
     IntegrationError.f(dir_cpp_output, dir_plots, v, no_arcs)
 
     # Make correlation heat map
-    print(" making heat map of parameter correlations...")
+    print("---- making heat map of parameter correlations ----")
     import HeatMap
     HeatMap.f(dir_cpp_output, dir_plots, parameters, no_arcs)
 
     # Plot propagated bodies
-    print(" making plots of propagated bodies...")
+    print("---- making plots of propagated bodies ----")
     import PropagatedBodies
     PropagatedBodies.f(dir_cpp_output, dir_plots, v, no_arcs)
 
     # Plot residuals over time
-    print(" making plots of the propagated errors vs true anomaly...")
+    print("---- making plots of the propagated errors vs true anomaly ----")
     import TrueAnomalyVsError
     TrueAnomalyVsError.f(dir_cpp_output, dir_plots, v, no_arcs, False)
     TrueAnomalyVsError.f(dir_cpp_output, dir_plots, v, no_arcs, True)
 
     # Plot residuals over time
-    print(" making plots of the observation residuals and propagated errors...")
+    print("---- making plots of the observation residuals and propagated errors ----")
     import Residuals
     Residuals.f(dir_cpp_output, dir_plots, v, no_arcs, False)
     Residuals.f(dir_cpp_output, dir_plots, v, no_arcs, True)
 
 
-print("done!")
