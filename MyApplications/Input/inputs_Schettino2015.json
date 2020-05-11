@@ -5,6 +5,7 @@
     "finalTime": [2027, 5, 2, 0, 0, 0],
 
     "calculateSchwarzschildCorrection": true,
+    "calculateLenseThirringCorrection": true,
     "includeSEPViolationAcceleration": true,
     "includeTVGPAcceleration": true,
 

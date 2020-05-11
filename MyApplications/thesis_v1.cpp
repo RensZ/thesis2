@@ -62,7 +62,6 @@ int main( )
     ////////////////////////////
 
     // Acceleration settings
-    const bool calculateLenseThirringCorrection = false; //need to implement partials
     const bool calculateDeSitterCorrection = false; //need to implement partials
     const bool estimateJ4 = false;
 
@@ -96,10 +95,10 @@ int main( )
 
 
     // Load json input
-//    std::string input_filename = "inputs_Genova2018.json";
+    std::string input_filename = "inputs_Genova2018.json";
 //    std::string input_filename = "inputs_Schettino2015.json";
 //    std::string input_filename = "inputs_Imperi2018_nvtrue.json";
-    std::string input_filename = "inputs_Imperi2018_nvfalse.json";
+//    std::string input_filename = "inputs_Imperi2018_nvfalse.json";
 
     using json = nlohmann::json;
     std::string json_directory = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/";
@@ -120,6 +119,7 @@ int main( )
 
     // Acceleration settings
     const bool calculateSchwarzschildCorrection = json_input["calculateSchwarzschildCorrection"];
+    const bool calculateLenseThirringCorrection = json_input["calculateLenseThirringCorrection"];
     const bool includeSEPViolationAcceleration = json_input["includeSEPViolationAcceleration"];
     const bool includeTVGPAcceleration = json_input["includeTVGPAcceleration"];
 
@@ -379,7 +379,19 @@ int main( )
     if (calculateSchwarzschildCorrection == true){
     dependentVariablesList.push_back(
               std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                    relativistic_correction_acceleration, "Mercury" , "Sun" ) );
+                    schwarzschild_acceleration_correction, "Mercury" , "Sun" ) );
+    }
+
+    if (calculateLenseThirringCorrection == true){
+    dependentVariablesList.push_back(
+              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                    lense_thirring_acceleration_correction, "Mercury" , "Sun" ) );
+    }
+
+    if (calculateDeSitterCorrection == true){
+    dependentVariablesList.push_back(
+              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                    de_sitter_acceleration_correction, "Mercury" , "Sun" ) );
     }
 
     if (includeSEPViolationAcceleration == true){

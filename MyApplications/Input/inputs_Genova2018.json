@@ -6,6 +6,7 @@
     "finalTime": [2015, 5, 1, 0, 0, 0],
 
     "calculateSchwarzschildCorrection": true,
+    "calculateLenseThirringCorrection": true,
     "includeSEPViolationAcceleration": true,
     "includeTVGPAcceleration": true,
 
