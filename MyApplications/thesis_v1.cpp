@@ -71,7 +71,7 @@ int main( )
 
     // Planet propagation settings
     const bool propogatePlanets = false; // Propogate the other planets besides Mercury (NOTE: need observations for other planets, or LS can't find solutions for other planets)
-    const bool useDirectSpice = false; // Use direct SPICE (more accurate than tabulated Spice)
+    const bool useDirectSpice = false; // Use direct SPICE (more accurate than tabulated Spice) (CURRENTLY NOT IMPLEMENTED)
 
     // Parameter estimation settings
     const unsigned int maximumNumberOfIterations = 5;
@@ -96,9 +96,10 @@ int main( )
 
 
     // Load json input
-    std::string input_filename = "inputs_Genova2018.json"; // Messenger simulation done in Genova et al 2018, Nature Communications
-//    std::string input_filename = "inputs_Genova2018_test.json"; // 1-year version of the simulation above for quicker test
-//    std::string input_filename = "inputs_Schettino2015.json"; // BepiColombo simulation done in Schettino et al 2015, IEEE
+//    std::string input_filename = "inputs_Genova2018.json";
+//    std::string input_filename = "inputs_Schettino2015.json";
+//    std::string input_filename = "inputs_Imperi2018_nvtrue.json";
+    std::string input_filename = "inputs_Imperi2018_nvfalse.json";
 
     using json = nlohmann::json;
     std::string json_directory = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/";
@@ -126,7 +127,6 @@ int main( )
     const double sunJ2 = json_input["sunJ2"];
     const double sunAngularMomentum = json_input["sunAngularMomentum"];
     const double sunGravitationalParameter = json_input["sunGravitationalParameter"];
-    const double nordtvedtParameter = json_input["nordtvedtParameter"];
     const double timeVaryingGravitationalParameter = json_input["timeVaryingGravitationalParameter"];
 
     const double sigmaGamma = json_input["sigmaGamma"];
@@ -136,16 +136,10 @@ int main( )
     const double sigmaSunJ2 = json_input["sigmaSunJ2"];
     const double sigmaTVGP = json_input["sigmaTVGP"];
 
-    //    const double aprioriGamma = 1.0;
-    //    const double aprioriBeta = 1.0;
-    //    const double aprioriSunGM = sunGravitationalParameter;
-    //    const double aprioriSunJ2 = sunJ2;
-    //    const double aprioriSunJ4 = sunJ4;
-    //    Eigen::VectorXd aprioriParameters(aprioriGamma, aprioriBeta, aprioriSunGM, aprioriSunJ2);
-
 
     // Use constraint nordtvedt=4*beta-gamma-3
     const bool useNordtvedtConstraint = json_input["useNordtvedtConstraint"];
+    const bool includePPNalphas = json_input["includePPNalphas"];
 
     // retreive regular observation schedule
     std::vector<int> json3 = json_input["observationInitialTime"];
@@ -170,10 +164,6 @@ int main( )
     }
 
     // observation Noise
-    double rangeNoise = json_input["rangeNoise"];
-    double dopplerNoise = json_input["dopplerNoise"];
-    double angularPositionNoise = json_input["angularPositionNoise"];
-
     const double noiseAtMinAngle = json_input["noiseAtMinAngle"];
     const double noiseAtMaxAngle = json_input["noiseAtMaxAngle"];
     const double maxMSEAngleDeg = json_input["maxMSEAngleDeg"];
@@ -593,7 +583,6 @@ int main( )
         }
     }
 
-
     // relativistic parameters
     if (calculateSchwarzschildCorrection == true
         || includeSEPViolationAcceleration == true){
@@ -611,6 +600,16 @@ int main( )
     parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                              ("global_metric", ppn_nordtvedt_parameter ) );
     varianceVector.push_back(sigmaNordtvedt*sigmaNordtvedt);
+    }
+
+    if (includeSEPViolationAcceleration == true && includePPNalphas == true){
+        parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                 ("global_metric", ppn_parameter_alpha1 ) );
+        varianceVector.push_back(sigmaGamma*sigmaGamma);
+
+        parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                 ("global_metric", ppn_parameter_alpha2 ) );
+        varianceVector.push_back(sigmaBeta*sigmaBeta);
     }
 
     // time varying gravitational parameter
@@ -709,25 +708,16 @@ int main( )
 
 
     // Create noise functions per observable
-    if (simulateObservationNoise == false){
-        rangeNoise = 0.0;
-        angularPositionNoise = 0.0;
-        dopplerNoise = 0.0;
-    }
 
     std::map< ObservableType, std::function< double( const double ) > > noiseFunctions;
-
-
 
     std::function< double( const double ) > mercuryOrbiterNoiseFunction;
     mercuryOrbiterNoiseFunction = [noiseAtMinAngle, noiseAtMaxAngle, maxMSEAngleDeg](const double time){
         return noiseSampleBasedOnMSEangle(time, noiseAtMinAngle, noiseAtMaxAngle, maxMSEAngleDeg);
     };
 
-
     noiseFunctions[ one_way_range ] = mercuryOrbiterNoiseFunction;
     noiseFunctions[ n_way_range ] = mercuryOrbiterNoiseFunction;
-
 
 
     ///////////////////////////////

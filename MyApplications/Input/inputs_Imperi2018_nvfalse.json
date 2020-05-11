@@ -1,0 +1,52 @@
+
+{
+    "vehicle": "BepiColombo",
+
+    "initialTime": [2026, 3, 14, 0, 0, 0],
+    "finalTime": [2027, 3, 16, 0, 0, 0],
+
+    "calculateSchwarzschildCorrection": true,
+    "includeSEPViolationAcceleration": true,
+    "includeTVGPAcceleration": true,
+
+    "sunJ2": 2.1106088532726840E-7,
+    "sunAngularMomentum": 190.0E39,
+    "sunGravitationalParameter": 132712440041.939400E9,
+    "timeVaryingGravitationalParameter": 0.0,
+
+    "useNordtvedtConstraint": false,
+    "includePPNalphas": true,
+
+    "sigmaGamma": 1.1E-6,
+    "sigmaBeta": 3.9E-5,
+    "sigmaNordtvedt": 4.5E-4,
+    "sigmaAlpha1": 6.0E-6,
+    "sigmaAlpha2": 1.6E-9,
+    "sigmaSunGM": 10.0E9,
+    "sigmaSunJ2": 9.0E-9,
+    "sigmaTVGP": 4.3E-14,
+
+    "observationInitialTime": [2026, 3, 15, 0, 0, 0],
+    "observationFinalTime": [2027, 3, 15, 0, 0, 0],
+    "observationTimeStep": 300.0,
+    "trackingArcDuration": 28800.0,
+    "maximumNumberOfTrackingDays": 1.0E6,
+    "flybyObject": [
+    ],
+
+    "noiseAtMinAngle": 0.30,
+    "noiseAtMaxAngle": 0.30,
+    "maxMSEAngleDeg": 180.0,
+
+    "outputSubFolderName": "Imperi2018_nvfalse",
+
+    "formalSigma_beta": 2.8E-5,
+    "formalSigma_gamma": 1.1E-6,
+    "formalSigma_Nordtvedt": 3.3E-6,
+    "formalSigma_alpha1": 6.6E-7,
+    "formalSigma_alpha2": 1.3E-7,
+    "formalSigma_mu_Sun": 9.9E7,
+    "formalSigma_J2_Sun": 3.2E-9,
+    "formalSigma_TVGP": 2.8E-14
+
+}

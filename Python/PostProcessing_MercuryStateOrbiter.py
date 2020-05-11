@@ -11,7 +11,7 @@ vehicles = ["MESSENGER",
 
 # User inputs
 no_bodies = 1
-no_arcs_v = [23,24]
+no_arcs_v = [23,23]
 bodies     = ["Vehicle"]
 parameters = []
 dependent_variables = []
@@ -56,4 +56,5 @@ for i in range(len(vehicles)):
     Residuals.f(dir_cpp_output, dir_plots, v, no_arcs, False)
     Residuals.f(dir_cpp_output, dir_plots, v, no_arcs, True)
 
-
+    from matplotlib.pyplot import close
+    close('all')

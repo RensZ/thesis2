@@ -16,6 +16,7 @@
     "timeVaryingGravitationalParameter": 0.0,
 
     "useNordtvedtConstraint": true,
+    "includePPNalphas": false,
 
     "sigmaGamma": 2.3E-5,
     "sigmaBeta": 6.9E-5,
@@ -43,7 +44,7 @@
     "noiseAtMaxAngle": 3.0,
     "maxMSEAngleDeg": 145.0,
 
-    "outputSubFolderName": "OutputGenova2018",
+    "outputSubFolderName": "Genova2018",
 
     "formalSigma_beta": 1.8E-5,
     "formalSigma_gamma": 2.3E-5,

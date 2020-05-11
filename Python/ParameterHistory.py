@@ -130,7 +130,7 @@ def f(dir_output, dir_plots, parameters, bodies, json_input):
         paperFormalSigmas.append(fs)
         ratioFormalSigmas.append(K*parameterFormalSigmas[i]/fs)
 
-    if ("gamma" in parameters) and ("beta" in parameters):
+    if ("gamma" in parameters) and ("beta" in parameters) and json_input["useNordtvedtConstraint"]:
         CovMatrix = np.genfromtxt(dir_output + "UnnormalizedCovariance.dat")
         gammaBetaCovariance = CovMatrix[indexgamma,indexbeta]
         nordtvedtFormalError = np.sqrt((4*betaFormalError)**2

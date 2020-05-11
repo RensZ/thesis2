@@ -104,7 +104,8 @@ int main( )
     double trackingPeriod;
     double observationInterval;
     double dopplerNoiseUnnormalised;
-
+    double maxMSEAngle;
+    int numberOfSimulationDays;
 
     if (vehicle == "BepiColombo"){
         initialEphemerisTime = 828273600.0; //April 1st 2026, 16 days after final orbit insertion
@@ -113,9 +114,11 @@ int main( )
         referenceAreaRadiation = 6.0;
         vehicleKernel = "bc_mpo_mlt_50037_20260314_20280529_v01.bsp";
         vehicleName = "BEPICOLOMBO MPO";
-        trackingPeriod = 8.0*60.0*60.0; //Ka tracking only
-        observationInterval = 1000.0;
-        dopplerNoiseUnnormalised = 1.5E-6; //Ka tracking only
+        trackingPeriod = 8.0*60.0*60.0;
+        observationInterval = 60.0;
+        dopplerNoiseUnnormalised = 12.25E-6; //Ka tracking only
+        maxMSEAngle = 180.0;
+        numberOfSimulationDays = 24;
     }
     else if (vehicle == "MESSENGER"){
         initialEphemerisTime = 354888000.0; // April 1st 2011, 12 days after insertion
@@ -124,9 +127,11 @@ int main( )
         referenceAreaRadiation = 3.0;
         vehicleKernel = "msgr_040803_150430_150430_od431sc_2.bsp";
         vehicleName = "MESSENGER";
-        trackingPeriod = 8.0*60.0*60.0;
+        trackingPeriod = 6.0*60.0*60.0;
         observationInterval = 60.0;
         dopplerNoiseUnnormalised = 0.1E-3;
+        maxMSEAngle = 145.0;
+        numberOfSimulationDays = 30;
     }
     else{
         std::cout<<"ERROR: Vehicle name not recognized, try a different input"<<std::endl;
@@ -135,7 +140,6 @@ int main( )
 
     std::string outputSubFolder = vehicle + "/";
 
-    int numberOfSimulationDays = 30.0;
     double arcOverlap = 0.0;
     double observationStartOffset = 1000.0; // or observation generation wil complain
     //    double arcDuration = 1.01 * 86400.0; // integrate for one day
@@ -338,7 +342,7 @@ int main( )
         double currentMSEAngleDegrees = unit_conversions::convertRadiansToDegrees(
                     angleBetween2Bodies(currentTime,"Sun","Mercury","Earth"));
 
-        if (currentMSEAngleDegrees < 145.0){
+        if (currentMSEAngleDegrees < maxMSEAngle){
 
             arcStartTimes.push_back( currentTime );
 

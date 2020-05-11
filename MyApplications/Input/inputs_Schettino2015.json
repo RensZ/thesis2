@@ -22,6 +22,7 @@
     "sigmaTVGP": 1.5E-13,
 
     "useNordtvedtConstraint": true,
+    "includePPNalphas": true,
 
     "observationInitialTime": [2026, 3, 15, 0, 0, 0],
     "observationFinalTime": [2027, 5, 1, 0, 0, 0],
@@ -39,11 +40,13 @@
     "noiseAtMaxAngle": 0.20,
     "maxMSEAngleDeg": 180.0,
 
-    "outputSubFolderName": "OutputSchettino2015",
+    "outputSubFolderName": "Schettino2015",
 
     "formalSigma_beta": 3.8E-7,
     "formalSigma_gamma": 8.9E-7,
     "formalSigma_Nordtvedt": 2.0E-6,
+    "formalSigma_alpha1": 6.0E-6,
+    "formalSigma_alpha2": 3.5E-5,
     "formalSigma_mu_Sun": 4.0E7,
     "formalSigma_J2_Sun": 3.7E-10,
     "formalSigma_TVGP": 2.0E-14

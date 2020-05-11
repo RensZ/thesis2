@@ -10,7 +10,7 @@ Purpose: wrapper file for all the post-processing of thesis_v1.cpp
 #### INPUTS ####
 ################
 
-publication_string = ["Genova2018","Schettino2015"]
+publication_string = ["Genova2018","Schettino2015","Imperi2018_nvtrue","Imperi2018_nvfalse"]
 
 # Directories
 dir_application = '/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/'
@@ -26,7 +26,7 @@ dependent_variables = ["Venus_CG", "Earth_CG", "Moon_CG", "Mars_CG", "Jupiter_CG
                        "Sun_J2",]
 
 for ps in publication_string:
-    dir_cpp_output = dir_application + 'Output/' + 'Output' + ps + "/"
+    dir_cpp_output = dir_application + 'Output/' + ps + "/"
     dir_plots = '/home/rens/Documents/PostProcessing_plots/thesis_v1/' + ps + "/"
     json_file = dir_application + 'Input/' + 'inputs_' + ps + '.json'
 
@@ -51,6 +51,10 @@ for ps in publication_string:
         if not json_input["useNordtvedtConstraint"]:
             parameters.append("Nordtvedt")
         dependent_variables.append("Sun_SEP")
+
+    if json_input["includePPNalphas"]:
+        parameters.append("alpha1")
+        parameters.append("alpha2")
 
     if json_input["includeTVGPAcceleration"]:
         parameters.append("TVGP")
@@ -103,4 +107,7 @@ for ps in publication_string:
     print("---- making heat map of parameter correlations ----")
     import HeatMap
     HeatMap.f(dir_cpp_output, dir_plots, parameters, no_arcs)
+
+    from matplotlib.pyplot import close
+    close('all')
 
