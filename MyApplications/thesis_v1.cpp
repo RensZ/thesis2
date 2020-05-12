@@ -77,10 +77,10 @@ int main( )
 
     // ABM integrator settings (if RK4 is used instead, initialstepsize is taken)
     const double initialTimeStep = 3600;
-    const double minimumStepSize = 3600/8;
-    const double maximumStepSize = 3600*8;
-    const double relativeErrorTolerence = 10E-12;
-    const double absoluteErrorTolerence = 10E-12;
+    const double minimumStepSize = 3600/16.0;
+    const double maximumStepSize = 3600*16.0;
+    const double relativeErrorTolerence = 1.0E-12;
+    const double absoluteErrorTolerence = 1.0E-12;
     const unsigned int minimumOrder = 6;
     const unsigned int maximumOrder = 12;
 
@@ -93,10 +93,9 @@ int main( )
     //// MISSION INPUTS ////
     ////////////////////////
 
-
     // Load json input
-    std::string input_filename = "inputs_Genova2018.json";
-//    std::string input_filename = "inputs_Schettino2015.json";
+//    std::string input_filename = "inputs_Genova2018.json";
+    std::string input_filename = "inputs_Schettino2015.json";
 //    std::string input_filename = "inputs_Imperi2018_nvtrue.json";
 //    std::string input_filename = "inputs_Imperi2018_nvfalse.json";
 
@@ -183,7 +182,6 @@ int main( )
     const double mercuryGravitationalParameter = (2.2031870798779644e+04)*(1E9); //m3/s2, from https://pgda.gsfc.nasa.gov/products/71
 
 
-
     /////////////////////
     //// ENVIRONMENT ////
     /////////////////////
@@ -261,6 +259,11 @@ int main( )
                 sunGravitationalParameter, sunRadius,
                 normalizedCosineCoefficients, normalizedSineCoefficients, "IAU_Sun" );
 
+    // Prepare angular momentum vector Sun
+    const Eigen::Vector3d sunAngularMomentumVectorInSunFrame(0.0, 0.0, sunAngularMomentum);
+    const Eigen::Vector3d sunAngularMomentumVectorPerUnitMassInSunFrame =
+            sunAngularMomentumVectorInSunFrame /
+            (sunGravitationalParameter/physical_constants::GRAVITATIONAL_CONSTANT);
 
     // Create body map
     NamedBodyMap bodyMap = createBodies( bodySettings );
@@ -299,11 +302,7 @@ int main( )
         }
     }
 
-    // Process Nordtvedt constraint
 
-
-    // Prepare angular momentum vector Sun
-    const Eigen::Vector3d sunAngularMomentumVector(0.0, 0.0, sunAngularMomentum);
 
     // Set accelerations between bodies that are to be taken into account (mutual point mass gravity between all bodies).
     SelectedAccelerationMap accelerationMap;
@@ -318,14 +317,15 @@ int main( )
                     currentAccelerations[ bodyNames.at( j ) ].push_back(
                                 std::make_shared< SphericalHarmonicAccelerationSettings > (maximumDegree,0));
 
-                    currentAccelerations[ bodyNames.at( j ) ].push_back(
-                                std::make_shared< RelativisticAccelerationCorrectionSettings >(
-                                    calculateSchwarzschildCorrection,
-                                    calculateLenseThirringCorrection,
-                                    calculateDeSitterCorrection,
-                                    "",
-                                    sunAngularMomentumVector));
-
+                    if (calculateSchwarzschildCorrection || calculateLenseThirringCorrection || calculateDeSitterCorrection){
+                        currentAccelerations[ bodyNames.at( j ) ].push_back(
+                                    std::make_shared< RelativisticAccelerationCorrectionSettings >(
+                                        calculateSchwarzschildCorrection,
+                                        calculateLenseThirringCorrection,
+                                        calculateDeSitterCorrection,
+                                        "",
+                                        sunAngularMomentumVectorPerUnitMassInSunFrame));
+                    }
 
                     if (includeSEPViolationAcceleration == true){
                         currentAccelerations[ bodyNames.at( j ) ].push_back(
@@ -376,31 +376,19 @@ int main( )
                 std::make_shared< SphericalHarmonicAccelerationTermsDependentVariableSaveSettings >(
                 "Mercury", "Sun", maximumDegree, 0 ) );
 
-    if (calculateSchwarzschildCorrection == true){
+    if (calculateSchwarzschildCorrection || calculateLenseThirringCorrection || calculateDeSitterCorrection){
     dependentVariablesList.push_back(
               std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                    schwarzschild_acceleration_correction, "Mercury" , "Sun" ) );
+                    relativistic_correction_acceleration, "Mercury" , "Sun" ) );
     }
 
-    if (calculateLenseThirringCorrection == true){
-    dependentVariablesList.push_back(
-              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                    lense_thirring_acceleration_correction, "Mercury" , "Sun" ) );
-    }
-
-    if (calculateDeSitterCorrection == true){
-    dependentVariablesList.push_back(
-              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                    de_sitter_acceleration_correction, "Mercury" , "Sun" ) );
-    }
-
-    if (includeSEPViolationAcceleration == true){
+    if (includeSEPViolationAcceleration){
     dependentVariablesList.push_back(
               std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
                     sep_violation_acceleration, "Mercury" , "Sun" ) );
     }
 
-    if (includeTVGPAcceleration == true){
+    if (includeTVGPAcceleration){
     dependentVariablesList.push_back(
               std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
                     time_varying_gravitational_parameter_acceleration, "Mercury" , "Sun" ) );
@@ -422,11 +410,13 @@ int main( )
                 bodiesToPropagate, centralBodies, bodyMap, initialSimulationTime );
 
     // Define propagator settings.
+    std::shared_ptr< PropagationTimeTerminationSettings > terminationSettings =
+          std::make_shared< propagators::PropagationTimeTerminationSettings >( finalSimulationTime, true );
+
     std::shared_ptr< TranslationalStatePropagatorSettings< double > > propagatorSettings =
             std::make_shared< TranslationalStatePropagatorSettings< double > >
             ( centralBodies, accelerationModelMap, bodiesToPropagate,
-              systemInitialState, finalSimulationTime, cowell, dependentVariablesToSave);
-
+              systemInitialState, terminationSettings, cowell, dependentVariablesToSave);
 
 
     std::shared_ptr< AdamsBashforthMoultonSettings< double > > integratorSettings =
@@ -490,6 +480,63 @@ int main( )
                 std::numeric_limits< double >::digits10,
                 std::numeric_limits< double >::digits10,
                 "," );
+
+
+
+    //////////////////////////////
+    //// BACKWARD PROPAGATION ////
+    //////////////////////////////
+
+    std::cout << "performing backward propagation..." << std::endl;
+
+    std::shared_ptr< PropagationTimeTerminationSettings > backwardTerminationSettings =
+          std::make_shared< propagators::PropagationTimeTerminationSettings >( initialSimulationTime, true );
+
+
+    std::shared_ptr< TranslationalStatePropagatorSettings< double > > backwardPropagatorSettings =
+            std::make_shared< TranslationalStatePropagatorSettings< double > >
+            ( centralBodies, accelerationModelMap, bodiesToPropagate,
+              systemInitialState, backwardTerminationSettings);
+
+    std::shared_ptr< AdamsBashforthMoultonSettings< double > > backwardIntegratorSettings =
+            std::make_shared< AdamsBashforthMoultonSettings< double > > (
+                finalSimulationTime, -1.0*initialTimeStep,
+                -1.0*minimumStepSize, -1.0*maximumStepSize,
+                relativeErrorTolerence, absoluteErrorTolerence,
+                minimumOrder, maximumOrder);
+
+    std::cout << "running dynamics simulator..." << std::endl;
+
+    SingleArcDynamicsSimulator <> backwardDynamicsSimulator (bodyMap,backwardIntegratorSettings,backwardPropagatorSettings,true,false,true);
+
+    std::cout << "saving integration result and dependent variables..." << std::endl;
+
+    std::map< double, Eigen::VectorXd > backwardIntegrationResult = backwardDynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+
+    // Retrieve numerically integrated state for each body.
+    std::vector< std::map< double, Eigen::VectorXd > > backwardAllBodiesPropagationHistory;
+    backwardAllBodiesPropagationHistory.resize( bodiesToPropagate.size() );
+    for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = backwardIntegrationResult.begin( );
+         stateIterator != backwardIntegrationResult.end( ); stateIterator++ )
+    {
+        for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
+        {
+            backwardAllBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
+        }
+    }
+
+    for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
+    {
+        // Write propagation history to file.
+        input_output::writeDataMapToTextFile(
+                    backwardAllBodiesPropagationHistory[ i ],
+                    "StatePropagationHistory" + bodiesToPropagate.at( i ) + "Backwards.dat",
+                    outputSubFolder,
+                    "",
+                    std::numeric_limits< double >::digits10,
+                    std::numeric_limits< double >::digits10,
+                    "," );
+    }
 
 
     ////////////////////////////////

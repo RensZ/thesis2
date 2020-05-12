@@ -45,7 +45,10 @@ for ps in publication_string:
     if json_input["calculateSchwarzschildCorrection"]:
         parameters.append("gamma")
         parameters.append("beta")
-        dependent_variables.append("Sun_SS")
+        if json_input["calculateLenseThirringCorrection"]:
+            dependent_variables.append("Sun_SS+LT")
+        else:
+            dependent_variables.append("Sun_SS")
 
     if json_input["includeSEPViolationAcceleration"]:
         if not json_input["useNordtvedtConstraint"]:
@@ -80,6 +83,12 @@ for ps in publication_string:
     print("---- making plots of propagated bodies ----")
     import PropagatedBodies
     PropagatedBodies.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
+
+    if ps == "Schettino2015":
+        # Plot integration error
+        print("---- making plots of the integration errors after backward propagation ----" )
+        import IntegrationError
+        IntegrationError.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
 
     # Plot parameter history
     print("---- making plots of parameter estimation history ----")

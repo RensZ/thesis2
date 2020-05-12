@@ -82,6 +82,9 @@ def f(dir_output, dir_plots, body, no_arcs):
     allerrors_pos = allerrors[:,0:3]
     allerrors_vel = allerrors[:,3:6]
 
+    print(allerrors_pos)
+    print(np.nonzero(allerrors_pos))
+
     y_min_pos = np.min(allerrors_pos[np.nonzero(allerrors_pos)])
     y_max_pos = np.max(allerrors_pos)
     y_min_vel = np.min(allerrors_vel[np.nonzero(allerrors_vel)])
