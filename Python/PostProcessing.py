@@ -55,7 +55,7 @@ for ps in publication_string:
             parameters.append("Nordtvedt")
         dependent_variables.append("Sun_SEP")
 
-    if json_input["includePPNalphas"]:
+    if json_input["estimatePPNalphas"]:
         parameters.append("alpha1")
         parameters.append("alpha2")
 
@@ -84,11 +84,11 @@ for ps in publication_string:
     import PropagatedBodies
     PropagatedBodies.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
 
-    if ps == "Schettino2015":
-        # Plot integration error
-        print("---- making plots of the integration errors after backward propagation ----" )
-        import IntegrationError
-        IntegrationError.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
+
+    # Plot integration error
+    print("---- making plots of the integration errors after backward propagation ----" )
+    import IntegrationError
+    IntegrationError.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
 
     # Plot parameter history
     print("---- making plots of parameter estimation history ----")

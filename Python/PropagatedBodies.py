@@ -57,7 +57,7 @@ def f(dir_output, dir_plots, body, no_arcs):
     ax.set_ylim([axmin, axmax])
     ax.set_zlim([axmin, axmax])
 
-    plt.legend(legend)
+    plt.legend(legend, loc='upper left')
 
     # #plot mercury for reference
     # u = np.linspace(0, 2 * np.pi, 100)

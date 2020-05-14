@@ -39,5 +39,5 @@ def f(dir_output, dir_plots, dependent_variables):
             plt.plot(date,acceleration)
             legend.append(var)
 
-    plt.legend(legend)
+    plt.legend(legend, loc='upper left')
     plt.savefig(dir_plots + 'dependent_variable_history.png')

@@ -110,7 +110,7 @@ def f(dir_output, dir_plots, body, no_arcs, useRSW):
         ax.set_xlabel("t [s]", horizontalalignment='left',x=0.01)
         if i == 1:
             ax.set_ylabel("propagated position error [m]")
-            ax.legend(legend)
+            ax.legend(legend, loc='upper left')
         ax.set_yscale(yscale)
         plotdata = e_data[:,1:4]
         y_min = np.min(plotdata[np.nonzero(plotdata)])
@@ -156,7 +156,7 @@ def f(dir_output, dir_plots, body, no_arcs, useRSW):
         plt.xlabel("time since J2000 [s]")
         plt.ylabel("propagated position error [m]")
         plt.yscale(yscale)
-        plt.legend(legend)
+        plt.legend(legend, loc='upper left')
 
         plt.subplot(3,1,3)
         for j in range(3, 6):

@@ -82,9 +82,6 @@ def f(dir_output, dir_plots, body, no_arcs):
     allerrors_pos = allerrors[:,0:3]
     allerrors_vel = allerrors[:,3:6]
 
-    print(allerrors_pos)
-    print(np.nonzero(allerrors_pos))
-
     y_min_pos = np.min(allerrors_pos[np.nonzero(allerrors_pos)])
     y_max_pos = np.max(allerrors_pos)
     y_min_vel = np.min(allerrors_vel[np.nonzero(allerrors_vel)])
@@ -103,7 +100,7 @@ def f(dir_output, dir_plots, body, no_arcs):
         ax.set_xlabel("t [h]", horizontalalignment='left', x=0.01)
         if j == 1:
             ax.set_ylabel("absolute position integration error [m]")
-            ax.legend(["x", "y", "z"])
+            ax.legend(["x", "y", "z"], loc='upper left')
         ax.set_yscale("log")
         ax.set_ylim(y_min_pos, y_max_pos)
         format_spines(ax, j, no_arcs)
@@ -114,7 +111,7 @@ def f(dir_output, dir_plots, body, no_arcs):
         ax.set_xlabel("t [h]", horizontalalignment='left', x=0.01)
         if j == 1:
             ax.set_ylabel("absolute velocity integration error [m/s]")
-            ax.legend(["x", "y", "z"])
+            ax.legend(["x", "y", "z"], loc='upper left')
         ax.set_yscale("log")
         ax.set_ylim(y_min_vel, y_max_vel)
         format_spines(ax, j, no_arcs)

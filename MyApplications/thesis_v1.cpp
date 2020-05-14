@@ -76,13 +76,13 @@ int main( )
     const unsigned int maximumNumberOfIterations = 5;
 
     // ABM integrator settings (if RK4 is used instead, initialstepsize is taken)
-    const double initialTimeStep = 3600;
-    const double minimumStepSize = 3600/16.0;
-    const double maximumStepSize = 3600*16.0;
-    const double relativeErrorTolerence = 1.0E-12;
-    const double absoluteErrorTolerence = 1.0E-12;
-    const unsigned int minimumOrder = 6;
-    const unsigned int maximumOrder = 12;
+    const double initialTimeStep = 3600.0/4.0;
+    const double minimumStepSize = 3600.0/4.0;
+    const double maximumStepSize = 3600.0/4.0;
+    const double relativeErrorTolerence = 1.0;
+    const double absoluteErrorTolerence = 1.0;
+    const unsigned int minimumOrder = 8;
+    const unsigned int maximumOrder = 8;
 
     // Observation settings
     const bool simulateObservationNoise = true;
@@ -96,7 +96,7 @@ int main( )
     // Load json input
 //    std::string input_filename = "inputs_Genova2018.json";
     std::string input_filename = "inputs_Schettino2015.json";
-//    std::string input_filename = "inputs_Imperi2018_nvtrue.json";
+//   std::string input_filename = "inputs_Imperi2018_nvtrue.json";
 //    std::string input_filename = "inputs_Imperi2018_nvfalse.json";
 
     using json = nlohmann::json;
@@ -128,17 +128,19 @@ int main( )
     const double sunGravitationalParameter = json_input["sunGravitationalParameter"];
     const double timeVaryingGravitationalParameter = json_input["timeVaryingGravitationalParameter"];
 
-    const double sigmaGamma = json_input["sigmaGamma"];
-    const double sigmaBeta = json_input["sigmaBeta"];
-    const double sigmaNordtvedt = json_input["sigmaNordtvedt"];
-    const double sigmaSunGM = json_input["sigmaSunGM"];
-    const double sigmaSunJ2 = json_input["sigmaSunJ2"];
-    const double sigmaTVGP = json_input["sigmaTVGP"];
+    const double sigmaGamma = json_input["sigma_gamma"];
+    const double sigmaBeta = json_input["sigma_beta"];
+    const double sigmaAlpha1 = json_input["sigma_alpha1"];
+    const double sigmaAlpha2 = json_input["sigma_alpha2"];
+    const double sigmaNordtvedt = json_input["sigma_Nordtvedt"];
+    const double sigmaSunGM = json_input["sigma_mu_Sun"];
+    const double sigmaSunJ2 = json_input["sigma_J2_Sun"];
+    const double sigmaTVGP = json_input["sigma_TVGP"];
 
 
     // Use constraint nordtvedt=4*beta-gamma-3
     const bool useNordtvedtConstraint = json_input["useNordtvedtConstraint"];
-    const bool includePPNalphas = json_input["includePPNalphas"];
+    const bool estimatePPNalphas = json_input["estimatePPNalphas"];
 
     // retreive regular observation schedule
     std::vector<int> json3 = json_input["observationInitialTime"];
@@ -492,11 +494,13 @@ int main( )
     std::shared_ptr< PropagationTimeTerminationSettings > backwardTerminationSettings =
           std::make_shared< propagators::PropagationTimeTerminationSettings >( initialSimulationTime, true );
 
+    Eigen::VectorXd systemFinalState = getInitialStatesOfBodies(
+                bodiesToPropagate, centralBodies, bodyMap, initialSimulationTime );
 
     std::shared_ptr< TranslationalStatePropagatorSettings< double > > backwardPropagatorSettings =
             std::make_shared< TranslationalStatePropagatorSettings< double > >
             ( centralBodies, accelerationModelMap, bodiesToPropagate,
-              systemInitialState, backwardTerminationSettings);
+              systemFinalState, backwardTerminationSettings);
 
     std::shared_ptr< AdamsBashforthMoultonSettings< double > > backwardIntegratorSettings =
             std::make_shared< AdamsBashforthMoultonSettings< double > > (
@@ -661,14 +665,14 @@ int main( )
     varianceVector.push_back(sigmaNordtvedt*sigmaNordtvedt);
     }
 
-    if (includeSEPViolationAcceleration == true && includePPNalphas == true){
+    if (estimatePPNalphas == true){
         parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                  ("global_metric", ppn_parameter_alpha1 ) );
-        varianceVector.push_back(sigmaGamma*sigmaGamma);
+        varianceVector.push_back(sigmaAlpha1*sigmaAlpha1);
 
         parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                  ("global_metric", ppn_parameter_alpha2 ) );
-        varianceVector.push_back(sigmaBeta*sigmaBeta);
+        varianceVector.push_back(sigmaAlpha2*sigmaAlpha2);
     }
 
     // time varying gravitational parameter

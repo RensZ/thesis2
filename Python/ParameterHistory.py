@@ -85,6 +85,14 @@ def f(dir_output, dir_plots, parameters, bodies, json_input):
             indexbeta = i
             beta = data[i]
             betaFormalError = parameterFormalSigmas[i]
+        if parameters[i] == "alpha1":
+            indexalpha1 = i
+            alpha1 = data[i]
+            alpha1FormalError = parameterFormalSigmas[i]
+        if parameters[i] == "alpha2":
+            indexalpha2 = i
+            alpha2 = data[i]
+            alpha2FormalError = parameterFormalSigmas[i]
 
         if parameters[i] == "J2_Sun":
             J2 = data[i,-1]*Knm(2,0)
@@ -95,7 +103,11 @@ def f(dir_output, dir_plots, parameters, bodies, json_input):
 
     #if both gamma and beta are included, also plot nordtvedt parameter using the linear relation
     if ("gamma" in parameters) and ("beta" in parameters):
-        nordtvedt = 4*beta-gamma-3
+
+        if ("alpha1" in parameters) and ("alpha2" in parameters):
+            nordtvedt = 4.0*beta-gamma-3.0-alpha1-(2.0/3.0)*alpha2
+        else:
+            nordtvedt = 4.0*beta-gamma-3.0
         #print("  nordtvedt parameter from gamma and beta:", nordtvedt)
 
         k = no_bodies * 2 + 1 + len(parameters) - 6 * no_bodies
@@ -112,6 +124,7 @@ def f(dir_output, dir_plots, parameters, bodies, json_input):
     #### PART 2: PRINT FORMAL ERRORS
 
     parameters2 = []
+    aPrioriSigmas = []
     outputFormalSigmas = []
     paperFormalSigmas = []
     ratioFormalSigmas = []
@@ -126,23 +139,51 @@ def f(dir_output, dir_plots, parameters, bodies, json_input):
             K = 1.0
 
         outputFormalSigmas.append(K*parameterFormalSigmas[i])
+        aps = json_input["sigma_" + p]
         fs = json_input["formalSigma_" + p]
+        aPrioriSigmas.append(aps)
         paperFormalSigmas.append(fs)
         ratioFormalSigmas.append(K*parameterFormalSigmas[i]/fs)
 
     if ("gamma" in parameters) and ("beta" in parameters) and json_input["useNordtvedtConstraint"]:
         CovMatrix = np.genfromtxt(dir_output + "UnnormalizedCovariance.dat")
         gammaBetaCovariance = CovMatrix[indexgamma,indexbeta]
-        nordtvedtFormalError = np.sqrt((4*betaFormalError)**2
-                                       +gammaFormalError**2
-                                       -2*4*gammaBetaCovariance)
+
+        #variance according to: https://stats.stackexchange.com/questions/160230/variance-of-linear-combinations-of-correlated-random-variables
+
+        if ("alpha1" in parameters) and ("alpha2" in parameters):
+            gammaAlpha1Covariance = CovMatrix[indexgamma,indexalpha1]
+            gammaAlpha2Covariance = CovMatrix[indexgamma,indexalpha2]
+            betaAlpha1Covariance = CovMatrix[indexbeta,indexalpha1]
+            betaAlpha2Covariance = CovMatrix[indexbeta,indexalpha2]
+            alpha1Alpha2Covariance = CovMatrix[indexalpha1,indexalpha2]
+            nordtvedtFormalVariance = (4.0*betaFormalError)**2 \
+                                        +gammaFormalError**2 \
+                                        +alpha1FormalError**2 \
+                                        +((2.0/3.0)*alpha2FormalError)**2 \
+                                        -2.0*4.0*gammaBetaCovariance \
+                                        -2.0*4.0*betaAlpha1Covariance \
+                                        -2.0*4.0*(2.0/3.0)*betaAlpha2Covariance \
+                                        +2.0*gammaAlpha1Covariance \
+                                        +2.0*(2.0/3.0)*gammaAlpha2Covariance \
+                                        +2.0*(2.0/3.0)*alpha1Alpha2Covariance
+        else:
+            nordtvedtFormalVariance = (4.0*betaFormalError)**2 \
+                                      +gammaFormalError**2 \
+                                      -2.0*4.0*gammaBetaCovariance
+
+        nordtvedtFormalError = np.sqrt(nordtvedtFormalVariance)
+
+        aps = json_input["sigma_Nordtvedt"]
         fs = json_input["formalSigma_Nordtvedt"]
         outputFormalSigmas.append(nordtvedtFormalError)
         paperFormalSigmas.append(fs)
+        aPrioriSigmas.append(aps)
         ratioFormalSigmas.append(nordtvedtFormalError/fs)
         parameters2.append("NordtvedtEq")
 
     df = pd.DataFrame(data={"parameter":parameters2,
+                            "apriori":aPrioriSigmas,
                             "estimation":outputFormalSigmas,
                             "publication":paperFormalSigmas,
                             "ratio e/p":ratioFormalSigmas})

@@ -6,7 +6,7 @@
     "finalTime": [2027, 3, 16, 0, 0, 0],
 
     "calculateSchwarzschildCorrection": true,
-    "calculateLenseThirringCorrection": true,
+    "calculateLenseThirringCorrection": false,
     "includeSEPViolationAcceleration": true,
     "includeTVGPAcceleration": true,
 
@@ -16,16 +16,16 @@
     "timeVaryingGravitationalParameter": 0.0,
 
     "useNordtvedtConstraint": false,
-    "includePPNalphas": true,
+    "estimatePPNalphas": true,
 
-    "sigmaGamma": 1.1E-6,
-    "sigmaBeta": 3.9E-5,
-    "sigmaNordtvedt": 4.5E-4,
-    "sigmaAlpha1": 6.0E-6,
-    "sigmaAlpha2": 1.6E-9,
-    "sigmaSunGM": 10.0E9,
-    "sigmaSunJ2": 9.0E-9,
-    "sigmaTVGP": 4.3E-14,
+    "sigma_gamma": 1.1E-6,
+    "sigma_beta": 3.9E-5,
+    "sigma_Nordtvedt": 4.5E-4,
+    "sigma_alpha1": 6.0E-6,
+    "sigma_alpha2": 1.6E-9,
+    "sigma_mu_Sun": 10.0E9,
+    "sigma_J2_Sun": 9.0E-9,
+    "sigma_TVGP": 4.3E-14,
 
     "observationInitialTime": [2026, 3, 15, 0, 0, 0],
     "observationFinalTime": [2027, 3, 15, 0, 0, 0],
