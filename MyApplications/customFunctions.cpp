@@ -377,3 +377,20 @@ Eigen::MatrixXd interpolatePositionErrorsBasedOnTrueAnomaly(const Eigen::MatrixX
 
     return interpolatedErrorMatrix;
 }
+
+Eigen::Matrix3d transformAngularMomentumFromLocalToGlobalFrame(
+        const Eigen::Matrix3d angularMomentumInLocalFrame,
+        const std::string localFrame,
+        const std::string globalFrame,
+        const double currentTime)
+{
+    using namespace tudat::spice_interface;
+
+    Eigen::Matrix3d transformation =
+            computeRotationMatrixBetweenFrames(globalFrame, localFrame, currentTime);
+
+    Eigen::Matrix3d angularMomentumInGlobalFrame =
+            transformation * angularMomentumInLocalFrame;
+
+    return angularMomentumInGlobalFrame;
+}

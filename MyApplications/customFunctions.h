@@ -41,5 +41,13 @@ Eigen::MatrixXd interpolatePositionErrorsBasedOnTrueAnomaly(const Eigen::MatrixX
                                                             const std::string vehicle,
                                                             const double mercuryGravitationalParameter);
 
+Eigen::Matrix3d transformAngularMomentumFromLocalToGlobalFrame(
+        const Eigen::Matrix3d angularMomentumInLocalFrame,
+        const std::string localFrame,
+        const std::string globalFrame,
+        const double currentTime);
+
+
+
 
 #endif // CUSTOMFUNCTIONS_H

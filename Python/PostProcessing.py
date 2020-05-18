@@ -20,7 +20,7 @@ no_bodies = 1
 no_arcs = 1
 bodies     = ["Mercury"]
 
-dependent_variables = ["Venus_CG", "Earth_CG", "Moon_CG", "Mars_CG", "Jupiter_CG", "Saturn_CG",
+dependent_variables = ["Venus_CG", "Earth_CG", "Mars_CG", "Jupiter_CG", "Saturn_CG", "Moon_CG",
                        "Sun_CG",
                        "exclude", #J1
                        "Sun_J2",]
@@ -45,10 +45,12 @@ for ps in publication_string:
     if json_input["calculateSchwarzschildCorrection"]:
         parameters.append("gamma")
         parameters.append("beta")
+        dependent_variables.append("Sun_SS")
+        dependent_variables.append("Sun_SS_α")
         if json_input["calculateLenseThirringCorrection"]:
-            dependent_variables.append("Sun_SS+LT")
-        else:
-            dependent_variables.append("Sun_SS")
+            dependent_variables.append("Sun_LT")
+        # if json_input["calculateDeSitterAcceleration"]:
+        #     dependent_variables.append("Sun_DS")
 
     if json_input["includeSEPViolationAcceleration"]:
         if not json_input["useNordtvedtConstraint"]:
@@ -84,16 +86,20 @@ for ps in publication_string:
     import PropagatedBodies
     PropagatedBodies.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
 
-
-    # Plot integration error
-    print("---- making plots of the integration errors after backward propagation ----" )
-    import IntegrationError
-    IntegrationError.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
-
     # Plot parameter history
     print("---- making plots of parameter estimation history ----")
     import ParameterHistory
     ParameterHistory.f(dir_cpp_output, dir_plots, parameters, bodies, json_input)
+
+    # # Plot integration error
+    # print("---- making plots of the integration errors after backward propagation ----" )
+    # import IntegrationError
+    # IntegrationError.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
+
+    # Make correlation heat map
+    print("---- making heat map of parameter correlations ----")
+    import HeatMap
+    HeatMap.f(dir_cpp_output, dir_plots, parameters, no_arcs)
 
     # Plot residuals over time
     print("---- making plot of the observation residuals and propagated errors ----")
@@ -111,11 +117,6 @@ for ps in publication_string:
     print("---- making plots of dependent variable history ----")
     import DependentVariableHistory
     DependentVariableHistory.f(dir_cpp_output, dir_plots, dependent_variables)
-
-    # Make correlation heat map
-    print("---- making heat map of parameter correlations ----")
-    import HeatMap
-    HeatMap.f(dir_cpp_output, dir_plots, parameters, no_arcs)
 
     from matplotlib.pyplot import close
     close('all')

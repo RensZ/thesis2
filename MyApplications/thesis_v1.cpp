@@ -1,4 +1,4 @@
-/*    Copyright (c) 2010-2019, Delft University of Technology
+ /*    Copyright (c) 2010-2019, Delft University of Technology
  *    All rights reserved.
  *
  *    Author: Rens van der Zwaard
@@ -31,11 +31,10 @@ static inline std::string getOutputPath(
     return outputPath;
 }
 
-
 int main( )
 {
 
-    // Define namespaces
+    // Import namespaces
     using namespace tudat;
     using namespace tudat::observation_models;
     using namespace tudat::orbit_determination;
@@ -95,8 +94,8 @@ int main( )
 
     // Load json input
 //    std::string input_filename = "inputs_Genova2018.json";
-    std::string input_filename = "inputs_Schettino2015.json";
-//   std::string input_filename = "inputs_Imperi2018_nvtrue.json";
+//    std::string input_filename = "inputs_Schettino2015.json";
+    std::string input_filename = "inputs_Imperi2018_nvtrue.json";
 //    std::string input_filename = "inputs_Imperi2018_nvfalse.json";
 
     using json = nlohmann::json;
@@ -105,7 +104,7 @@ int main( )
     json json_input;
     json_file >> json_input;
 
-    std::cout<<"inputs imported from json file: "<<json_input<<std::endl;
+    std::cout<<"using json file: "<<input_filename<<" input values imported: "<<json_input<<std::endl;
 
 
     // Retrieve simulation start and end time
@@ -137,10 +136,10 @@ int main( )
     const double sigmaSunJ2 = json_input["sigma_J2_Sun"];
     const double sigmaTVGP = json_input["sigma_TVGP"];
 
-
     // Use constraint nordtvedt=4*beta-gamma-3
     const bool useNordtvedtConstraint = json_input["useNordtvedtConstraint"];
     const bool estimatePPNalphas = json_input["estimatePPNalphas"];
+
 
     // retreive regular observation schedule
     std::vector<int> json3 = json_input["observationInitialTime"];
@@ -267,6 +266,11 @@ int main( )
             sunAngularMomentumVectorInSunFrame /
             (sunGravitationalParameter/physical_constants::GRAVITATIONAL_CONSTANT);
 
+    std::cout<<computeRotationMatrixBetweenFrames("ECLIPJ2000","IAU_Sun",initialSimulationTime+100000.0)<<std::endl;
+    std::cout<<computeRotationMatrixBetweenFrames("ECLIPJ2000","IAU_Sun",(initialSimulationTime+finalSimulationTime)/2.0)<<std::endl;
+    std::cout<<computeRotationMatrixBetweenFrames("ECLIPJ2000","IAU_Sun",finalSimulationTime)<<std::endl;
+
+
     // Create body map
     NamedBodyMap bodyMap = createBodies( bodySettings );
     setGlobalFrameBodyEphemerides( bodyMap, "SSB", "ECLIPJ2000" );
@@ -378,10 +382,25 @@ int main( )
                 std::make_shared< SphericalHarmonicAccelerationTermsDependentVariableSaveSettings >(
                 "Mercury", "Sun", maximumDegree, 0 ) );
 
-    if (calculateSchwarzschildCorrection || calculateLenseThirringCorrection || calculateDeSitterCorrection){
-    dependentVariablesList.push_back(
-              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                    relativistic_correction_acceleration, "Mercury" , "Sun" ) );
+    if (calculateSchwarzschildCorrection){
+        dependentVariablesList.push_back(
+                  std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                        relativistic_correction_acceleration, "Mercury" , "Sun", 0, -1, 1 ) );
+        dependentVariablesList.push_back(
+                  std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                        relativistic_correction_acceleration, "Mercury" , "Sun", 0, -1, 2 ) );
+    }
+
+    if (calculateLenseThirringCorrection){
+        dependentVariablesList.push_back(
+                  std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                        relativistic_correction_acceleration, "Mercury" , "Sun", 0, -1, 3 ) );
+    }
+
+    if (calculateDeSitterCorrection){
+        dependentVariablesList.push_back(
+                  std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                        relativistic_correction_acceleration, "Mercury" , "Sun", 0, -1, 4 ) );
     }
 
     if (includeSEPViolationAcceleration){
