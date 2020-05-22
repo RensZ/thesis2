@@ -3,6 +3,7 @@
 
 
 #include <Eigen/Core>
+#include <iostream>
 
 #include "Tudat/Astrodynamics/BasicAstrodynamics/physicalConstants.h"
 #include "Tudat/Astrodynamics/BasicAstrodynamics/accelerationModel.h"
@@ -69,11 +70,12 @@ public:
      */
     void updateMembers( const double currentTime = TUDAT_NAN )
     {
+        std::cout<<currentTime<<std::endl;
         if( !( this->currentTime_ == currentTime ) )
         {
-            currentTime_ = currentTime;
 
             // Update common variables
+            this->currentTime_ = currentTime;
 
             gravitationalParameterOfCentralBody_ =
                     gravitationalParameterFunctionOfCentralBody_( );
@@ -96,6 +98,13 @@ public:
                     positionOfAcceleratedBodyWrtCentralBody_ /
                     (distance*distance*distance);
 
+//            std::cout<<gravitationalParameterOfCentralBody_<<" "
+//                     <<timeVaryingGravitationalParameter_<<" "
+//                     <<currentTime_<<" "
+//                     <<positionOfAcceleratedBodyWrtCentralBody_.transpose()<<" "
+//                     <<distance<<" "
+//                     <<currentAcceleration_.transpose()<<std::endl;
+
 
 //            relativePositionArray_ = positionOfAcceleratedBodyWrtCentralBody_;
 
@@ -105,6 +114,8 @@ public:
 //                    timeVaryingGravitationalParameter_,
 //                    currentTime_
 //                    );
+
+
 
         }
 
