@@ -1,7 +1,9 @@
 #ifndef SEPVIOLATIONACCELERATION_H
 #define SEPVIOLATIONACCELERATION_H
 
-#include <Eigen/Core>
+#include <functional>
+#include <iostream>
+#include <boost/lambda/lambda.hpp>
 
 #include "Tudat/Astrodynamics/BasicAstrodynamics/accelerationModel.h"
 #include "Tudat/Astrodynamics/Gravitation/centralGravityModel.h"
@@ -12,8 +14,7 @@ namespace tudat
 namespace relativity
 {
 
-
-
+//! Class for SEP violation acceleration
 class SEPViolationAcceleration:
         public basic_astrodynamics::AccelerationModel< Eigen::Vector3d >
 {
@@ -50,6 +51,7 @@ public:
     }
 
 
+
     //! Update member variables used by the relativistic correction acceleration model.
     /*!
      * Updates member variables used by the relativistic correction acceleration model.
@@ -65,28 +67,29 @@ public:
 
             currentTime_ = currentTime;
 
-            positionOfAcceleratedBody_ = positionFunctionOfAcceleratedBody_( );
-            positionOfCentralBody_ = positionFunctionOfCentralBody_( );
-
-            sepPositionCorrection_ = sepPositionCorrectionFunction_( );
+            // SEP corrections can be small enough for the calculatiosn to be sensitive to floating point precision
+            // therefore everything is converted to long double and back for the calculations
+            positionOfAcceleratedBody_ = positionFunctionOfAcceleratedBody_( ).cast<long double>();
+            positionOfCentralBody_ = positionFunctionOfCentralBody_( ).cast<long double>();
+            sepPositionCorrection_ = sepPositionCorrectionFunction_( ).cast<long double>();
+            gravitationalParameterOfCentralBody_ =
+                    static_cast< long double>(gravitationalParameterFunctionOfCentralBody_( ));
 
             sepCorrectedPositionOfCentralBody_ = positionOfCentralBody_ + sepPositionCorrection_;
             nordtvedtPartial_ = nordtvedtPartialFunction_( );
 
-            gravitationalParameterOfCentralBody_ = gravitationalParameterFunctionOfCentralBody_( );
-
-            centralGravityAcceleration_ = gravitation::computeGravitationalAcceleration(
+            centralGravityAcceleration_ = gravitation::computeGravitationalAccelerationLong(
                         positionOfAcceleratedBody_,
                         gravitationalParameterOfCentralBody_,
                         positionOfCentralBody_);
 
-            sepCorrectedCentralGravityAcceleration_ = gravitation::computeGravitationalAcceleration(
+            sepCorrectedCentralGravityAcceleration_ = gravitation::computeGravitationalAccelerationLong(
                         positionOfAcceleratedBody_,
                         gravitationalParameterOfCentralBody_,
                         sepCorrectedPositionOfCentralBody_);
 
             sepRelativeAcceleration_ =
-                    sepCorrectedCentralGravityAcceleration_ - centralGravityAcceleration_;
+                    (sepCorrectedCentralGravityAcceleration_ - centralGravityAcceleration_).cast<double>();
 
         }
     }
@@ -172,17 +175,17 @@ private:
     // Variables
 
     //! Current position of the body undergoing acceleration, as computed by last call to updateMembers function.
-    Eigen::Vector3d positionOfAcceleratedBody_;
+    Eigen::Matrix<long double, 3, 1> positionOfAcceleratedBody_;
 
     //! Current position of the body undergoing acceleration, as computed by last call to updateMembers function.
-    Eigen::Vector3d positionOfCentralBody_;
+    Eigen::Matrix<long double, 3, 1> positionOfCentralBody_;
 
 
     //! Current position of the body undergoing acceleration, as computed by last call to updateMembers function.
-    Eigen::Vector3d sepPositionCorrection_;
+    Eigen::Matrix<long double, 3, 1> sepPositionCorrection_;
 
     //! Current position of the body undergoing acceleration, as computed by last call to updateMembers function.
-    Eigen::Vector3d sepCorrectedPositionOfCentralBody_;
+    Eigen::Matrix<long double, 3, 1> sepCorrectedPositionOfCentralBody_;
 
     //! Current position of the body undergoing acceleration, as computed by last call to updateMembers function.
     Eigen::Vector3d nordtvedtPartial_;
@@ -190,17 +193,17 @@ private:
 
 
     //! Current time varying gravitational parameter
-    double gravitationalParameterOfCentralBody_;
+    long double gravitationalParameterOfCentralBody_;
 
 //    //! Current gravitational parameter of central body
 //    double nordtvedtParameter_;
 
 
     //! acceleration, as computed by last call to updateMembers function
-    Eigen::Vector3d centralGravityAcceleration_;
+    Eigen::Matrix<long double, 3, 1> centralGravityAcceleration_;
 
     //! acceleration, as computed by last call to updateMembers function
-    Eigen::Vector3d sepCorrectedCentralGravityAcceleration_;
+    Eigen::Matrix<long double, 3, 1> sepCorrectedCentralGravityAcceleration_;
 
     //! acceleration, as computed by last call to updateMembers function
     Eigen::Vector3d sepRelativeAcceleration_;

@@ -70,7 +70,6 @@ public:
      */
     void updateMembers( const double currentTime = TUDAT_NAN )
     {
-        std::cout<<currentTime<<std::endl;
         if( !( this->currentTime_ == currentTime ) )
         {
 
