@@ -10,7 +10,13 @@ Purpose: wrapper file for all the post-processing of thesis_v1.cpp
 #### INPUTS ####
 ################
 
-publication_string = ["Genova2018","Schettino2015","Imperi2018_nvtrue","Imperi2018_nvfalse"]
+publication_string = ["Imperi2018_nvtrue_flybys",
+                      "Imperi2018_nvtrue",
+                      "Imperi2018_nvfalse_flybys",
+                      "Imperi2018_nvfalse",
+                      "Schettino2015_flybys",
+                      "Schettino2015",
+                      "Genova2018"]
 
 # Directories
 dir_application = '/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/'
@@ -19,11 +25,6 @@ dir_application = '/home/rens/tudatBundle/tudatApplications/thesis/MyApplication
 no_bodies = 1
 no_arcs = 1
 bodies     = ["Mercury"]
-
-dependent_variables = ["Venus_CG", "Earth_CG", "Mars_CG", "Jupiter_CG", "Saturn_CG", "Moon_CG",
-                       "Sun_CG",
-                       "exclude", #J1
-                       "Sun_J2",]
 
 for ps in publication_string:
     dir_cpp_output = dir_application + 'Output/' + ps + "/"
@@ -36,6 +37,11 @@ for ps in publication_string:
     # from input file, get which additional things were estimated and add to lists above
     parameters = ["X_Mer", "Y_Mer", "Z_Mer",
                   "Vx_Mer", "Vy_Mer", "Vz_Mer"]
+
+    dependent_variables = ["Venus_CG", "Earth_CG", "Mars_CG", "Jupiter_CG", "Saturn_CG", "Moon_CG",
+                           "Sun_CG",
+                           "exclude",  # J1
+                           "Sun_J2", ]
 
     import json
     print(" json file used as input:" + json_file)

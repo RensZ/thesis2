@@ -261,19 +261,23 @@ Eigen::MatrixXd interpolatePositionErrorsBasedOnTrueAnomaly(const Eigen::MatrixX
 
     // load SPICE data of vehicles
     std::string vehicleName; std::string vehicleKernel;
+    Eigen::Vector6i minKernelDatetime;
     if (vehicle == "BepiColombo"){
         vehicleName = "BEPICOLOMBO MPO";
         vehicleKernel = "bc_mpo_mlt_50037_20260314_20280529_v01.bsp";
+        minKernelDatetime << 2026, 3, 14, 0, 0, 0;
         loadSpiceKernelInTudat(getSpiceKernelPath() + "bc_sci_v04.tf");
     }
     else if (vehicle == "MESSENGER"){
         vehicleName = "MESSENGER";
         vehicleKernel = "msgr_040803_150430_150430_od431sc_2.bsp";
+        minKernelDatetime << 2011, 3, 17, 0, 0, 0;
     } else{
         std::runtime_error("ERROR: vehicle name not recognised");
     }
-    loadSpiceKernelInTudat(getSpiceKernelPath() + vehicleKernel);
 
+    loadSpiceKernelInTudat(getSpiceKernelPath() + vehicleKernel);
+    double minKernelTime = secondsAfterJ2000(minKernelDatetime);
 
     // load True Anomaly data (output of python)
     std::string vehicleArcIndicesFilename = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/arcindices_"+vehicle+".txt";
@@ -313,8 +317,13 @@ Eigen::MatrixXd interpolatePositionErrorsBasedOnTrueAnomaly(const Eigen::MatrixX
         }
 
         // find true anomaly of vehicle at current time
-        Eigen::Vector6d vehicleState = getBodyCartesianStateAtEpoch(vehicleName,"Mercury","ECLIPJ2000","None",currentTime);
-        double vehicleTrueAnomaly = convertRadiansToDegrees(convertCartesianToKeplerianElements(vehicleState, mercuryGravitationalParameter)(5));
+        double vehicleTrueAnomaly;
+        if (currentTime < minKernelTime){ // if flyby, there is no orbit/true anomaly to speak of. Error at pericenter is taken of closest arc.
+            vehicleTrueAnomaly = 0.0;
+        } else{
+            Eigen::Vector6d vehicleState = getBodyCartesianStateAtEpoch(vehicleName,"Mercury","ECLIPJ2000","None",currentTime);
+            vehicleTrueAnomaly = convertRadiansToDegrees(convertCartesianToKeplerianElements(vehicleState, mercuryGravitationalParameter)(5));
+        }
 
         // if before the first arc or after the last arc,
         // find error corresponding to the given TA of the nearest arc

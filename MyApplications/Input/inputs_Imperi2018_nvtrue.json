@@ -16,7 +16,7 @@
     "timeVaryingGravitationalParameter": 0.0,
 
     "useNordtvedtConstraint": true,
-    "estimatePPNalphas": true,
+    "estimatePPNalphas": false,
 
     "sigma_gamma": 1.1E-6,
     "sigma_beta": 3.9E-5,

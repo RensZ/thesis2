@@ -27,7 +27,8 @@ public:
             std::function< Eigen::Vector3d( ) > sepPositionCorrectionFunction,
             std::function< double( ) > gravitationalParameterFunctionOfCentralBody,
             std::function< Eigen::Vector3d( ) > nordtvedtPartialFunction,
-            std::function< bool( ) > useNordtvedtConstraintFunction
+            std::function< bool( ) > useNordtvedtConstraintFunction,
+            std::function< double( ) > nordtvedtParameterFunction
             ):
         AccelerationModel< Eigen::Vector3d >( ),
         positionFunctionOfAcceleratedBody_( positionFunctionOfAcceleratedBody ),
@@ -35,7 +36,8 @@ public:
         sepPositionCorrectionFunction_( sepPositionCorrectionFunction ),
         gravitationalParameterFunctionOfCentralBody_( gravitationalParameterFunctionOfCentralBody ),
         nordtvedtPartialFunction_(nordtvedtPartialFunction),
-        useNordtvedtConstraintFunction_(useNordtvedtConstraintFunction)
+        useNordtvedtConstraintFunction_(useNordtvedtConstraintFunction),
+        nordtvedtParameterFunction_( nordtvedtParameterFunction )
     {
         this->updateMembers( );
     }
@@ -88,9 +90,13 @@ public:
                         gravitationalParameterOfCentralBody_,
                         sepCorrectedPositionOfCentralBody_);
 
-            sepRelativeAcceleration_ =
-                    (sepCorrectedCentralGravityAcceleration_ - centralGravityAcceleration_).cast<double>();
-
+            nordtvedtParameter_ = nordtvedtParameterFunction_( );
+            if (nordtvedtParameter_ == 0.0){
+                sepRelativeAcceleration_ = Eigen::Vector3d::Zero();
+            } else{
+                sepRelativeAcceleration_ =
+                        (sepCorrectedCentralGravityAcceleration_ - centralGravityAcceleration_).cast<double>();
+            }
         }
     }
 
@@ -128,9 +134,9 @@ public:
     { return gravitationalParameterFunctionOfCentralBody_; }
 
 
-//    //! Function to return the time varying gravitational parameter
-//    std::function< double( ) > getNordtvedtParameterFunction( )
-//    { return nordtvedtParameterFunction_; }
+    //! Function to return the time varying gravitational parameter
+    std::function< double( ) > getNordtvedtParameterFunction( )
+    { return nordtvedtParameterFunction_; }
 
 
 private:
@@ -167,8 +173,8 @@ private:
     std::function< bool( ) > useNordtvedtConstraintFunction_;
 
 
-//    //! Function returning the time varying gravitational parameter
-//    std::function< double( ) > nordtvedtParameterFunction_;
+    //! Function returning the time varying gravitational parameter
+    std::function< double( ) > nordtvedtParameterFunction_;
 
 
 
@@ -195,8 +201,8 @@ private:
     //! Current time varying gravitational parameter
     long double gravitationalParameterOfCentralBody_;
 
-//    //! Current gravitational parameter of central body
-//    double nordtvedtParameter_;
+    //! Current gravitational parameter of central body
+    double nordtvedtParameter_;
 
 
     //! acceleration, as computed by last call to updateMembers function

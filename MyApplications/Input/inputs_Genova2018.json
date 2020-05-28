@@ -39,10 +39,6 @@
         2009, 9, 29, 0, 0, 0
     ],
 
-    "rangeNoise": 2.0,
-    "dopplerNoise": 1.0E-12,
-    "angularPositionNoise": 1.0E-7,
-
     "noiseAtMinAngle": 0.5,
     "noiseAtMaxAngle": 3.0,
     "maxMSEAngleDeg": 145.0,

@@ -1,0 +1,22 @@
+{
+    "vehicle": "MESSENGER",
+
+    "initialTime": [2008, 1, 1, 0, 0, 0],
+    "finalTime": [2015, 5, 1, 0, 0, 0],
+
+    "observationInitialTime": [2011, 3, 18, 0, 0, 0],
+    "observationFinalTime": [2015, 4, 28, 0, 0, 0],
+    "observationTimeStep": 300.0,
+    "trackingArcDuration": 21600.0,
+    "maximumNumberOfTrackingDays": 900,
+    "flybyObject": [
+        2008, 1, 14, 0, 0, 0,
+        2008, 10, 6, 0, 0, 0,
+        2009, 9, 29, 0, 0, 0
+    ],
+
+    "noiseAtMinAngle": 0.5,
+    "noiseAtMaxAngle": 3.0,
+    "maxMSEAngleDeg": 145.0
+
+}
