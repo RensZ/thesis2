@@ -198,6 +198,56 @@ double noiseSampleBasedOnMSEangle(const double time,
     return sample;
 }
 
+//! Function to make the noise level dependent on the Mercury-Sun-Earth angle,
+//! based on a linear relation constructed with the minimum and maximum noise.
+double noiseSampleBasedOnMSEangleForMultipleMissions(const double time,
+                            std::vector< double > noiseAtMinAngleVector,
+                            std::vector< double > noiseAtMaxAngleVector,
+                            std::vector< double > maxAngleDegVector, //in degrees
+                            std::vector< std::vector< double > > seperateBaseTimeLists){
+
+    double noise;
+    unsigned int check = 0;
+
+    for (unsigned int m = 0; m<seperateBaseTimeLists.size(); m++){
+        std::vector< double > currentBaseTimeList = seperateBaseTimeLists.at(m);
+
+        if (std::find(currentBaseTimeList.begin(), currentBaseTimeList.end(), time)
+                != currentBaseTimeList.end()) {
+
+            noise = noiseLevelBasedOnMSEangle(
+                        time, noiseAtMinAngleVector.at(m),
+                        noiseAtMaxAngleVector.at(m), maxAngleDegVector.at(m));
+            check += 1;
+
+//            std::cout<<"m: "<<m<<" noise: "<<noise;
+        }
+    }
+
+    if ( check == 0){
+        std::cout<<"finding noise value failed for t = "<<time<<std::endl;
+        std::runtime_error("time not found in any mission observation list");
+    }
+    if ( check > 1){
+        std::cout<<"finding noise value failed for t = "<<time
+                 <<" check = "<<check<<std::endl;
+        std::runtime_error("time found in multiple mission observation lists");
+    }
+
+    // create a gaussian sample
+    boost::random::mt19937 rng(time);
+    boost::random::normal_distribution<> nd(0.0,noise);
+    const double sample = nd(rng);
+
+//    std::cout << "SPE (deg): " << relativeAngle*180/pi << " ---- "
+//              << "noise level (m): " << noise << " ---- "
+//              << "rng noise sample (m): " << sample << std::endl;
+
+//    std::cout<<" sample: "<<sample<<std::endl;
+    return sample;
+}
+
+
 
 double averageOfDoubleVector(std::vector<double> input){
     double average = 0.0;

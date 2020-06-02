@@ -758,7 +758,9 @@ int main( )
 
     // Simulate observations
     PodInputDataType observationsAndTimes = simulateObservationsWithNoise< double, double >(
-                measurementSimulationInput, orbitDeterminationManager.getObservationSimulators( ), noiseFunctions);
+                measurementSimulationInput,
+                orbitDeterminationManager.getObservationSimulators( ),
+                noiseFunctions);
 
 
 

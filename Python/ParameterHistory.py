@@ -8,7 +8,7 @@ Purpose: to plot the parameter history along the iterations
 
 
 
-def f(dir_output, dir_plots, parameters, bodies, json_input):
+def f(dir_output, dir_plots, parameters, no_bodies, json_input):
 
     import numpy as np
     import matplotlib.pyplot as plt
@@ -19,7 +19,6 @@ def f(dir_output, dir_plots, parameters, bodies, json_input):
 
     #### PART 1: PLOT PARAMETER HISTORY
 
-    no_bodies = len(bodies)
     no_parameters = (len(parameters) - no_bodies * 6)
 
     subplotcolumns = 2
@@ -171,6 +170,7 @@ def f(dir_output, dir_plots, parameters, bodies, json_input):
             nordtvedtFormalVariance = (4.0*betaFormalError)**2 \
                                       +gammaFormalError**2 \
                                       -2.0*4.0*gammaBetaCovariance
+
 
         nordtvedtFormalError = np.sqrt(nordtvedtFormalVariance)
 

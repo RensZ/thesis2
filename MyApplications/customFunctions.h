@@ -31,6 +31,13 @@ double noiseSampleBasedOnMSEangle(const double time,
                             const double noiseAtMaxAngle,
                             const double maxAngleDeg);
 
+double noiseSampleBasedOnMSEangleForMultipleMissions(const double time,
+                            std::vector< double > noiseAtMinAngleVector,
+                            std::vector< double > noiseAtMaxAngleVector,
+                            std::vector< double > maxAngleDegVector,
+                            std::vector< std::vector< double > > seperateBaseTimeLists);
+
+
 double averageOfDoubleVector(std::vector<double> input);
 
 Eigen::MatrixXd interpolatePositionErrors(const Eigen::MatrixXd errorMatrix,

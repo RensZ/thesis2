@@ -187,10 +187,26 @@ add_library(customLibrary STATIC ${SOURCES})
 setup_tudat_library_target(customLibrary "${SRCROOT}")
 
 
-# Add thesis_v1 application.
-add_executable(application_Thesis "${SRCROOT}/thesis_v1.cpp")
-setup_executable_target(application_Thesis "${SRCROOT}")
-target_link_libraries(application_Thesis
+# Add thesis applications.
+add_executable(application_Thesis_singlemission "${SRCROOT}/thesis_singlemission.cpp")
+setup_executable_target(application_Thesis_singlemission "${SRCROOT}")
+target_link_libraries(application_Thesis_singlemission
+   customLibrary
+   ${TUDAT_ESTIMATION_LIBRARIES}
+   ${TUDAT_APPLICATION_ESTIMATION_LIBRARIES}
+   ${Boost_LIBRARIES} )
+
+add_executable(application_Thesis_multiplemissions "${SRCROOT}/thesis_multiplemissions.cpp")
+setup_executable_target(application_Thesis_multiplemissions "${SRCROOT}")
+target_link_libraries(application_Thesis_multiplemissions
+   customLibrary
+   ${TUDAT_ESTIMATION_LIBRARIES}
+   ${TUDAT_APPLICATION_ESTIMATION_LIBRARIES}
+   ${Boost_LIBRARIES} )
+
+add_executable(application_Thesis_multiplemissions_multiarc "${SRCROOT}/thesis_multiplemissions_multiarc.cpp")
+setup_executable_target(application_Thesis_multiplemissions_multiarc "${SRCROOT}")
+target_link_libraries(application_Thesis_multiplemissions_multiarc
    customLibrary
    ${TUDAT_ESTIMATION_LIBRARIES}
    ${TUDAT_APPLICATION_ESTIMATION_LIBRARIES}

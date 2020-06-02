@@ -10,21 +10,24 @@ Purpose: wrapper file for all the post-processing of thesis_v1.cpp
 #### INPUTS ####
 ################
 
-publication_string = ["Imperi2018_nvtrue_flybys",
-                      "Imperi2018_nvtrue",
-                      "Imperi2018_nvfalse_flybys",
-                      "Imperi2018_nvfalse",
-                      "Schettino2015_flybys",
-                      "Schettino2015",
-                      "Genova2018"]
+publication_string = ["Genova2018",
+                      "MESSENGER_and_BepiColombo",
+                      "MESSENGER_and_BepiColombo_multiarc"]
+                      # "Imperi2018_nvtrue_flybys",
+                      # "Imperi2018_nvtrue",
+                      # "Imperi2018_nvfalse_flybys",
+                      # "Imperi2018_nvfalse",
+                      # "Schettino2015_flybys",
+                      # "Schettino2015",
+
 
 # Directories
 dir_application = '/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/'
 
 # Bodies included
-no_bodies = 1
+bodies = ["Mercury"]
 no_arcs = 1
-bodies     = ["Mercury"]
+
 
 for ps in publication_string:
     dir_cpp_output = dir_application + 'Output/' + ps + "/"
@@ -34,9 +37,21 @@ for ps in publication_string:
     print(" ")
     print(">>>> FOR INPUTS OF PUBLICATION:", ps)
 
+    if ps == "MESSENGER_and_BepiColombo_multiarc":
+        no_bodies = 2
+    else:
+        no_bodies = 1
+
     # from input file, get which additional things were estimated and add to lists above
     parameters = ["X_Mer", "Y_Mer", "Z_Mer",
                   "Vx_Mer", "Vy_Mer", "Vz_Mer"]
+
+    if no_bodies > 1:
+        b = 1
+        p = parameters
+        while b < no_bodies:
+            parameters = parameters + p
+            b += 1
 
     dependent_variables = ["Venus_CG", "Earth_CG", "Mars_CG", "Jupiter_CG", "Saturn_CG", "Moon_CG",
                            "Sun_CG",
@@ -76,16 +91,24 @@ for ps in publication_string:
 
     print(" ", parameters)
 
-    vehicle = json_input["vehicle"]
+    if ps == "MESSENGER_and_BepiColombo" or ps == "MESSENGER_and_BepiColombo_multiarc":
+        vehicle = "vehicle"
+    else:
+        vehicle = json_input["vehicle"]
 
     #################
     #### OUTPUTS ####
     #################
 
+    # Plot integration error
+    print("---- making plots of the integration errors wrt SPICE and backwards integration ----" )
+    import IntegrationErrorWrtSPICE
+    IntegrationErrorWrtSPICE.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
+
     # # Plot integration error
     # print("---- making plots of the integration errors after backward propagation ----" )
     # import IntegrationError
-    # IntegrationError.f(dir_cpp_output, dir_plots, bodies, no_arcs)
+    # IntegrationError.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
 
     # Plot propagated bodies
     print("---- making plots of propagated bodies ----")
@@ -95,7 +118,7 @@ for ps in publication_string:
     # Plot parameter history
     print("---- making plots of parameter estimation history ----")
     import ParameterHistory
-    ParameterHistory.f(dir_cpp_output, dir_plots, parameters, bodies, json_input)
+    ParameterHistory.f(dir_cpp_output, dir_plots, parameters, no_bodies, json_input)
 
     # # Plot integration error
     # print("---- making plots of the integration errors after backward propagation ----" )

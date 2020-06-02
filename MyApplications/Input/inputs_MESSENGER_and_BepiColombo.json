@@ -1,6 +1,6 @@
 
 {
-    "vehicleJSONFiles": ["MESSENGER.json", "BepiColombo.json"],
+    "missionJSONFiles": ["MESSENGER.json", "BepiColombo.json"],
 
     "calculateSchwarzschildCorrection": true,
     "calculateLenseThirringCorrection": true,
