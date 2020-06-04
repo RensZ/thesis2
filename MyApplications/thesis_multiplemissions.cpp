@@ -65,6 +65,9 @@ int main( )
     const bool calculateDeSitterCorrection = false; //need to implement partials
     const bool estimateJ4 = false;
 
+    // Use multiple arcs for Mercury per mission
+    const bool useMultipleMercuryArcs = true;
+
     // Parameter apriori values and uncertainties
     const bool useAprioriValues = true;
 
@@ -84,7 +87,6 @@ int main( )
     const unsigned int maximumOrder = 8;
 
     // Observation settings
-    const bool simulateObservationNoise = true;
     const bool includeSpacecraftPositionError = true;
 
 
@@ -132,6 +134,7 @@ int main( )
     // Location of simulation output
     std::string outputSubFolderName = json_input["outputSubFolderName"];
     std::string outputSubFolder = getOutputPath( ) + outputSubFolderName;
+    if (useMultipleMercuryArcs) {outputSubFolder += "_multiarc";}
 
     // retreive parameters per mission
     std::vector< double > initialTimeVector;
@@ -293,6 +296,11 @@ int main( )
     // Create body map
     NamedBodyMap bodyMap = createBodies( bodySettings );
 
+    if (useMultipleMercuryArcs){
+        bodyMap[ "Mercury" ]->setEphemeris( std::make_shared< MultiArcEphemeris >(
+                                                std::map< double, std::shared_ptr< Ephemeris > >( ), "SSB", "ECLIPJ2000" ) );
+    }
+
     setGlobalFrameBodyEphemerides( bodyMap, "SSB", "ECLIPJ2000" );
 
     ///////////////////////
@@ -444,18 +452,51 @@ int main( )
 
     std::cout << "defining propagation settings..." << std::endl;
 
-    // Get initial state of bodies to be propagated
-    Eigen::VectorXd systemInitialState = getInitialStatesOfBodies(
-                bodiesToPropagate, centralBodies, bodyMap, initialSimulationTime );
+    std::vector< std::shared_ptr< SingleArcPropagatorSettings< double > > > propagatorSettingsList;
+    Eigen::VectorXd systemInitialState;
+    std::shared_ptr< PropagatorSettings< double > > propagatorSettings;
 
-    // Define propagator settings.
-    std::shared_ptr< PropagationTimeTerminationSettings > terminationSettings =
-          std::make_shared< propagators::PropagationTimeTerminationSettings >( finalSimulationTime, true );
+    if (useMultipleMercuryArcs){
+        std::vector< Eigen::VectorXd > arcInitialStates;
 
-    std::shared_ptr< TranslationalStatePropagatorSettings< double > > propagatorSettings =
-            std::make_shared< TranslationalStatePropagatorSettings< double > >
-            ( centralBodies, accelerationModelMap, bodiesToPropagate,
-              systemInitialState, terminationSettings, cowell, dependentVariablesToSave);
+        for (unsigned int m=0; m<numberOfMissions; m++){
+
+            Eigen::VectorXd currentArcInitialState = getBodyCartesianStateAtEpoch(
+                        bodiesToPropagate.at(0), centralBodies.at(0),
+                        "ECLIPJ2000", "None", initialTimeVector.at(m) );
+
+            std::cout<<"initial state: "<<currentArcInitialState.transpose()<<std::endl;
+            arcInitialStates.push_back( currentArcInitialState );
+
+            std::shared_ptr< PropagationTimeTerminationSettings > terminationSettings =
+                  std::make_shared< propagators::PropagationTimeTerminationSettings >(
+                        finalTimeVector.at(m), true );
+
+            propagatorSettingsList.push_back(
+                        std::make_shared< TranslationalStatePropagatorSettings< double > >(
+                            centralBodies, accelerationModelMap, bodiesToPropagate,
+                            currentArcInitialState, terminationSettings, cowell, dependentVariablesToSave ) );
+        }
+
+        // Create propagator settings
+        propagatorSettings = std::make_shared< MultiArcPropagatorSettings< double > >( propagatorSettingsList );
+
+    } else{
+
+        // Get initial state of bodies to be propagated
+        systemInitialState = getInitialStatesOfBodies(
+                    bodiesToPropagate, centralBodies, bodyMap, initialSimulationTime );
+
+        // Define propagator settings.
+        std::shared_ptr< PropagationTimeTerminationSettings > terminationSettings =
+              std::make_shared< propagators::PropagationTimeTerminationSettings >( finalSimulationTime, true );
+
+        propagatorSettings =
+                std::make_shared< TranslationalStatePropagatorSettings< double > >
+                ( centralBodies, accelerationModelMap, bodiesToPropagate,
+                  systemInitialState, terminationSettings, cowell, dependentVariablesToSave);
+
+    }
 
 
     std::shared_ptr< AdamsBashforthMoultonSettings< double > > integratorSettings =
@@ -478,29 +519,69 @@ int main( )
 
     std::cout << "running dynamics simulator..." << std::endl;
 
-    SingleArcDynamicsSimulator <> dynamicsSimulator (bodyMap,integratorSettings,propagatorSettings,true,false,true);
-
-    std::cout << "saving integration result and dependent variables..." << std::endl;
-
-    std::map< double, Eigen::VectorXd > integrationResult = dynamicsSimulator.getEquationsOfMotionNumericalSolution( );
-    std::map< double, Eigen::VectorXd > dependentVariablesHistory = dynamicsSimulator.getDependentVariableHistory();
-
-    // Retrieve numerically integrated state for each body.
     std::vector< std::map< double, Eigen::VectorXd > > allBodiesPropagationHistory;
     std::vector< std::map< double, Eigen::VectorXd > > spiceStatesAtPropagationTimes;
     allBodiesPropagationHistory.resize( bodiesToPropagate.size() );
     spiceStatesAtPropagationTimes.resize( bodiesToPropagate.size() );
 
-    for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = integrationResult.begin( );
-         stateIterator != integrationResult.end( ); stateIterator++ )
-    {
-        for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
-        {
-            allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
-            spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
-                    getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),"SSB","ECLIPJ2000","None",stateIterator->first);
+    std::map< double, Eigen::VectorXd > dependentVariablesHistory;
 
+    if (useMultipleMercuryArcs){
+
+        MultiArcDynamicsSimulator <> dynamicsSimulator (bodyMap,
+                                                        integratorSettings,
+                                                        propagatorSettings,
+                                                        initialTimeVector,
+                                                        true,false,true);
+
+        std::vector< std::map< double, Eigen::VectorXd > > integrationResult = dynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+        std::vector< std::map< double, Eigen::VectorXd > > dependentVariablesResult = dynamicsSimulator.getDependentVariableHistory();
+
+        for( unsigned int m = 0; m < numberOfMissions; m++ ){
+
+            std::map< double, Eigen::VectorXd > intermediateIntegrationResult = integrationResult.at( m );
+
+            // Retrieve numerically integrated state for each body.
+            for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateIntegrationResult.begin( );
+                 stateIterator != intermediateIntegrationResult.end( ); stateIterator++ )
+            {
+                for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
+                {
+                    allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
+                    spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
+                            getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),"SSB","ECLIPJ2000","None",stateIterator->first);
+
+                }
+            }
+
+            std::map< double, Eigen::VectorXd > intermediateDependentVariablesResult = dependentVariablesResult.at( m );
+
+            for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateDependentVariablesResult.begin( );
+                 stateIterator != intermediateDependentVariablesResult.end( ); stateIterator++ )
+            {
+                dependentVariablesHistory[ stateIterator->first ] = stateIterator->second.segment( 0, 6 );
+            }
         }
+
+    } else{
+
+        SingleArcDynamicsSimulator <> dynamicsSimulator (bodyMap,integratorSettings,propagatorSettings,true,false,true);
+        std::map< double, Eigen::VectorXd > integrationResult = dynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+        dependentVariablesHistory = dynamicsSimulator.getDependentVariableHistory();
+
+        // Retrieve numerically integrated state for each body.
+        for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = integrationResult.begin( );
+             stateIterator != integrationResult.end( ); stateIterator++ )
+        {
+            for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
+            {
+                allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
+                spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
+                        getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),"SSB","ECLIPJ2000","None",stateIterator->first);
+
+            }
+        }
+
     }
 
     for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
@@ -525,9 +606,7 @@ int main( )
                     "," );
     }
 
-
     // Write dependent variables history to file.
-
     input_output::writeDataMapToTextFile(
                 dependentVariablesHistory,
                 "DependentVariablesHistory.dat",
@@ -536,6 +615,9 @@ int main( )
                 std::numeric_limits< double >::digits10,
                 std::numeric_limits< double >::digits10,
                 "," );
+
+
+
 
 
 
@@ -636,19 +718,41 @@ int main( )
     std::vector<double> varianceVector;
 
     // Add bodies that will be propagated to the parameters to be estimated
-    for( unsigned int i = 0; i < numberOfNumericalBodies; i++ )
-    {
-        int j = 6*i;
-        parameterNames.push_back( std::make_shared< InitialTranslationalStateEstimatableParameterSettings< double > >(
-                                      bodiesToPropagate[i], systemInitialState.segment(j,6), centralBodies[i] ) );
+    if (useMultipleMercuryArcs){
+        Eigen::VectorXd systemInitialState = Eigen::VectorXd( 6 * initialTimeVector.size( ) );
+        for( unsigned int m = 0; m < numberOfMissions; m++ )
+        {
+            systemInitialState.segment( m * 6, 6 ) = propagatorSettingsList.at( m )->getInitialStates( );
 
-        for( unsigned int i = 0; i < 3; i++ ){
-            varianceVector.push_back(sigmaPosition*sigmaPosition);
+            for( unsigned int i = 0; i < 3; i++ ){
+                varianceVector.push_back(sigmaPosition*sigmaPosition);
+            }
+            for( unsigned int i = 3; i < 6; i++ ){
+                varianceVector.push_back(sigmaVelocity*sigmaVelocity);
+            }
         }
-        for( unsigned int i = 3; i < 6; i++ ){
-            varianceVector.push_back(sigmaVelocity*sigmaVelocity);
+
+        parameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
+                                      "Mercury", systemInitialState, initialTimeVector, "SSB" ) );
+    }
+    else{
+        for( unsigned int i = 0; i < numberOfNumericalBodies; i++ )
+        {
+            int j = 6*i;
+            parameterNames.push_back( std::make_shared< InitialTranslationalStateEstimatableParameterSettings< double > >(
+                                          bodiesToPropagate[i], systemInitialState.segment(j,6), centralBodies[i] ) );
+
+            for( unsigned int i = 0; i < 3; i++ ){
+                varianceVector.push_back(sigmaPosition*sigmaPosition);
+            }
+            for( unsigned int i = 3; i < 6; i++ ){
+                varianceVector.push_back(sigmaVelocity*sigmaVelocity);
+            }
         }
     }
+
+
+
 
     // relativistic parameters
     if (calculateSchwarzschildCorrection == true

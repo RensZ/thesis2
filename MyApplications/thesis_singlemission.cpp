@@ -61,15 +61,17 @@ int main( )
     ////////////////////////////
 
     // Acceleration settings
-    const bool calculateDeSitterCorrection = false; //need to implement partials
-    const bool estimateJ4 = false;
+    const bool calculateDeSitterCorrection = false;
+    const bool includeTimeVaryingGravitationalMomentsSun = true;
+    const unsigned int maximumDegreeSunGravitationalMomentVariation = 4;
+    std::vector< bool > estimateParametersTimeVaryingSphericalHarmonicsSun = {false, false, false}; //amplitude, period, phase
+
 
     // Parameter apriori values and uncertainties
     const bool useAprioriValues = true;
 
     // Planet propagation settings
     const bool propogatePlanets = false; // Propogate the other planets besides Mercury (NOTE: need observations for other planets, or LS can't find solutions for other planets)
-    const bool useDirectSpice = false; // Use direct SPICE (more accurate than tabulated Spice) (CURRENTLY NOT IMPLEMENTED)
 
     // Parameter estimation settings
     const unsigned int maximumNumberOfIterations = 3;
@@ -131,18 +133,19 @@ int main( )
         const bool includeTVGPAcceleration = json_input["includeTVGPAcceleration"];
 
         // Retrieve input parameters including uncertainties and apriori values
-        const double sunJ2 = json_input["sunJ2"];
+        const double unnormalisedSunJ2 = json_input["sunJ2"];
+        const double sunJ2 = unnormalisedSunJ2 / calculateLegendreGeodesyNormalizationFactor(2,0);
         const double sunAngularMomentum = json_input["sunAngularMomentum"];
         const double sunGravitationalParameter = json_input["sunGravitationalParameter"];
         const double timeVaryingGravitationalParameter = json_input["timeVaryingGravitationalParameter"];
-
         const double sigmaGamma = json_input["sigma_gamma"];
         const double sigmaBeta = json_input["sigma_beta"];
         const double sigmaAlpha1 = json_input["sigma_alpha1"];
         const double sigmaAlpha2 = json_input["sigma_alpha2"];
         const double sigmaNordtvedt = json_input["sigma_Nordtvedt"];
         const double sigmaSunGM = json_input["sigma_mu_Sun"];
-        const double sigmaSunJ2 = json_input["sigma_J2_Sun"];
+        const double sigmaUnnormalisedSunJ2 = json_input["sigma_J2_Sun"];
+        const double sigmaSunJ2 = sigmaUnnormalisedSunJ2 / calculateLegendreGeodesyNormalizationFactor(2,0);
         const double sigmaTVGP = json_input["sigma_TVGP"];
 
         // Use constraint nordtvedt=4*beta-gamma-3
@@ -182,15 +185,47 @@ int main( )
         std::string outputSubFolder = getOutputPath( ) + outputSubFolderName;
 
         // Other parameters, currently not included in json
-        const double sunRadius = 695.7E6; //m, from nasa fact sheet
-        const double sunJ4 = -4.34E-9; //from Antia 2008
-        const double sigmaSunJ4 = 0.1E-9; //PLACEHOLDER
-
         const double sigmaPosition = 1000.0; //educated guess
         const double sigmaVelocity = 1.0; //educated guess
 
         const double mercuryGravitationalParameter = (2.2031870798779644e+04)*(1E9); //m3/s2, from https://pgda.gsfc.nasa.gov/products/71
 
+        const double sunRadius = 695.7E6; //m, from nasa fact sheet
+        const double unnormalisedSunJ4 = json_input["sunJ4"];
+        const double sunJ4 = unnormalisedSunJ4 / calculateLegendreGeodesyNormalizationFactor(4,0);
+        const double unnormalisedSigmaSunJ4 = json_input["sigma_J4_Sun"];
+        const double sigmaSunJ4 = unnormalisedSigmaSunJ4 / calculateLegendreGeodesyNormalizationFactor(4,0);
+        const double solarCycle = 11.0*physical_constants::JULIAN_YEAR;
+
+        // settings time variable gravitational moments
+        double J2amplitude = 0.005E-7 / calculateLegendreGeodesyNormalizationFactor(2,0); // currently from Antia et al 2008
+        double J2period = solarCycle;
+        double J2phase = 0.0;
+
+        double J4amplitude = 0.06E-9 / calculateLegendreGeodesyNormalizationFactor(4,0); // currently from Antia et al 2008
+        double J4period = solarCycle;
+        double J4phase = solarCycle/2.0; //antiphase?
+
+        const unsigned int maximumDegreeWithInput = 4;
+
+        Eigen::VectorXd valuesSunGravitationalMoments = Eigen::VectorXd::Zero(maximumDegreeWithInput+1);
+        valuesSunGravitationalMoments(0) = 1.0; //central gravity
+        valuesSunGravitationalMoments(2) = sunJ2; valuesSunGravitationalMoments(4) = sunJ4;
+
+        Eigen::VectorXd sigmaValuesSunGravitationalMoments = Eigen::VectorXd::Zero(maximumDegreeWithInput+1);
+        sigmaValuesSunGravitationalMoments(2) = sigmaSunJ2; sigmaValuesSunGravitationalMoments(4) = sigmaSunJ4;
+
+        Eigen::VectorXd amplitudesSunGravitationalMomentsVariation = Eigen::VectorXd::Zero(maximumDegreeWithInput+1);
+        amplitudesSunGravitationalMomentsVariation(2) = J2amplitude; amplitudesSunGravitationalMomentsVariation(4) = J4amplitude;
+
+        Eigen::VectorXd periodsSunGravitationalMomentsVariation = Eigen::VectorXd::Zero(maximumDegreeWithInput+1);
+        periodsSunGravitationalMomentsVariation(2) = J2period; periodsSunGravitationalMomentsVariation(4) = J4period;
+
+        Eigen::VectorXd phasesSunGravitationalMomentsVariation = Eigen::VectorXd::Zero(maximumDegreeWithInput+1);
+        phasesSunGravitationalMomentsVariation(2) = J2phase; phasesSunGravitationalMomentsVariation(4) = J4phase;
+
+        const std::shared_ptr< InterpolatorSettings > interpolatorSettings =
+                std::make_shared< InterpolatorSettings >( cubic_spline_interpolator ); //interpolator of Sun SH coefficient variation
 
         /////////////////////
         //// ENVIRONMENT ////
@@ -238,30 +273,58 @@ int main( )
         bodySettings = getDefaultBodySettings( bodyNames, initialSimulationTime - buffer, finalSimulationTime + buffer );
 
 
-        // Custom settings Sun
-        double sunNormalizedJ2 = sunJ2 / calculateLegendreGeodesyNormalizationFactor(2,0);
-        double sunNormalizedJ4 = sunJ4 / calculateLegendreGeodesyNormalizationFactor(4,0);
+        std::cout << "setting custom settings Sun..." << std::endl;
 
-        Eigen::MatrixXd normalizedSineCoefficients;
-        Eigen::MatrixXd normalizedCosineCoefficients;
-        unsigned int maximumDegree;
+        // Nominal values spherical harmonics Sun
+        Eigen::MatrixXd normalizedSineCoefficients
+                = Eigen::MatrixXd::Zero(maximumDegreeSunGravitationalMomentVariation + 1,
+                                        maximumDegreeSunGravitationalMomentVariation + 1);
+        Eigen::MatrixXd normalizedCosineCoefficients
+                = Eigen::MatrixXd::Zero(maximumDegreeSunGravitationalMomentVariation + 1,
+                                        maximumDegreeSunGravitationalMomentVariation + 1);
 
-        if (estimateJ4 == false){
-            normalizedSineCoefficients   = Eigen::MatrixXd::Zero(3,3);
-            normalizedCosineCoefficients = Eigen::MatrixXd::Zero(3,3);
-            maximumDegree = 2;
-        } else{
-            normalizedSineCoefficients   = Eigen::MatrixXd::Zero(5,5);
-            normalizedCosineCoefficients = Eigen::MatrixXd::Zero(5,5);
-            normalizedCosineCoefficients(4,0) = sunNormalizedJ4;
-            maximumDegree = 4;
+        if (normalizedCosineCoefficients.col(0).size() != valuesSunGravitationalMoments.size()){
+            std::runtime_error("error: vector sizes incompatible");
         }
-        normalizedCosineCoefficients(0,0) = 1.0;
-        normalizedCosineCoefficients(2,0) = sunNormalizedJ2;
+
+        normalizedCosineCoefficients.col(0) = valuesSunGravitationalMoments.transpose();
 
         bodySettings[ "Sun" ] -> gravityFieldSettings = std::make_shared< SphericalHarmonicsGravityFieldSettings >(
                     sunGravitationalParameter, sunRadius,
                     normalizedCosineCoefficients, normalizedSineCoefficients, "IAU_Sun" );
+
+
+        // Time varying spherical harmonics coefficients Sun
+        if (includeTimeVaryingGravitationalMomentsSun){
+
+            std::vector< std::shared_ptr< GravityFieldVariationSettings > > gravityFieldVariationSettings;
+
+            for (unsigned int d=2; d<=maximumDegreeSunGravitationalMomentVariation; d+=2){
+
+                std::map< double, Eigen::MatrixXd > cosineCoefficientCorrections =
+                        tabulatedSphericalHarmonicsCoefficientCorrections(initialSimulationTime, finalSimulationTime,
+                                                                          amplitudesSunGravitationalMomentsVariation(d),
+                                                                          periodsSunGravitationalMomentsVariation(d),
+                                                                          phasesSunGravitationalMomentsVariation(d));
+                std::map< double, Eigen::MatrixXd > sineCoefficientCorrections =
+                        zeroTabulatedSphericalHarmonicsCoefficientCorrections(initialSimulationTime, finalSimulationTime);
+
+                input_output::writeDataMapToTextFile( cosineCoefficientCorrections, "cosineCoefficientCorrectionsJ"+std::to_string(d)+".dat",
+                                                      outputSubFolder, "", std::numeric_limits< double >::digits10, std::numeric_limits< double >::digits10, "," );
+                input_output::writeDataMapToTextFile( sineCoefficientCorrections, "sineCoefficientCorrectionsJ"+std::to_string(d)+".dat",
+                                                      outputSubFolder, "", std::numeric_limits< double >::digits10, std::numeric_limits< double >::digits10, "," );
+
+                const std::shared_ptr< GravityFieldVariationSettings > timeVaryingSphericalHarmonicsSettings =
+                        std::make_shared< TabulatedGravityFieldVariationSettings >( cosineCoefficientCorrections,
+                                                                                    sineCoefficientCorrections,
+                                                                                    2, 0, interpolatorSettings,
+                                                                                    initialSimulationTime, finalSimulationTime, 3600.0);
+
+                gravityFieldVariationSettings.push_back( timeVaryingSphericalHarmonicsSettings );
+            }
+
+            bodySettings[ "Sun" ]->gravityFieldVariationSettings = gravityFieldVariationSettings;
+        }
 
         // Prepare angular momentum vector Sun
         const Eigen::Vector3d sunAngularMomentumVectorInSunFrame(0.0, 0.0, sunAngularMomentum);
@@ -269,16 +332,9 @@ int main( )
                 sunAngularMomentumVectorInSunFrame /
                 (sunGravitationalParameter/physical_constants::GRAVITATIONAL_CONSTANT);
 
-    //    std::cout<<computeRotationMatrixBetweenFrames("ECLIPJ2000","IAU_Sun",initialSimulationTime+100000.0)<<std::endl;
-    //    std::cout<<computeRotationMatrixBetweenFrames("ECLIPJ2000","IAU_Sun",(initialSimulationTime+finalSimulationTime)/2.0)<<std::endl;
-    //    std::cout<<computeRotationMatrixBetweenFrames("ECLIPJ2000","IAU_Sun",finalSimulationTime)<<std::endl;
-
-
         // Create body map
         NamedBodyMap bodyMap = createBodies( bodySettings );
         setGlobalFrameBodyEphemerides( bodyMap, "SSB", "ECLIPJ2000" );
-
-
 
 
         ///////////////////////
@@ -327,7 +383,7 @@ int main( )
                 {
                     if (bodyNames.at( j ) == "Sun"){
                         currentAccelerations[ bodyNames.at( j ) ].push_back(
-                                    std::make_shared< SphericalHarmonicAccelerationSettings > (maximumDegree,0));
+                                    std::make_shared< SphericalHarmonicAccelerationSettings > (maximumDegreeSunGravitationalMomentVariation,0));
 
                         if (calculateSchwarzschildCorrection || calculateLenseThirringCorrection || calculateDeSitterCorrection){
                             currentAccelerations[ bodyNames.at( j ) ].push_back(
@@ -386,7 +442,7 @@ int main( )
 
         dependentVariablesList.push_back(
                     std::make_shared< SphericalHarmonicAccelerationTermsDependentVariableSaveSettings >(
-                    "Mercury", "Sun", maximumDegree, 0 ) );
+                    "Mercury", "Sun", maximumDegreeSunGravitationalMomentVariation, 0 ) );
 
         if (calculateSchwarzschildCorrection){
             dependentVariablesList.push_back(
@@ -736,20 +792,12 @@ int main( )
         varianceVector.push_back(sigmaSunGM*sigmaSunGM);
 
         std::vector< std::pair< int, int > > blockIndices;
-        blockIndices.push_back(std::make_pair(2,0));
-        double normalizedSigmaSunJ2 = sigmaSunJ2/calculateLegendreGeodesyNormalizationFactor(2,0);
-        varianceVector.push_back(normalizedSigmaSunJ2*normalizedSigmaSunJ2);
-
-        if (estimateJ4 == true){
-            blockIndices.push_back(std::make_pair(4,0));
-            double normalizedSigmaSunJ4 = sigmaSunJ2/calculateLegendreGeodesyNormalizationFactor(4,0);
-            varianceVector.push_back(normalizedSigmaSunJ4*normalizedSigmaSunJ4);
+        for (unsigned int d=2; d<=maximumDegreeSunGravitationalMomentVariation; d+=2){
+            blockIndices.push_back(std::make_pair(d,0));
+            varianceVector.push_back(sigmaValuesSunGravitationalMoments(d)*sigmaValuesSunGravitationalMoments(d));
         }
-
         parameterNames.push_back(std::make_shared<SphericalHarmonicEstimatableParameterSettings>
                                  (blockIndices,"Sun",spherical_harmonics_cosine_coefficient_block));
-
-
 
 
         // Create parameters

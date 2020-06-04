@@ -54,7 +54,21 @@ Eigen::Matrix3d transformAngularMomentumFromLocalToGlobalFrame(
         const std::string globalFrame,
         const double currentTime);
 
+double simpleSine(
+        const double amplitude,
+        const double period,
+        const double phase,
+        const double time);
 
+std::map< double, Eigen::MatrixXd > tabulatedSphericalHarmonicsCoefficientCorrections(
+        const double initialTime,
+        const double finalTime,
+        const double amplitude,
+        const double period,
+        const double phase);
 
+std::map< double, Eigen::MatrixXd > zeroTabulatedSphericalHarmonicsCoefficientCorrections(
+        const double initialTime,
+        const double finalTime);
 
 #endif // CUSTOMFUNCTIONS_H

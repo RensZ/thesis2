@@ -187,6 +187,8 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input):
                             "estimation":outputFormalSigmas,
                             "publication":paperFormalSigmas,
                             "ratio e/p":ratioFormalSigmas})
+
+    df.to_latex(dir_plots + 'formal_errors.txt', header=True, index=True)
     print(df)
 
     return

@@ -453,3 +453,62 @@ Eigen::Matrix3d transformAngularMomentumFromLocalToGlobalFrame(
 
     return angularMomentumInGlobalFrame;
 }
+
+double simpleSine(
+        const double amplitude,
+        const double period,
+        const double phase,
+        const double time){
+    using namespace tudat::mathematical_constants;
+    return amplitude*sin(2.0*PI*time/period+phase);
+}
+
+std::map< double, Eigen::MatrixXd > tabulatedSphericalHarmonicsCoefficientCorrections(
+        const double initialTime,
+        const double finalTime,
+        const double amplitude,
+        const double period,
+        const double phase)
+{
+
+    std::map< double, Eigen::MatrixXd > coefficientCorrections;
+
+    const double interval = 3600.0;
+    double currentTime = initialTime - interval;
+
+    Eigen::Matrix<double, 1, 1> currentCorrection = Eigen::Matrix<double, 1, 1>::Zero();
+
+    while (currentTime <= finalTime + interval){
+        currentCorrection(0,0) = simpleSine(amplitude, period, phase, currentTime);
+        coefficientCorrections.insert(std::make_pair(currentTime, currentCorrection));
+        currentTime += interval;
+    }
+
+    return coefficientCorrections;
+
+}
+
+
+std::map< double, Eigen::MatrixXd > zeroTabulatedSphericalHarmonicsCoefficientCorrections(
+        const double initialTime,
+        const double finalTime)
+{
+
+    std::map< double, Eigen::MatrixXd > coefficientCorrections;
+
+    const double interval = 3600.0;
+    double currentTime = initialTime - interval;
+
+    Eigen::Matrix<double, 1, 1> currentCorrection = Eigen::Matrix<double, 1, 1>::Zero();
+
+    while (currentTime <= finalTime + interval){
+        currentCorrection(0,0) = 0.0;
+        coefficientCorrections.insert(std::make_pair(currentTime, currentCorrection));
+        currentTime += interval;
+    }
+
+    return coefficientCorrections;
+
+}
+
+

@@ -204,14 +204,6 @@ target_link_libraries(application_Thesis_multiplemissions
    ${TUDAT_APPLICATION_ESTIMATION_LIBRARIES}
    ${Boost_LIBRARIES} )
 
-add_executable(application_Thesis_multiplemissions_multiarc "${SRCROOT}/thesis_multiplemissions_multiarc.cpp")
-setup_executable_target(application_Thesis_multiplemissions_multiarc "${SRCROOT}")
-target_link_libraries(application_Thesis_multiplemissions_multiarc
-   customLibrary
-   ${TUDAT_ESTIMATION_LIBRARIES}
-   ${TUDAT_APPLICATION_ESTIMATION_LIBRARIES}
-   ${Boost_LIBRARIES} )
-
 # Add mercuryOrbiterStateEstimation application.
 add_executable(application_MercuryOrbiterStateEstimation "${SRCROOT}/mercuryOrbiterStateEstimation.cpp")
 setup_executable_target(application_MercuryOrbiterStateEstimation "${SRCROOT}")

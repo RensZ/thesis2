@@ -30,17 +30,20 @@ no_arcs = 1
 
 
 for ps in publication_string:
-    dir_cpp_output = dir_application + 'Output/' + ps + "/"
-    dir_plots = '/home/rens/Documents/PostProcessing_plots/thesis_v1/' + ps + "/"
-    json_file = dir_application + 'Input/' + 'inputs_' + ps + '.json'
 
     print(" ")
     print(">>>> FOR INPUTS OF PUBLICATION:", ps)
 
     if ps == "MESSENGER_and_BepiColombo_multiarc":
         no_bodies = 2
+        ps_json = "MESSENGER_and_BepiColombo"
     else:
         no_bodies = 1
+        ps_json = ps
+
+    dir_cpp_output = dir_application + 'Output/' + ps + "/"
+    dir_plots = '/home/rens/Documents/PostProcessing_plots/thesis_v1/' + ps + "/"
+    json_file = dir_application + 'Input/' + 'inputs_' + ps_json + '.json'
 
     # from input file, get which additional things were estimated and add to lists above
     parameters = ["X_Mer", "Y_Mer", "Z_Mer",
@@ -56,7 +59,9 @@ for ps in publication_string:
     dependent_variables = ["Venus_CG", "Earth_CG", "Mars_CG", "Jupiter_CG", "Saturn_CG", "Moon_CG",
                            "Sun_CG",
                            "exclude",  # J1
-                           "Sun_J2", ]
+                           "Sun_J2",
+                           "exclude",
+                           "Sun_J4"]
 
     import json
     print(" json file used as input:" + json_file)
@@ -88,6 +93,7 @@ for ps in publication_string:
 
     parameters.append("mu_Sun")
     parameters.append("J2_Sun")
+    parameters.append("J4_Sun")
 
     print(" ", parameters)
 

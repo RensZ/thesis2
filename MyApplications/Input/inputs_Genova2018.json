@@ -11,6 +11,7 @@
     "includeTVGPAcceleration": true,
 
     "sunJ2": 2.1890E-7,
+    "sunJ4": -4.34E-9,
     "sunAngularMomentum": 190.0E39,
     "sunGravitationalParameter": 132712440041.9394E9,
     "nordtvedtParameter": 0.0,
@@ -26,6 +27,7 @@
     "sigma_Nordtvedt": 3.0E-4,
     "sigma_mu_Sun": 0.14E9,
     "sigma_J2_Sun": 0.03E-7,
+    "sigma_J4_Sun": 0.1E-9,
     "sigma_TVGP": 0.29E-13,
 
     "observationInitialTime": [2011, 3, 18, 0, 0, 0],
@@ -50,6 +52,7 @@
     "formalSigma_Nordtvedt": 7.2E-5,
     "formalSigma_mu_Sun": 0.35E9,
     "formalSigma_J2_Sun": 0.02E-7,
+    "formalSigma_J4_Sun": 0.1E-9,
     "formalSigma_TVGP": 1.47E-14
 
 }
