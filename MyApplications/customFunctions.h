@@ -54,6 +54,10 @@ Eigen::Matrix3d transformAngularMomentumFromLocalToGlobalFrame(
         const std::string globalFrame,
         const double currentTime);
 
+double phaseAccordingToSolarMinimum(
+        const double solarMinimumEpoch,
+        const double period);
+
 double simpleSine(
         const double amplitude,
         const double period,
@@ -63,12 +67,19 @@ double simpleSine(
 std::map< double, Eigen::MatrixXd > tabulatedSphericalHarmonicsCoefficientCorrections(
         const double initialTime,
         const double finalTime,
-        const double amplitude,
-        const double period,
-        const double phase);
+        std::function< double() > amplitudeFunction,
+        std::function< double() > periodFunction,
+        std::function< double() > phaseFunction);
 
 std::map< double, Eigen::MatrixXd > zeroTabulatedSphericalHarmonicsCoefficientCorrections(
         const double initialTime,
         const double finalTime);
+
+Eigen::MatrixXd calculateConsiderCovarianceMatrix(
+        const Eigen::MatrixXd P,
+        const Eigen::VectorXd W_diagonal,
+        const Eigen::MatrixXd C,
+        const Eigen::MatrixXd Hx,
+        const Eigen::MatrixXd Hc);
 
 #endif // CUSTOMFUNCTIONS_H

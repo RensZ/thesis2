@@ -9,7 +9,12 @@
     "includeSEPViolationAcceleration": true,
     "includeTVGPAcceleration": true,
 
+    "estimateJ2Amplitude": false,
+    "estimateJ2Period": false,
+    "estimateJ2Phase": false,
+
     "sunJ2": 2.3E-7,
+    "sunJ4": -4.34E-9,
     "sunAngularMomentum": 190.0E39,
     "sunGravitationalParameter": 132712440043.754E9,
     "nordtvedtParameter": 0.0,
@@ -22,7 +27,8 @@
     "sigma_Nordtvedt": 4.5E-4,
     "sigma_mu_Sun": 0.14E9,
     "sigma_J2_Sun": 0.03E-7,
-    "sigma_TVGP": 1.5E-13,
+    "sigma_J4_Sun": 0.1E-9,
+    "sigma_TVGP": 4.1E-14,
 
     "useNordtvedtConstraint": true,
     "estimatePPNalphas": false,
@@ -41,12 +47,12 @@
         2025, 1, 9, 0, 0, 0
     ],
 
-    "rangeNoise": 0.20,
+    "rangeNoise": 0.15,
     "dopplerNoise": 1.0E-12,
     "angularPositionNoise": 1.0E-7,
 
-    "noiseAtMinAngle": 0.20,
-    "noiseAtMaxAngle": 0.20,
+    "noiseAtMinAngle": 0.15,
+    "noiseAtMaxAngle": 0.15,
     "maxMSEAngleDeg": 180.0,
 
     "outputSubFolderName": "Schettino2015_flybys",

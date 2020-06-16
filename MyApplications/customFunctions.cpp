@@ -454,6 +454,14 @@ Eigen::Matrix3d transformAngularMomentumFromLocalToGlobalFrame(
     return angularMomentumInGlobalFrame;
 }
 
+double phaseAccordingToSolarMinimum(
+        const double solarMinimumEpoch,
+        const double period)
+{
+    using namespace tudat::mathematical_constants;
+    return (2.0*PI/period)*(solarMinimumEpoch+period/4.0);
+}
+
 double simpleSine(
         const double amplitude,
         const double period,
@@ -466,10 +474,19 @@ double simpleSine(
 std::map< double, Eigen::MatrixXd > tabulatedSphericalHarmonicsCoefficientCorrections(
         const double initialTime,
         const double finalTime,
-        const double amplitude,
-        const double period,
-        const double phase)
+        std::function< double() > amplitudeFunction,
+        std::function< double() > periodFunction,
+        std::function< double() > phaseFunction)
 {
+
+    const double amplitude = amplitudeFunction();
+    const double period = periodFunction();
+    const double phase = phaseFunction();
+
+    std::cout<<"Making table of Spherical Harmonics corrections with "
+             <<"amplitude: "<<amplitude<<" / "
+             <<"period: "<<period<<" / "
+             <<"phase: "<<phase<<std::endl;
 
     std::map< double, Eigen::MatrixXd > coefficientCorrections;
 
@@ -482,7 +499,15 @@ std::map< double, Eigen::MatrixXd > tabulatedSphericalHarmonicsCoefficientCorrec
         currentCorrection(0,0) = simpleSine(amplitude, period, phase, currentTime);
         coefficientCorrections.insert(std::make_pair(currentTime, currentCorrection));
         currentTime += interval;
+
     }
+
+//    std::string outputPath = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Output/SHtable/";
+//    std::string amplitudeString = std::to_string(amplitude);
+
+//    using namespace tudat::input_output;
+//    writeDataMapToTextFile( coefficientCorrections, "cosineCoefficientCorrectionsAmp"+amplitudeString+".dat",
+//                                          outputPath, "", std::numeric_limits< double >::digits10, std::numeric_limits< double >::digits10, "," );
 
     return coefficientCorrections;
 
@@ -509,6 +534,34 @@ std::map< double, Eigen::MatrixXd > zeroTabulatedSphericalHarmonicsCoefficientCo
 
     return coefficientCorrections;
 
+}
+
+// Montenbruck & Gill eq 8.42, executed slightly different to avoid square matrices with size = number of observations (result is tested to be identical)
+Eigen::MatrixXd calculateConsiderCovarianceMatrix(
+        const Eigen::MatrixXd P,
+        const Eigen::VectorXd W_diagonal,
+        const Eigen::MatrixXd C,
+        const Eigen::MatrixXd Hx,
+        const Eigen::MatrixXd Hc)
+{
+
+    const unsigned int numberOfObservations = Hx.rows();
+
+    Eigen::MatrixXd term1 = P * Hx.transpose();
+    std::cout<<"P*Hx calculated... ";
+
+    for (unsigned int i = 0; i < numberOfObservations; i++){
+        term1.col(i) *= W_diagonal(i);
+    }
+    std::cout<<"P*Hx multiplied with W... ";
+
+    Eigen::MatrixXd term2a = term1 * Hc;
+    std::cout<<"first brackets multiplied with Hc...";
+
+    Eigen::MatrixXd term2c = Hc.transpose() * term1.transpose();
+    std::cout<<"Hc^T multiplied with last brackets...";
+
+    return P + term2a * C * term2c;
 }
 
 

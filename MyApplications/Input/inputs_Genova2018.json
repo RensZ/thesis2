@@ -10,10 +10,14 @@
     "includeSEPViolationAcceleration": true,
     "includeTVGPAcceleration": true,
 
-    "sunJ2": 2.1890E-7,
+    "estimateJ2Amplitude": false,
+    "estimateJ2Period": false,
+    "estimateJ2Phase": false,
+
+    "sunJ2": 2.20E-7,
     "sunJ4": -4.34E-9,
     "sunAngularMomentum": 190.0E39,
-    "sunGravitationalParameter": 132712440041.9394E9,
+    "sunGravitationalParameter": 132712440043.754E9,
     "nordtvedtParameter": 0.0,
     "timeVaryingGravitationalParameter": 0.0,
 
@@ -22,8 +26,8 @@
 
     "sigma_gamma": 2.3E-5,
     "sigma_beta": 6.9E-5,
-    "sigma_alpha1": 0.0,
-    "sigma_alpha2": 0.0,
+    "sigma_alpha1": 6.0E-6,
+    "sigma_alpha2": 3.5E-5,
     "sigma_Nordtvedt": 3.0E-4,
     "sigma_mu_Sun": 0.14E9,
     "sigma_J2_Sun": 0.03E-7,

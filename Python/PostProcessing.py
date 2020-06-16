@@ -11,14 +11,14 @@ Purpose: wrapper file for all the post-processing of thesis_v1.cpp
 ################
 
 publication_string = ["Genova2018",
-                      "MESSENGER_and_BepiColombo",
-                      "MESSENGER_and_BepiColombo_multiarc"]
-                      # "Imperi2018_nvtrue_flybys",
-                      # "Imperi2018_nvtrue",
-                      # "Imperi2018_nvfalse_flybys",
-                      # "Imperi2018_nvfalse",
-                      # "Schettino2015_flybys",
-                      # "Schettino2015",
+                      # "MESSENGER_and_BepiColombo",
+                      # "MESSENGER_and_BepiColombo_multiarc",
+                      "Imperi2018_nvtrue_flybys",
+                      "Imperi2018_nvtrue",
+                      "Imperi2018_nvfalse_flybys",
+                      "Imperi2018_nvfalse",
+                      "Schettino2015_flybys",
+                      "Schettino2015" ]
 
 
 # Directories
@@ -59,9 +59,7 @@ for ps in publication_string:
     dependent_variables = ["Venus_CG", "Earth_CG", "Mars_CG", "Jupiter_CG", "Saturn_CG", "Moon_CG",
                            "Sun_CG",
                            "exclude",  # J1
-                           "Sun_J2",
-                           "exclude",
-                           "Sun_J4"]
+                           "Sun_J2"]
 
     import json
     print(" json file used as input:" + json_file)
@@ -92,8 +90,15 @@ for ps in publication_string:
         dependent_variables.append("Sun_TVGP")
 
     parameters.append("mu_Sun")
+
+    if json_input["estimateJ2Amplitude"]:
+        parameters.append("J2_A")
+    if json_input["estimateJ2Period"]:
+        parameters.append("J2_P")
+    if json_input["estimateJ2Phase"]:
+        parameters.append("J2_phi")
+
     parameters.append("J2_Sun")
-    parameters.append("J4_Sun")
 
     print(" ", parameters)
 
