@@ -1,5 +1,5 @@
 
-#include "MyApplications/customFunctions.h"
+#include "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/customFunctions.h"
 
 
 
@@ -536,7 +536,9 @@ std::map< double, Eigen::MatrixXd > zeroTabulatedSphericalHarmonicsCoefficientCo
 
 }
 
-// Montenbruck & Gill eq 8.42, executed slightly different to avoid square matrices with size = number of observations (result is tested to be identical)
+// Montenbruck & Gill eq 8.42
+// executed slightly different to avoid square matrices with size = number of observations
+// (result is tested to be identical on smaller examples)
 Eigen::MatrixXd calculateConsiderCovarianceMatrix(
         const Eigen::MatrixXd P,
         const Eigen::VectorXd W_diagonal,
@@ -545,21 +547,13 @@ Eigen::MatrixXd calculateConsiderCovarianceMatrix(
         const Eigen::MatrixXd Hc)
 {
 
-    const unsigned int numberOfObservations = Hx.rows();
-
     Eigen::MatrixXd term1 = P * Hx.transpose();
-    std::cout<<"P*Hx calculated... ";
-
-    for (unsigned int i = 0; i < numberOfObservations; i++){
+    for (unsigned int i = 0; i < Hx.rows(); i++){
         term1.col(i) *= W_diagonal(i);
     }
-    std::cout<<"P*Hx multiplied with W... ";
 
     Eigen::MatrixXd term2a = term1 * Hc;
-    std::cout<<"first brackets multiplied with Hc...";
-
     Eigen::MatrixXd term2c = Hc.transpose() * term1.transpose();
-    std::cout<<"Hc^T multiplied with last brackets...";
 
     return P + term2a * C * term2c;
 }

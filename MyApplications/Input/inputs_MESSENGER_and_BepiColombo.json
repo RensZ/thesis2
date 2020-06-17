@@ -7,7 +7,7 @@
     "includeSEPViolationAcceleration": true,
     "includeTVGPAcceleration": true,
 
-    "estimateJ2Amplitude": true,
+    "estimateJ2Amplitude": false,
     "estimateJ2Period": false,
     "estimateJ2Phase": false,
 
@@ -20,11 +20,12 @@
 
     "useNordtvedtConstraint": true,
     "estimatePPNalphas": false,
+    "gammaIsAConsiderParameter": false,
 
     "sigma_gamma": 2.3E-5,
     "sigma_beta": 6.9E-5,
-    "sigma_alpha1": 0.0,
-    "sigma_alpha2": 0.0,
+    "sigma_alpha1": 6.0E-6,
+    "sigma_alpha2": 3.5E-5,
     "sigma_Nordtvedt": 3.0E-4,
     "sigma_mu_Sun": 0.14E9,
     "sigma_J2_Sun": 0.03E-7,

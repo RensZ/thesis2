@@ -68,12 +68,7 @@ int main( )
 
     // Use multiple arcs for Mercury per mission
     const bool useMultipleMercuryArcs = true;
-
-    // Parameter apriori values and uncertainties
-    const bool useAprioriValues = true;
-
-    // Planet propagation settings
-    const bool propogatePlanets = false; // Propogate the other planets besides Mercury (NOTE: need observations for other planets, or LS can't find solutions for other planets)
+    const bool reintegrateVariationalEquations = false;
 
     // Parameter estimation settings
     const unsigned int maximumNumberOfIterations = 5;
@@ -150,10 +145,12 @@ int main( )
     const double unnormalisedSigmaSunJ4 = json_input["sigma_J4_Sun"];
     const double sigmaSunJ4 = unnormalisedSigmaSunJ4 / calculateLegendreGeodesyNormalizationFactor(4,0);
 
-
-    // Use constraint nordtvedt=4*beta-gamma-3
+    // Parameter settings
     const bool useNordtvedtConstraint = json_input["useNordtvedtConstraint"];
     const bool estimatePPNalphas = json_input["estimatePPNalphas"];
+    bool ppnAlphasAreConsiderParameters = false;
+    if (estimatePPNalphas == false){ ppnAlphasAreConsiderParameters = true; };
+    const bool gammaIsAConsiderParameter = json_input["gammaIsAConsiderParameter"];
 
     // Location of simulation output
     std::string outputSubFolderName = json_input["outputSubFolderName"];
@@ -258,6 +255,13 @@ int main( )
 
     const std::shared_ptr< InterpolatorSettings > interpolatorSettings =
             std::make_shared< InterpolatorSettings >( cubic_spline_interpolator ); //interpolator of Sun SH coefficient variation
+
+
+    // some checks to prevent incompatible inputs
+    if ((includeTimeVaryingGravitationalMomentsSun == false) &&
+            (estimateJ2Amplitude || estimateJ2Period || estimateJ2Phase)){
+        std::runtime_error("cannot estimate time varying gravitational parameters when includeTimeVaryingGravitationalMoments is set to false");
+    }
 
 
 
@@ -415,11 +419,7 @@ int main( )
 
     // Define list of bodies to propagate
     std::vector< std::string > bodiesToPropagate;
-    if (propogatePlanets == true){
-        bodiesToPropagate = bodyNames;
-    } else{
-        bodiesToPropagate.push_back("Mercury");
-    }
+    bodiesToPropagate.push_back("Mercury");
     unsigned int numberOfNumericalBodies = bodiesToPropagate.size( );
 
 
@@ -741,6 +741,8 @@ int main( )
                          ( Eigen::Vector3d( ) << 0.0, 1.25, 0.0 ).finished( ), geodetic_position );
 
 
+
+
     ///////////////////////////////////////////
     //// DEFINE LINK ENDS FOR OBSERVATIONS ////
     ///////////////////////////////////////////
@@ -818,40 +820,28 @@ int main( )
 
     std::cout << "defining parameters to estimate..." << std::endl;
 
+    // In order to get the partial derivatives of consider parameters wrt observations, run an estimation of the consider parameters
     std::vector< std::shared_ptr < EstimatableParameterSettings > > parameterNames;
     std::vector<double> varianceVector;
 
     // Add bodies that will be propagated to the parameters to be estimated
     if (useMultipleMercuryArcs){
         Eigen::VectorXd systemInitialState = Eigen::VectorXd( 6 * initialTimeVector.size( ) );
-        for( unsigned int m = 0; m < numberOfMissions; m++ )
-        {
+        for( unsigned int m = 0; m < numberOfMissions; m++ ){
             systemInitialState.segment( m * 6, 6 ) = propagatorSettingsList.at( m )->getInitialStates( );
-
-            for( unsigned int i = 0; i < 3; i++ ){
-                varianceVector.push_back(sigmaPosition*sigmaPosition);
-            }
-            for( unsigned int i = 3; i < 6; i++ ){
-                varianceVector.push_back(sigmaVelocity*sigmaVelocity);
-            }
+            for( unsigned int i = 0; i < 3; i++ ){ varianceVector.push_back(sigmaPosition*sigmaPosition); }
+            for( unsigned int i = 3; i < 6; i++ ){ varianceVector.push_back(sigmaVelocity*sigmaVelocity); }
         }
-
         parameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
                                       "Mercury", systemInitialState, initialTimeVector, "SSB" ) );
     }
     else{
-        for( unsigned int i = 0; i < numberOfNumericalBodies; i++ )
-        {
+        for( unsigned int i = 0; i < numberOfNumericalBodies; i++ ){
             int j = 6*i;
             parameterNames.push_back( std::make_shared< InitialTranslationalStateEstimatableParameterSettings< double > >(
                                           bodiesToPropagate[i], systemInitialState.segment(j,6), centralBodies[i] ) );
-
-            for( unsigned int i = 0; i < 3; i++ ){
-                varianceVector.push_back(sigmaPosition*sigmaPosition);
-            }
-            for( unsigned int i = 3; i < 6; i++ ){
-                varianceVector.push_back(sigmaVelocity*sigmaVelocity);
-            }
+            for( unsigned int i = 0; i < 3; i++ ){ varianceVector.push_back(sigmaPosition*sigmaPosition); }
+            for( unsigned int i = 3; i < 6; i++ ){ varianceVector.push_back(sigmaVelocity*sigmaVelocity); }
         }
     }
 
@@ -859,20 +849,24 @@ int main( )
     // relativistic parameters
     if (calculateSchwarzschildCorrection == true
         || includeSEPViolationAcceleration == true){
-    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                             ("global_metric", ppn_parameter_gamma ) );
-    varianceVector.push_back(sigmaGamma*sigmaGamma);
 
-    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                             ("global_metric", ppn_parameter_beta ) );
-    varianceVector.push_back(sigmaBeta*sigmaBeta);
+        if ( gammaIsAConsiderParameter == false){
+            parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                     ("global_metric", ppn_parameter_gamma ) );
+            varianceVector.push_back(sigmaGamma*sigmaGamma);
+        }
+
+
+        parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                 ("global_metric", ppn_parameter_beta ) );
+        varianceVector.push_back(sigmaBeta*sigmaBeta);
     }
 
     // Nordtvedt parameter
     if (includeSEPViolationAcceleration == true && useNordtvedtConstraint == false){
-    parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                             ("global_metric", ppn_nordtvedt_parameter ) );
-    varianceVector.push_back(sigmaNordtvedt*sigmaNordtvedt);
+        parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                 ("global_metric", ppn_nordtvedt_parameter ) );
+        varianceVector.push_back(sigmaNordtvedt*sigmaNordtvedt);
     }
 
     if (estimatePPNalphas == true){
@@ -959,10 +953,7 @@ int main( )
     std::cout << "Defining observation settings..." << std::endl;
 
 
-
     // generate list of observations
-
-
     std::vector< double > baseTimeList;
     std::vector< std::vector< double > > seperateBaseTimeLists;
     for( unsigned int m = 0; m < numberOfMissions; m++ ){
@@ -997,8 +988,7 @@ int main( )
 
         // Define observation times and reference link ends
 
-        for( unsigned int i = 0; i < currentLinkEndsList.size( ); i++ )
-        {
+        for( unsigned int i = 0; i < currentLinkEndsList.size( ); i++ ){
             if (currentObservable == position_observable){
                 measurementSimulationInput[ currentObservable ][ currentLinkEndsList.at( i ) ] =
                         std::make_shared< TabulatedObservationSimulationTimeSettings< double > >( observed_body, baseTimeList );
@@ -1169,9 +1159,6 @@ int main( )
     Eigen::Matrix< double, Eigen::Dynamic, 1 > parameterPerturbation =
             Eigen::Matrix< double, Eigen::Dynamic, 1 >::Zero( truthParameters.rows( ) );
 
-////    srand(time(NULL));  //warning: not reproducable
-    srand(0);
-
     for( unsigned int i = 0; i < numberOfNumericalBodies; i++ ){
         // perturb body positions by  1 meters
         parameterPerturbation.segment(i*6,3) = Eigen::Vector3d::Constant( 1.0 );
@@ -1179,29 +1166,7 @@ int main( )
         parameterPerturbation.segment(i*6+3,3) = Eigen::Vector3d::Constant( 0.001 );
     }
 
-//    for( unsigned int i = 0; i < numberOfNumericalBodies; i++ ){
-//        // perturb body positions by random value between -10 and 10 meters
-//        parameterPerturbation.segment(i*6,3) = Eigen::Vector3d( (rand()%200-100.0)/10.0,
-//                                                                (rand()%200-100.0)/10.0,
-//                                                                (rand()%200-100.0)/10.0 );
-//        // perturb body velocities by random value between -0.01 and 0.01 m/s
-//        parameterPerturbation.segment(i*6+3,3) = Eigen::Vector3d( (rand()%20-10.0)/100.0,
-//                                                                (rand()%20-10.0)/100.0,
-//                                                                (rand()%20-10.0)/100.0 );
-//    }
-
-//    // perturb parameters with a value between -0.001 and +0.001 times the given apriori sigma
-////    for( unsigned int i = 0; i < truthParameters.size()-6*numberOfNumericalBodies; i++ ){
-//    for( unsigned int i = 0; i < truthParameters.size(); i++ ){
-////        unsigned int j = i + 6*numberOfNumericalBodies;
-//        double randomPercentage = (rand()%20-10.0)/(1000.0);
-//        std::cout << "randomPercentage: " << randomPercentage;
-//        parameterPerturbation( i ) = sqrt(varianceVector.at( i ))*randomPercentage;
-//        std::cout<< " // std: "<<sqrt(varianceVector.at( i )) <<" // perturbation: "<<parameterPerturbation( i ) <<std::endl;
-//    }
-
     initialParameterEstimate += parameterPerturbation;
-
 
     std::cout << "True parameter values:" << std::endl;
     std::cout << truthParameters.transpose() << std::endl;
@@ -1214,18 +1179,12 @@ int main( )
     Eigen::MatrixXd aprioriCovariance =
         Eigen::MatrixXd::Zero( truthParameters.rows( ), truthParameters.rows( ));
 
-    Eigen::MatrixXd inverseOfAprioriCovariance;
-
-    if (useAprioriValues == true){
-        for( unsigned int i = 0; i < truthParameters.size(); i++ ){
-            aprioriCovariance( i,i ) = varianceVector.at( i );
-        }
-        std::cout << "a priori covariance matrix:" << std::endl << aprioriCovariance << std::endl;
-        inverseOfAprioriCovariance = aprioriCovariance.inverse();
-    } else{
-        inverseOfAprioriCovariance = Eigen::MatrixXd::Zero( truthParameters.rows( ), truthParameters.rows( ));
+    for( unsigned int i = 0; i < truthParameters.size(); i++ ){
+        aprioriCovariance( i,i ) = varianceVector.at( i );
     }
-
+    std::cout << "a priori covariance matrix:" << std::endl
+              << aprioriCovariance.diagonal().transpose() << std::endl;
+    Eigen::MatrixXd inverseOfAprioriCovariance = aprioriCovariance.inverse();
 
     // Define estimation input
     std::shared_ptr< PodInput< double, double > > podInput =
@@ -1233,19 +1192,135 @@ int main( )
                 observationsAndTimes, initialParameterEstimate.rows( ),
                 inverseOfAprioriCovariance,
                 initialParameterEstimate - truthParameters );
-    podInput->defineEstimationSettings( true, false, false, true );
-//    podInput->setConstantPerObservableWeightsMatrix( weightPerObservable );
+    podInput->defineEstimationSettings( true, reintegrateVariationalEquations, true, true );
     podInput->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
 
     // Perform estimation
     std::shared_ptr< PodOutput< double > > podOutput = orbitDeterminationManager.estimateParameters(
                 podInput, std::make_shared< EstimationConvergenceChecker >( maximumNumberOfIterations ) );
 
+    // Print true estimation error, limited mostly by numerical error
+    Eigen::VectorXd estimationError = podOutput->parameterEstimate_ - truthParameters;
+    Eigen::VectorXd formalError = podOutput->getFormalErrorVector( );
+
+    std::cout << "True estimation error is:   " << std::endl << ( estimationError ).transpose( ) << std::endl;
+    std::cout << "Formal estimation error is: " << std::endl << podOutput->getFormalErrorVector( ).transpose( ) << std::endl;
+    std::cout << "True to form estimation error ratio is: " << std::endl <<
+                 ( podOutput->getFormalErrorVector( ).cwiseQuotient( estimationError ) ).transpose( ) << std::endl;
 
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////        PROVIDE OUTPUT TO CONSOLE AND FILES           //////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////
+    //// CONSIDER PARAMETERS ////
+    /////////////////////////////
+
+    // get other required matrices for the calculation
+    Eigen::MatrixXd initialCovarianceMatrix = podOutput->getUnnormalizedCovarianceMatrix( ); // P
+    Eigen::VectorXd observationWeightDiagonal = podOutput->weightsMatrixDiagonal_; // diagonal of W
+    Eigen::MatrixXd unnormalizedPartialDerivatives = podOutput->getUnnormalizedPartialDerivatives( ); // Hx
+    Eigen::MatrixXd considerCovarianceMatrix;
+    unsigned int maxcovtype = 1;
+
+    if (gammaIsAConsiderParameter || ppnAlphasAreConsiderParameters){
+
+        std::cout<< "calculating covariance due to consider parameters..."<< std::endl;
+
+        // In order to get the partial derivatives of consider parameters wrt observations, run an estimation of the consider parameters
+        std::vector< std::shared_ptr < EstimatableParameterSettings > > considerParameterNames;
+        std::vector<double> considerVarianceVector;
+
+        if (useMultipleMercuryArcs){
+            Eigen::VectorXd systemInitialState = Eigen::VectorXd( 6 * initialTimeVector.size( ) );
+            for( unsigned int m = 0; m < numberOfMissions; m++ ) {
+                systemInitialState.segment( m * 6, 6 ) = propagatorSettingsList.at( m )->getInitialStates( );
+                for( unsigned int i = 0; i < 3; i++ ){ considerVarianceVector.push_back(sigmaPosition*sigmaPosition); }
+                for( unsigned int i = 3; i < 6; i++ ){ considerVarianceVector.push_back(sigmaVelocity*sigmaVelocity); }
+            }
+            considerParameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
+                                          "Mercury", systemInitialState, initialTimeVector, "SSB" ) );
+        }
+        else{
+            for( unsigned int i = 0; i < numberOfNumericalBodies; i++ ) {
+                int j = 6*i;
+                considerParameterNames.push_back( std::make_shared< InitialTranslationalStateEstimatableParameterSettings< double > >(
+                                              bodiesToPropagate[i], systemInitialState.segment(j,6), centralBodies[i] ) );
+                for( unsigned int i = 0; i < 3; i++ ){ considerVarianceVector.push_back(sigmaPosition*sigmaPosition); }
+                for( unsigned int i = 3; i < 6; i++ ){ considerVarianceVector.push_back(sigmaVelocity*sigmaVelocity); }
+            }
+        }
+
+        if ( gammaIsAConsiderParameter == true ){
+            considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                     ("global_metric", ppn_parameter_gamma ) );
+            considerVarianceVector.push_back(sigmaGamma*sigmaGamma);
+        }
+
+        considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                 ("global_metric", ppn_parameter_alpha1 ) );
+        considerVarianceVector.push_back(sigmaAlpha1*sigmaAlpha1);
+
+        considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                 ("global_metric", ppn_parameter_alpha2 ) );
+        considerVarianceVector.push_back(sigmaAlpha2*sigmaAlpha2);
+
+        std::shared_ptr< estimatable_parameters::EstimatableParameterSet< double > > considerParametersToEstimate =
+                createParametersToEstimate( considerParameterNames, bodyMap );
+        printEstimatableParameterEntries( considerParametersToEstimate );
+
+        OrbitDeterminationManager< double, double > orbitDeterminationManagerConsiderParameters =
+                OrbitDeterminationManager< double, double >(
+                    bodyMap, considerParametersToEstimate, observationSettingsMap,
+                    integratorSettings, propagatorSettings );
+
+        Eigen::Matrix< double, Eigen::Dynamic, 1 > initialConsiderParameterEstimate =
+                considerParametersToEstimate->template getFullParameterValues< double >( );
+        Eigen::Matrix< double, Eigen::Dynamic, 1 > truthConsiderParameters = initialConsiderParameterEstimate;
+
+        Eigen::MatrixXd considerParameterAprioriCovariance = // C
+            Eigen::MatrixXd::Zero( truthConsiderParameters.rows( ), truthConsiderParameters.rows( ));
+
+        for( unsigned int i = 0; i < truthConsiderParameters.size(); i++ ){
+            considerParameterAprioriCovariance( i,i ) = considerVarianceVector.at( i );
+        }
+        std::cout << "consider parameter a priori covariance matrix:" << std::endl
+                  << considerParameterAprioriCovariance.diagonal().transpose() << std::endl;
+
+        std::shared_ptr< PodInput< double, double > > podInputConsiderParameters =
+                std::make_shared< PodInput< double, double > >(
+                    observationsAndTimes, initialConsiderParameterEstimate.rows( ),
+                    considerParameterAprioriCovariance.inverse(),
+                    initialConsiderParameterEstimate - truthConsiderParameters );
+        podInputConsiderParameters->defineEstimationSettings( true, false, true, true );
+        podInputConsiderParameters->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
+
+        std::shared_ptr< PodOutput< double > > podOutputConsiderParameters = orbitDeterminationManagerConsiderParameters.estimateParameters(
+                    podInputConsiderParameters, std::make_shared< EstimationConvergenceChecker >( 1 ) );
+
+        Eigen::MatrixXd partialDerivativesOfConsiderParameters = // H_c
+                (podOutputConsiderParameters->getUnnormalizedPartialDerivatives()).rightCols(
+                    truthConsiderParameters.size()-6*numberOfNumericalBodies);
+
+        // calculate covariance matrix including contribution from consider parameters
+        considerCovarianceMatrix = calculateConsiderCovarianceMatrix(
+                    initialCovarianceMatrix, observationWeightDiagonal,
+                    considerParameterAprioriCovariance.block(6,6,considerParameterAprioriCovariance.rows()-6, considerParameterAprioriCovariance.cols()-6),
+                    unnormalizedPartialDerivatives, partialDerivativesOfConsiderParameters);
+
+        // get consider correlation matrix
+        Eigen::VectorXd formalErrorWithConsiderParameters = considerCovarianceMatrix.diagonal( ).cwiseSqrt( );
+        Eigen::MatrixXd considerCorrelationMatrix = considerCovarianceMatrix.cwiseQuotient(
+                    formalErrorWithConsiderParameters * formalErrorWithConsiderParameters.transpose() );
+
+        input_output::writeMatrixToFile( considerParameterAprioriCovariance, "ConsiderParameterAprioriCovariance.dat", 16, outputSubFolder );
+        input_output::writeMatrixToFile( considerCorrelationMatrix, "EstimationConsiderCorrelations.dat", 16, outputSubFolder );
+        input_output::writeMatrixToFile( formalErrorWithConsiderParameters, "ObservationFormalEstimationErrorWithConsiderParameters.dat", 16, outputSubFolder );
+
+        maxcovtype = 2;
+    }
+
+
+    /////////////////////////////////////////////
+    //// PROVIDE OUTPUT TO CONSOLE AND FILES ////
+    /////////////////////////////////////////////
 
     std::cout<< "provide output..." << std::endl;
 
@@ -1259,165 +1334,116 @@ int main( )
         historyit++;
     }
 
+    // Propagate covariance matrix (twice, both with and without the consider parameters included in the covariance)
 
-    // Propagate covariance matrix
-    std::cout<<"propagating covariance matrix..."<<std::endl;
+    for (unsigned int covtype = 0; covtype<maxcovtype; covtype++){
 
-    Eigen::MatrixXd initialCovarianceMatrix = podOutput->getUnnormalizedCovarianceMatrix( );
+        Eigen::MatrixXd initialCovariance;
+        std::string saveString;
+        if (covtype == 0){
+            std::cout<<"propagating covariance matrix..."<<std::endl;
+            initialCovariance = initialCovarianceMatrix;
+            saveString = "";
+        } else{
+            std::cout<<"propagating consider covariance matrix..."<<std::endl;
+            initialCovariance = considerCovarianceMatrix;
+            saveString = "Consider";
+        }
 
-    std::map< double, Eigen::MatrixXd > propagatedCovariance;
-    propagateCovariance(propagatedCovariance, initialCovarianceMatrix,
-                        orbitDeterminationManager.getStateTransitionAndSensitivityMatrixInterface( ),
-                        fullStateHistoryTimes);
-                        //baseTimeList
-                        //60.0, initialEphemerisTime + 3600.0, finalEphemerisTime - 3600.0 );
+        std::map< double, Eigen::MatrixXd > propagatedCovariance;
+        propagateCovariance(propagatedCovariance, initialCovariance,
+                            orbitDeterminationManager.getStateTransitionAndSensitivityMatrixInterface( ),
+                            fullStateHistoryTimes);
+                            //baseTimeList
+                            //60.0, initialEphemerisTime + 3600.0, finalEphemerisTime - 3600.0 );
 
-    std::map<double, double> trueAnomalyMap;
-    std::map<double, Eigen::Vector6d> propagatedErrorUsingCovMatrix;
-    std::map<double, Eigen::Vector6d> propagatedRSWErrorUsingCovMatrix;
+        std::map<double, double> trueAnomalyMap;
+        std::map<double, Eigen::Vector6d> propagatedErrorUsingCovMatrix;
+        std::map<double, Eigen::Vector6d> propagatedRSWErrorUsingCovMatrix;
 
-    std::map<double, Eigen::MatrixXd>::iterator it = propagatedCovariance.begin();
+        std::map<double, Eigen::MatrixXd>::iterator it = propagatedCovariance.begin();
 
-    while (it != propagatedCovariance.end()){
+        while (it != propagatedCovariance.end()){
 
-        Eigen::Vector6d currentCartesianState = propagationHistory.at(it->first);
+            Eigen::Vector6d currentCartesianState = propagationHistory.at(it->first);
 
-        // save true anomaly of MESSENGER around Mercury at this time step
-        Eigen::Vector6d currentKeplerianState = convertCartesianToKeplerianElements(
-                    currentCartesianState, sunGravitationalParameter);
-        double currentTrueAnomaly = currentKeplerianState(5);
+            // save true anomaly of MESSENGER around Mercury at this time step
+            Eigen::Vector6d currentKeplerianState = convertCartesianToKeplerianElements(
+                        currentCartesianState, sunGravitationalParameter);
+            double currentTrueAnomaly = currentKeplerianState(5);
 
-        trueAnomalyMap.insert(std::make_pair( it->first, currentTrueAnomaly ) );
+            trueAnomalyMap.insert(std::make_pair( it->first, currentTrueAnomaly ) );
 
-        // save propagated error (using covariance) in Cartesian and RSW frame
-        Eigen::MatrixXd currentCovariance = it->second;
-        Eigen::Matrix3d currentTransformationToRSW =
-                reference_frames::getInertialToRswSatelliteCenteredFrameRotationMatrix(currentCartesianState);
+            // save propagated error (using covariance) in Cartesian and RSW frame
+            Eigen::MatrixXd currentCovariance = it->second;
+            Eigen::Matrix3d currentTransformationToRSW =
+                    reference_frames::getInertialToRswSatelliteCenteredFrameRotationMatrix(currentCartesianState);
 
-        Eigen::Vector6d currentSigmaVector = currentCovariance.diagonal( ).cwiseSqrt( );
+            Eigen::Vector6d currentSigmaVector = currentCovariance.diagonal( ).cwiseSqrt( );
 
-        Eigen::Vector6d currentSigmaVectorRSW;
-        currentSigmaVectorRSW.segment(0,3) =
-                ( currentTransformationToRSW * currentCovariance.block(0,0,3,3) * currentTransformationToRSW.transpose( ) ).diagonal( ).cwiseSqrt( );
-        currentSigmaVectorRSW.segment(3,3) =
-                ( currentTransformationToRSW * currentCovariance.block(3,3,3,3) * currentTransformationToRSW.transpose( ) ).diagonal( ).cwiseSqrt( );
+            Eigen::Vector6d currentSigmaVectorRSW;
+            currentSigmaVectorRSW.segment(0,3) =
+                    ( currentTransformationToRSW * currentCovariance.block(0,0,3,3) * currentTransformationToRSW.transpose( ) ).diagonal( ).cwiseSqrt( );
+            currentSigmaVectorRSW.segment(3,3) =
+                    ( currentTransformationToRSW * currentCovariance.block(3,3,3,3) * currentTransformationToRSW.transpose( ) ).diagonal( ).cwiseSqrt( );
 
-        propagatedErrorUsingCovMatrix.insert(std::make_pair( it->first, currentSigmaVector ) );
-        propagatedRSWErrorUsingCovMatrix.insert(std::make_pair( it->first, currentSigmaVectorRSW ) );
+            propagatedErrorUsingCovMatrix.insert(std::make_pair( it->first, currentSigmaVector ) );
+            propagatedRSWErrorUsingCovMatrix.insert(std::make_pair( it->first, currentSigmaVectorRSW ) );
 
-        it++;
+            it++;
+        }
+
+        input_output::writeDataMapToTextFile( propagatedCovariance, "Propagated"+saveString+"Covariance.dat", outputSubFolder );
+        input_output::writeDataMapToTextFile( propagatedErrorUsingCovMatrix, "propagatedErrorUsing"+saveString+"CovMatrix.dat", outputSubFolder );
+        input_output::writeDataMapToTextFile( propagatedRSWErrorUsingCovMatrix, "propagatedRSWErrorUsing"+saveString+"CovMatrix.dat", outputSubFolder );
     }
 
-
-    // Print true estimation error, limited mostly by numerical error
-    Eigen::VectorXd estimationError = podOutput->parameterEstimate_ - truthParameters;
-    Eigen::VectorXd formalError = podOutput->getFormalErrorVector( );
-
-    std::cout << "True estimation error is:   " << std::endl << ( estimationError ).transpose( ) << std::endl;
-    std::cout << "Formal estimation error is: " << std::endl << podOutput->getFormalErrorVector( ).transpose( ) << std::endl;
-    std::cout << "True to form estimation error ratio is: " << std::endl <<
-                 ( podOutput->getFormalErrorVector( ).cwiseQuotient( estimationError ) ).transpose( ) << std::endl;
 
     // Save data in files
     std::cout<<"writing output to files..."<<std::endl;
 
+    // errors
+    input_output::writeMatrixToFile( truthParameters, "TruthParameters.dat", 16, outputSubFolder );
+    input_output::writeMatrixToFile( estimationError, "ObservationTrueEstimationError.dat", 16, outputSubFolder );
+    input_output::writeMatrixToFile( formalError, "ObservationFormalEstimationError.dat", 16, outputSubFolder );
 
-    input_output::writeDataMapToTextFile( propagatedCovariance,
-                                          "PropagatedCovariance.dat",
-                                          outputSubFolder );
+    // residuals, parameters
+    input_output::writeMatrixToFile( podOutput->residuals_, "EstimationResiduals.dat", 16, outputSubFolder );
+    input_output::writeMatrixToFile( podOutput->getResidualHistoryMatrix( ), "ResidualHistory.dat", 16, outputSubFolder );
+    input_output::writeMatrixToFile( podOutput->getParameterHistoryMatrix( ), "ParameterHistory.dat", 16, outputSubFolder );
 
-    input_output::writeDataMapToTextFile( propagatedErrorUsingCovMatrix,
-                                          "propagatedErrorUsingCovMatrix.dat",
-                                          outputSubFolder );
+    // covariance and correlation
+    input_output::writeMatrixToFile( considerCovarianceMatrix, "ConsiderCovarianceMatrix.dat", 16, outputSubFolder );
+    input_output::writeMatrixToFile( initialCovarianceMatrix, "InitialCovarianceMatrix.dat", 16, outputSubFolder );
+    input_output::writeMatrixToFile( observationWeightDiagonal, "ObservationWeightDiagonal.dat", 16, outputSubFolder );
+    input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ), "EstimationCorrelations.dat", 16, outputSubFolder );
 
-    input_output::writeDataMapToTextFile( propagatedRSWErrorUsingCovMatrix,
-                                          "propagatedRSWErrorUsingCovMatrix.dat",
-                                          outputSubFolder );
+//        input_output::writeMatrixToFile( unnormalizedPartialDerivatives, "test_unnormalizedPartialDerivatives.dat", 16, outputSubFolder );
+//        input_output::writeMatrixToFile( partialDerivativesOfConsiderParameters, "test_partialDerivativesOfConsiderParameters.dat", 16, outputSubFolder );
 
-    input_output::writeDataMapToTextFile( saveSatelliteError,
-                                          "vehicleErrorBasedOnTrueAnomaly.dat",
-                                          outputSubFolder );
-
-    input_output::writeMatrixToFile( podOutput->normalizedInformationMatrix_,
-                                     "EstimationInformationMatrix.dat", 16,
-                                     outputSubFolder );
-
-    input_output::writeMatrixToFile( truthParameters,
-                                     "TruthParameters.dat", 16,
-                                     outputSubFolder );
+//        input_output::writeMatrixToFile( podOutput->normalizedInformationMatrix_, "EstimationInformationMatrix.dat", 16, outputSubFolder );
+//        input_output::writeMatrixToFile( podOutput->informationMatrixTransformationDiagonal_, "EstimationInformationMatrixNormalization.dat", 16, outputSubFolder );
+//        input_output::writeMatrixToFile( podInput->getInverseOfAprioriCovariance( ), "InverseAPrioriCovariance.dat", 16, outputSubFolder );
+//        input_output::writeMatrixToFile( podOutput->inverseNormalizedCovarianceMatrix_, "InverseNormalizedCovariance.dat", 16, outputSubFolder );
+//        input_output::writeMatrixToFile( podOutput->getUnnormalizedCovarianceMatrix( ), "UnnormalizedCovariance.dat", 16, outputSubFolder );
 
 
-    input_output::writeMatrixToFile( podOutput->informationMatrixTransformationDiagonal_,
-                                     "EstimationInformationMatrixNormalization.dat", 16,
-                                     outputSubFolder );
-
-    input_output::writeMatrixToFile( podOutput->weightsMatrixDiagonal_,
-                                     "EstimationWeightsDiagonal.dat", 16,
-                                     outputSubFolder );
-
-    input_output::writeMatrixToFile( podOutput->residuals_,
-                                     "EstimationResiduals.dat", 16,
-                                     outputSubFolder );
-
-    input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ),
-                                     "EstimationCorrelations.dat", 16,
-                                     outputSubFolder );
-
-    input_output::writeMatrixToFile( podOutput->getResidualHistoryMatrix( ),
-                                     "ResidualHistory.dat", 16,
-                                     outputSubFolder );
-
-    input_output::writeMatrixToFile( podOutput->getParameterHistoryMatrix( ),
-                                     "ParameterHistory.dat", 16,
-                                     outputSubFolder );
-
+    // observations
+    input_output::writeDataMapToTextFile( saveSatelliteError, "vehicleErrorBasedOnTrueAnomaly.dat", outputSubFolder );
+    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ), "ObservationMeasurements.dat", 16, outputSubFolder );
+    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector( getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
+                                     "ObservationTimes.dat", 16, outputSubFolder );
+    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector( getConcatenatedGroundStationIndex( podInput->getObservationsAndTimes( ) ).first ),
+                                     "ObservationLinkEnds.dat", 16, outputSubFolder );
+    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector( getConcatenatedObservableTypes( podInput->getObservationsAndTimes( ) ) ),
+                                     "ObservationObservableTypes.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
-                                     "ObservationMeasurements.dat", 16,
-                                     outputSubFolder );
-
-    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
-                                         getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
-                                     "ObservationTimes.dat", 16,
-                                     outputSubFolder );
-
-    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
-                                         getConcatenatedGroundStationIndex( podInput->getObservationsAndTimes( ) ).first ),
-                                     "ObservationLinkEnds.dat", 16,
-                                     outputSubFolder );
-
-    input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector(
-                                         getConcatenatedObservableTypes( podInput->getObservationsAndTimes( ) ) ),
-                                     "ObservationObservableTypes.dat", 16,
-                                     outputSubFolder );
-
-    input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
-                                     "ObservationMeasurements.dat", 16,
-                                     outputSubFolder );
-
-    input_output::writeMatrixToFile( estimationError,
-                                     "ObservationTrueEstimationError.dat", 16,
-                                     outputSubFolder );
-
-    input_output::writeMatrixToFile( podOutput->getFormalErrorVector(),
-                                     "ObservationFormalEstimationError.dat", 16,
-                                     outputSubFolder );
-
-    input_output::writeMatrixToFile( podInput->getInverseOfAprioriCovariance( ),
-                                     "InverseAPrioriCovariance.dat", 16,
-                                     outputSubFolder );
-
-    input_output::writeMatrixToFile( podOutput->inverseNormalizedCovarianceMatrix_,
-                                     "InverseNormalizedCovariance.dat", 16,
-                                     outputSubFolder );
-
-    input_output::writeMatrixToFile( podOutput->getUnnormalizedCovarianceMatrix( ),
-                                     "UnnormalizedCovariance.dat", 16,
-                                     outputSubFolder );
+                                     "ObservationMeasurements.dat", 16, outputSubFolder );
 
     std::cout << "done!" << std::endl;
 
-// Final statement.
-// The exit code EXIT_SUCCESS indicates that the program was successfully executed.
-return EXIT_SUCCESS;
+    // Final statement.
+    // The exit code EXIT_SUCCESS indicates that the program was successfully executed.
+    return EXIT_SUCCESS;
 
 }

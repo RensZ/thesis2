@@ -10,9 +10,9 @@
     "includeSEPViolationAcceleration": true,
     "includeTVGPAcceleration": true,
 
-    "estimateJ2Amplitude": false,
+    "estimateJ2Amplitude": true,
     "estimateJ2Period": false,
-    "estimateJ2Phase": false,
+    "estimateJ2Phase": true,
 
     "sunJ2": 2.20E-7,
     "sunJ4": -4.34E-9,
@@ -23,6 +23,7 @@
 
     "useNordtvedtConstraint": true,
     "estimatePPNalphas": false,
+    "gammaIsAConsiderParameter": false,
 
     "sigma_gamma": 2.3E-5,
     "sigma_beta": 6.9E-5,
@@ -57,6 +58,13 @@
     "formalSigma_mu_Sun": 0.35E9,
     "formalSigma_J2_Sun": 0.02E-7,
     "formalSigma_J4_Sun": 0.1E-9,
-    "formalSigma_TVGP": 1.47E-14
+    "formalSigma_TVGP": 1.47E-14,
+
+    "sigma_J2_A": 1.1E-7,
+    "sigma_J2_P": 3.154E7,
+    "sigma_J2_phi": 1.0,
+    "formalSigma_J2_A": 1.1E-7,
+    "formalSigma_J2_P": 3.154E7,
+    "formalSigma_J2_phi": 1.0
 
 }

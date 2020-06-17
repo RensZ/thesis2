@@ -66,11 +66,8 @@ int main( )
 
     // Acceleration settings
     const bool calculateDeSitterCorrection = false;
-    const bool includeTimeVaryingGravitationalMomentsSun = false;
+    const bool includeTimeVaryingGravitationalMomentsSun = true;
     const unsigned int maximumDegreeSunGravitationalMomentVariation = 2;
-
-    // Planet propagation settings
-    const bool propogatePlanets = false; // Propogate the other planets besides Mercury (NOTE: need observations for other planets, or LS can't find solutions for other planets)
 
     // Parameter estimation settings
     const unsigned int maximumNumberOfIterations = 3;
@@ -116,8 +113,8 @@ int main( )
     filenames.push_back("inputs_Imperi2018_nvfalse_flybys.json"); // 5
     filenames.push_back("inputs_Genova2018.json"); // 6
 
-//    for (unsigned int f = 6; f<7; f++){
-    for (unsigned int f = 0; f<filenames.size(); f++){
+    for (unsigned int f = 6; f<7; f++){
+//    for (unsigned int f = 0; f<filenames.size(); f++){
 
         std::string input_filename = filenames.at(f);
         std::cout<<"---- RUNNING SIMULATION FOR INPUTS WITH FILENAME: "<<input_filename<<" ----"<<std::endl;
@@ -169,10 +166,12 @@ int main( )
         const double unnormalisedSigmaSunJ4 = json_input["sigma_J4_Sun"];
         const double sigmaSunJ4 = unnormalisedSigmaSunJ4 / calculateLegendreGeodesyNormalizationFactor(4,0);
 
-        // Use constraint nordtvedt=4*beta-gamma-3
+        // Parameter settings
         const bool useNordtvedtConstraint = json_input["useNordtvedtConstraint"];
         const bool estimatePPNalphas = json_input["estimatePPNalphas"];
-
+        bool ppnAlphasAreConsiderParameters = false;
+        if (estimatePPNalphas == false){ ppnAlphasAreConsiderParameters = true; };
+        const bool gammaIsAConsiderParameter = json_input["gammaIsAConsiderParameter"];
 
         // retreive regular observation schedule
         std::vector<int> json3 = json_input["observationInitialTime"];
@@ -238,6 +237,11 @@ int main( )
                 std::make_shared< InterpolatorSettings >( cubic_spline_interpolator ); //interpolator of Sun SH coefficient variation
 
 
+        // some checks to prevent incompatible inputs
+        if ((includeTimeVaryingGravitationalMomentsSun == false) &&
+                (estimateJ2Amplitude || estimateJ2Period || estimateJ2Phase)){
+            std::runtime_error("cannot estimate time varying gravitational parameters when includeTimeVaryingGravitationalMoments is set to false");
+        }
 
 
         /////////////////////
@@ -789,20 +793,24 @@ int main( )
         // relativistic parameters
         if (calculateSchwarzschildCorrection == true
             || includeSEPViolationAcceleration == true){
-        parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                                 ("global_metric", ppn_parameter_gamma ) );
-        varianceVector.push_back(sigmaGamma*sigmaGamma);
 
-        parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                                 ("global_metric", ppn_parameter_beta ) );
-        varianceVector.push_back(sigmaBeta*sigmaBeta);
+            if ( gammaIsAConsiderParameter == false){
+                parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                         ("global_metric", ppn_parameter_gamma ) );
+                varianceVector.push_back(sigmaGamma*sigmaGamma);
+            }
+
+
+            parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                     ("global_metric", ppn_parameter_beta ) );
+            varianceVector.push_back(sigmaBeta*sigmaBeta);
         }
 
         // Nordtvedt parameter
         if (includeSEPViolationAcceleration == true && useNordtvedtConstraint == false){
-        parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                                 ("global_metric", ppn_nordtvedt_parameter ) );
-        varianceVector.push_back(sigmaNordtvedt*sigmaNordtvedt);
+            parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                     ("global_metric", ppn_nordtvedt_parameter ) );
+            varianceVector.push_back(sigmaNordtvedt*sigmaNordtvedt);
         }
 
         if (estimatePPNalphas == true){
@@ -838,23 +846,23 @@ int main( )
 
 
         // time varying J2 Sun
-        double variableJ2parametersVariance = 0.5; //sigma taken as a percentage of the mean
+        Eigen::Vector3d variableJ2parametersVariance = {1.0, 1.0, 1.0}; //sigma taken as a percentage of the parameter value
         if (estimateJ2Amplitude){
             parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                      ("Sun", variable_J2_amplitude));
-            double sigmaJ2Amplitude = variableJ2parametersVariance * relativity::variableJ2Interface->getAmplitude();
+            double sigmaJ2Amplitude = variableJ2parametersVariance(0) * relativity::variableJ2Interface->getAmplitude();
             varianceVector.push_back(sigmaJ2Amplitude*sigmaJ2Amplitude);
         }
         if (estimateJ2Period){
             parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                      ("Sun", variable_J2_period));
-            double sigmaJ2Period = variableJ2parametersVariance * relativity::variableJ2Interface->getAmplitude();
+            double sigmaJ2Period = variableJ2parametersVariance(1) * relativity::variableJ2Interface->getPeriod();
             varianceVector.push_back(sigmaJ2Period*sigmaJ2Period);
         }
         if (estimateJ2Phase){
             parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                      ("Sun", variable_J2_phase));
-            double sigmaJ2Phase = variableJ2parametersVariance * relativity::variableJ2Interface->getAmplitude();
+            double sigmaJ2Phase = variableJ2parametersVariance(2) * relativity::variableJ2Interface->getPhase();
             varianceVector.push_back(sigmaJ2Phase*sigmaJ2Phase);
         }
 
@@ -1037,7 +1045,6 @@ int main( )
 
 
 
-
         /////////////////////////////
         //// ESTIMATE PARAMETERS ////
         /////////////////////////////
@@ -1061,7 +1068,6 @@ int main( )
 
         initialParameterEstimate += parameterPerturbation;
 
-
         std::cout << "True parameter values:" << std::endl;
         std::cout << truthParameters.transpose() << std::endl;
 
@@ -1076,7 +1082,8 @@ int main( )
         for( unsigned int i = 0; i < truthParameters.size(); i++ ){
             aprioriCovariance( i,i ) = varianceVector.at( i );
         }
-        std::cout << "a priori covariance matrix:" << std::endl << aprioriCovariance << std::endl;
+        std::cout << "a priori covariance matrix:" << std::endl
+                  << aprioriCovariance.diagonal().transpose() << std::endl;
         Eigen::MatrixXd inverseOfAprioriCovariance = aprioriCovariance.inverse();
 
         // Define estimation input
@@ -1106,88 +1113,104 @@ int main( )
         //// CONSIDER PARAMETERS ////
         /////////////////////////////
 
-        std::cout<< "calculating covariance due to consider parameters..."<< std::endl;
-
-        // In order to get the partial derivatives of consider parameters wrt observations, run an estimation of the consider parameters
-        std::vector< std::shared_ptr < EstimatableParameterSettings > > considerParameterNames;
-        std::vector<double> considerVarianceVector;
-
-        for( unsigned int i = 0; i < numberOfNumericalBodies; i++ )
-        {
-            int j = 6*i;
-            // bodies must be included for the estimation to work
-            considerParameterNames.push_back( std::make_shared< InitialTranslationalStateEstimatableParameterSettings< double > >(
-                                          bodiesToPropagate[i], systemInitialState.segment(j,6), centralBodies[i] ) );
-
-            for( unsigned int i = 0; i < 3; i++ ){
-                considerVarianceVector.push_back(sigmaPosition*sigmaPosition);
-            }
-            for( unsigned int i = 3; i < 6; i++ ){
-                considerVarianceVector.push_back(sigmaVelocity*sigmaVelocity);
-            }
-        }
-
-        considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                                 ("global_metric", ppn_parameter_alpha1 ) );
-        considerVarianceVector.push_back(sigmaAlpha1*sigmaAlpha1);
-
-        considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                                 ("global_metric", ppn_parameter_alpha2 ) );
-        considerVarianceVector.push_back(sigmaAlpha2*sigmaAlpha2);
-
-        std::shared_ptr< estimatable_parameters::EstimatableParameterSet< double > > considerParametersToEstimate =
-                createParametersToEstimate( considerParameterNames, bodyMap );
-        printEstimatableParameterEntries( considerParametersToEstimate );
-
-        OrbitDeterminationManager< double, double > orbitDeterminationManagerConsiderParameters =
-                OrbitDeterminationManager< double, double >(
-                    bodyMap, considerParametersToEstimate, observationSettingsMap,
-                    integratorSettings, propagatorSettings );
-
-        Eigen::Matrix< double, Eigen::Dynamic, 1 > initialConsiderParameterEstimate =
-                considerParametersToEstimate->template getFullParameterValues< double >( );
-        Eigen::Matrix< double, Eigen::Dynamic, 1 > truthConsiderParameters = initialConsiderParameterEstimate;
-
-        Eigen::MatrixXd considerParameterAprioriCovariance = // C
-            Eigen::MatrixXd::Zero( truthConsiderParameters.rows( ), truthConsiderParameters.rows( ));
-
-        for( unsigned int i = 0; i < truthConsiderParameters.size(); i++ ){
-            considerParameterAprioriCovariance( i,i ) = considerVarianceVector.at( i );
-        }
-        std::cout << "consider parameter a priori covariance matrix:" << std::endl << considerParameterAprioriCovariance << std::endl;
-
-        std::shared_ptr< PodInput< double, double > > podInputConsiderParameters =
-                std::make_shared< PodInput< double, double > >(
-                    observationsAndTimes, initialConsiderParameterEstimate.rows( ),
-                    considerParameterAprioriCovariance.inverse(),
-                    initialConsiderParameterEstimate - truthConsiderParameters );
-        podInputConsiderParameters->defineEstimationSettings( true, true, true, true );
-        podInputConsiderParameters->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
-
-        std::shared_ptr< PodOutput< double > > podOutputConsiderParameters = orbitDeterminationManagerConsiderParameters.estimateParameters(
-                    podInputConsiderParameters, std::make_shared< EstimationConvergenceChecker >( 1 ) );
-
-        Eigen::MatrixXd partialDerivativesOfConsiderParameters = // H_c
-                (podOutputConsiderParameters->getUnnormalizedPartialDerivatives()).rightCols(
-                    truthConsiderParameters.size()-6*numberOfNumericalBodies);
-
         // get other required matrices for the calculation
         Eigen::MatrixXd initialCovarianceMatrix = podOutput->getUnnormalizedCovarianceMatrix( ); // P
         Eigen::VectorXd observationWeightDiagonal = podOutput->weightsMatrixDiagonal_; // diagonal of W
         Eigen::MatrixXd unnormalizedPartialDerivatives = podOutput->getUnnormalizedPartialDerivatives( ); // Hx
+        Eigen::MatrixXd considerCovarianceMatrix;
+        unsigned int maxcovtype = 1;
 
-        // calculate covariance matrix including contribution from consider parameters
-        Eigen::MatrixXd considerCovarianceMatrix = calculateConsiderCovarianceMatrix(
-                    initialCovarianceMatrix, observationWeightDiagonal,
-                    considerParameterAprioriCovariance.block(6,6,considerParameterAprioriCovariance.rows()-6, considerParameterAprioriCovariance.cols()-6),
-                    unnormalizedPartialDerivatives, partialDerivativesOfConsiderParameters);
+        if (gammaIsAConsiderParameter || ppnAlphasAreConsiderParameters){
 
-        // get consider correlation matrix
-        Eigen::VectorXd formalErrorWithConsiderParameters = considerCovarianceMatrix.diagonal( ).cwiseSqrt( );
-        Eigen::MatrixXd considerCorrelationMatrix = considerCovarianceMatrix.cwiseQuotient(
-                    formalErrorWithConsiderParameters * formalErrorWithConsiderParameters.transpose() );
+            std::cout<< "calculating covariance due to consider parameters..."<< std::endl;
 
+            // In order to get the partial derivatives of consider parameters wrt observations, run an estimation of the consider parameters
+            std::vector< std::shared_ptr < EstimatableParameterSettings > > considerParameterNames;
+            std::vector<double> considerVarianceVector;
 
+            for( unsigned int i = 0; i < numberOfNumericalBodies; i++ )
+            {
+                int j = 6*i;
+                // bodies must be included for the estimation to work
+                considerParameterNames.push_back( std::make_shared< InitialTranslationalStateEstimatableParameterSettings< double > >(
+                                              bodiesToPropagate[i], systemInitialState.segment(j,6), centralBodies[i] ) );
+
+                for( unsigned int i = 0; i < 3; i++ ){
+                    considerVarianceVector.push_back(sigmaPosition*sigmaPosition);
+                }
+                for( unsigned int i = 3; i < 6; i++ ){
+                    considerVarianceVector.push_back(sigmaVelocity*sigmaVelocity);
+                }
+            }
+
+            if ( gammaIsAConsiderParameter == true ){
+                considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                         ("global_metric", ppn_parameter_gamma ) );
+                considerVarianceVector.push_back(sigmaGamma*sigmaGamma);
+            }
+
+            considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                     ("global_metric", ppn_parameter_alpha1 ) );
+            considerVarianceVector.push_back(sigmaAlpha1*sigmaAlpha1);
+
+            considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                     ("global_metric", ppn_parameter_alpha2 ) );
+            considerVarianceVector.push_back(sigmaAlpha2*sigmaAlpha2);
+
+            std::shared_ptr< estimatable_parameters::EstimatableParameterSet< double > > considerParametersToEstimate =
+                    createParametersToEstimate( considerParameterNames, bodyMap );
+            printEstimatableParameterEntries( considerParametersToEstimate );
+
+            OrbitDeterminationManager< double, double > orbitDeterminationManagerConsiderParameters =
+                    OrbitDeterminationManager< double, double >(
+                        bodyMap, considerParametersToEstimate, observationSettingsMap,
+                        integratorSettings, propagatorSettings );
+
+            Eigen::Matrix< double, Eigen::Dynamic, 1 > initialConsiderParameterEstimate =
+                    considerParametersToEstimate->template getFullParameterValues< double >( );
+            Eigen::Matrix< double, Eigen::Dynamic, 1 > truthConsiderParameters = initialConsiderParameterEstimate;
+
+            Eigen::MatrixXd considerParameterAprioriCovariance = // C
+                Eigen::MatrixXd::Zero( truthConsiderParameters.rows( ), truthConsiderParameters.rows( ));
+
+            for( unsigned int i = 0; i < truthConsiderParameters.size(); i++ ){
+                considerParameterAprioriCovariance( i,i ) = considerVarianceVector.at( i );
+            }
+            std::cout << "consider parameter a priori covariance matrix:" << std::endl
+                      << considerParameterAprioriCovariance.diagonal().transpose() << std::endl;
+
+            std::shared_ptr< PodInput< double, double > > podInputConsiderParameters =
+                    std::make_shared< PodInput< double, double > >(
+                        observationsAndTimes, initialConsiderParameterEstimate.rows( ),
+                        considerParameterAprioriCovariance.inverse(),
+                        initialConsiderParameterEstimate - truthConsiderParameters );
+            podInputConsiderParameters->defineEstimationSettings( true, true, true, true );
+            podInputConsiderParameters->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
+
+            std::shared_ptr< PodOutput< double > > podOutputConsiderParameters = orbitDeterminationManagerConsiderParameters.estimateParameters(
+                        podInputConsiderParameters, std::make_shared< EstimationConvergenceChecker >( 1 ) );
+
+            Eigen::MatrixXd partialDerivativesOfConsiderParameters = // H_c
+                    (podOutputConsiderParameters->getUnnormalizedPartialDerivatives()).rightCols(
+                        truthConsiderParameters.size()-6*numberOfNumericalBodies);
+
+            // calculate covariance matrix including contribution from consider parameters
+            considerCovarianceMatrix = calculateConsiderCovarianceMatrix(
+                        initialCovarianceMatrix, observationWeightDiagonal,
+                        considerParameterAprioriCovariance.block(6,6,considerParameterAprioriCovariance.rows()-6, considerParameterAprioriCovariance.cols()-6),
+                        unnormalizedPartialDerivatives, partialDerivativesOfConsiderParameters);
+
+            // get consider correlation matrix
+            Eigen::VectorXd formalErrorWithConsiderParameters = considerCovarianceMatrix.diagonal( ).cwiseSqrt( );
+            Eigen::MatrixXd considerCorrelationMatrix = considerCovarianceMatrix.cwiseQuotient(
+                        formalErrorWithConsiderParameters * formalErrorWithConsiderParameters.transpose() );
+
+            input_output::writeMatrixToFile( considerParameterAprioriCovariance, "ConsiderParameterAprioriCovariance.dat", 16, outputSubFolder );
+            input_output::writeMatrixToFile( considerCorrelationMatrix, "EstimationConsiderCorrelations.dat", 16, outputSubFolder );
+            input_output::writeMatrixToFile( formalErrorWithConsiderParameters, "ObservationFormalEstimationErrorWithConsiderParameters.dat", 16, outputSubFolder );
+
+            maxcovtype = 2;
+        }
 
 
         /////////////////////////////////////////////
@@ -1207,7 +1230,8 @@ int main( )
         }
 
         // Propagate covariance matrix (twice, both with and without the consider parameters included in the covariance)
-        for (int covtype = 0; covtype<2; covtype++){
+
+        for (unsigned int covtype = 0; covtype<maxcovtype; covtype++){
 
             Eigen::MatrixXd initialCovariance;
             std::string saveString;
@@ -1287,12 +1311,10 @@ int main( )
         input_output::writeMatrixToFile( considerCovarianceMatrix, "ConsiderCovarianceMatrix.dat", 16, outputSubFolder );
         input_output::writeMatrixToFile( initialCovarianceMatrix, "InitialCovarianceMatrix.dat", 16, outputSubFolder );
         input_output::writeMatrixToFile( observationWeightDiagonal, "ObservationWeightDiagonal.dat", 16, outputSubFolder );
-        input_output::writeMatrixToFile( considerParameterAprioriCovariance, "ConsiderParameterAprioriCovariance.dat", 16, outputSubFolder );
         input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ), "EstimationCorrelations.dat", 16, outputSubFolder );
-        input_output::writeMatrixToFile( considerCorrelationMatrix, "EstimationConsiderCorrelations.dat", 16, outputSubFolder );
-        input_output::writeMatrixToFile( formalErrorWithConsiderParameters, "ObservationFormalEstimationErrorWithConsiderParameters.dat", 16, outputSubFolder );
-        input_output::writeMatrixToFile( unnormalizedPartialDerivatives, "test_unnormalizedPartialDerivatives.dat", 16, outputSubFolder );
-        input_output::writeMatrixToFile( partialDerivativesOfConsiderParameters, "test_partialDerivativesOfConsiderParameters.dat", 16, outputSubFolder );
+
+//        input_output::writeMatrixToFile( unnormalizedPartialDerivatives, "test_unnormalizedPartialDerivatives.dat", 16, outputSubFolder );
+//        input_output::writeMatrixToFile( partialDerivativesOfConsiderParameters, "test_partialDerivativesOfConsiderParameters.dat", 16, outputSubFolder );
 
 //        input_output::writeMatrixToFile( podOutput->normalizedInformationMatrix_, "EstimationInformationMatrix.dat", 16, outputSubFolder );
 //        input_output::writeMatrixToFile( podOutput->informationMatrixTransformationDiagonal_, "EstimationInformationMatrixNormalization.dat", 16, outputSubFolder );

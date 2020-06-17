@@ -10,9 +10,9 @@ Purpose: wrapper file for all the post-processing of thesis_v1.cpp
 #### INPUTS ####
 ################
 
-publication_string = ["Genova2018",
-                      # "MESSENGER_and_BepiColombo",
-                      # "MESSENGER_and_BepiColombo_multiarc",
+publication_string = ["MESSENGER_and_BepiColombo",
+                      "MESSENGER_and_BepiColombo_multiarc",
+                      "Genova2018",
                       "Imperi2018_nvtrue_flybys",
                       "Imperi2018_nvtrue",
                       "Imperi2018_nvfalse_flybys",
@@ -67,7 +67,8 @@ for ps in publication_string:
         json_input = json.load(f)
 
     if json_input["calculateSchwarzschildCorrection"]:
-        parameters.append("gamma")
+        if not json_input["gammaIsAConsiderParameter"]:
+            parameters.append("gamma")
         parameters.append("beta")
         dependent_variables.append("Sun_SS")
         dependent_variables.append("Sun_SS_α")
