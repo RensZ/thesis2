@@ -10,9 +10,9 @@
     "includeSEPViolationAcceleration": true,
     "includeTVGPAcceleration": true,
 
-    "estimateJ2Amplitude": true,
+    "estimateJ2Amplitude": false,
     "estimateJ2Period": false,
-    "estimateJ2Phase": true,
+    "estimateJ2Phase": false,
 
     "sunJ2": 2.20E-7,
     "sunJ4": -4.34E-9,

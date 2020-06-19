@@ -1,0 +1,51 @@
+
+{
+    "missionJSONFiles": ["MESSENGER.json", "BepiColombo.json"],
+
+    "calculateSchwarzschildCorrection": true,
+    "calculateLenseThirringCorrection": true,
+    "includeSEPViolationAcceleration": true,
+    "includeTVGPAcceleration": true,
+
+    "estimateJ2Amplitude": true,
+    "estimateJ2Period": false,
+    "estimateJ2Phase": false,
+
+    "sunJ2": 2.2E-7,
+    "sunJ4": -4.34E-9,
+    "sunAngularMomentum": 190.0E39,
+    "sunGravitationalParameter": 132712440041.9394E9,
+    "nordtvedtParameter": 0.0,
+    "timeVaryingGravitationalParameter": 0.0,
+
+    "useNordtvedtConstraint": true,
+    "estimatePPNalphas": false,
+    "gammaIsAConsiderParameter": false,
+
+    "sigma_gamma": 2.3E-5,
+    "sigma_beta": 6.9E-5,
+    "sigma_alpha1": 6.0E-6,
+    "sigma_alpha2": 3.5E-5,
+    "sigma_Nordtvedt": 3.0E-4,
+    "sigma_mu_Sun": 0.14E9,
+    "sigma_J2_Sun": 0.03E-7,
+    "sigma_J4_Sun": 0.1E-9,
+    "sigma_TVGP": 0.29E-13,
+
+    "outputSubFolderName": "MESSENGER_and_BepiColombo_timevariableJ2",
+
+    "formalSigma_beta": 1.8E-5,
+    "formalSigma_gamma": 2.3E-5,
+    "formalSigma_Nordtvedt": 7.2E-5,
+    "formalSigma_mu_Sun": 0.35E9,
+    "formalSigma_J2_Sun": 0.02E-7,
+    "formalSigma_J4_Sun": 0.1E-9,
+    "formalSigma_TVGP": 1.47E-14,
+
+    "sigma_J2_A": 0.65E-7,
+    "sigma_J2_P": 6.68617,
+    "formalSigma_J2_A": 0.65E-7,
+    "formalSigma_J2_P": 6.68617
+
+
+}

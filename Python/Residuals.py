@@ -137,8 +137,9 @@ def f(dir_output, dir_plots, body, no_arcs, useRSW):
             plotdata = e_data[:,4:7]
             y_min = np.min(plotdata[np.nonzero(plotdata)])
             y_max = np.max(plotdata)
-            ax.set_ylim((y_min, y_max))
-            format_spines(ax, i, no_arcs)
+            if not (np.isnan(y_min) or np.isnan(y_max)):
+                ax.set_ylim((y_min, y_max))
+                format_spines(ax, i, no_arcs)
 
 
         plt.tight_layout()

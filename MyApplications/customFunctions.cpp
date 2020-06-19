@@ -298,10 +298,11 @@ Eigen::MatrixXd interpolatePositionErrors(const Eigen::MatrixXd errorMatrix,
 
 
 
-Eigen::MatrixXd interpolatePositionErrorsBasedOnTrueAnomaly(const Eigen::MatrixXd errorMatrix,
-                                                            const std::vector<double> timesAtWhichToInterpolate,
-                                                            const std::string vehicle,
-                                                            const double mercuryGravitationalParameter){
+std::map< double, Eigen::Vector3d > interpolatePositionErrorsBasedOnTrueAnomaly(
+        const Eigen::MatrixXd errorMatrix,
+        const std::vector<double> timesAtWhichToInterpolate,
+        const std::string vehicle,
+        const double mercuryGravitationalParameter){
 
     using namespace tudat::spice_interface;
     using namespace tudat::orbital_element_conversions;
@@ -336,10 +337,12 @@ Eigen::MatrixXd interpolatePositionErrorsBasedOnTrueAnomaly(const Eigen::MatrixX
     Eigen::MatrixXd trueAnomalyInput = readMatrixFromFile(vehicleTrueAnomalyFilename, ",");
 
     // iterate over times at which an error value is desired
-    Eigen::MatrixXd interpolatedErrorMatrix(timesAtWhichToInterpolate.size(),3);
+    std::map< double, Eigen::Vector3d > interpolatedErrorMatrix;
+
     for( unsigned int i=0; i<timesAtWhichToInterpolate.size(); i++){
 
         double currentTime = timesAtWhichToInterpolate.at(i);
+        Eigen::Vector3d currentInterpolatedError;
 
         // find indices of previous and next arc
         bool inBetweenTwoArcsFlag = false;
@@ -388,7 +391,7 @@ Eigen::MatrixXd interpolatePositionErrorsBasedOnTrueAnomaly(const Eigen::MatrixX
             Eigen::VectorXd arcDataTADif = (arcDataTA - vehicleTrueAnomaly*Eigen::VectorXd::Ones(arcDataTA.size())).cwiseAbs();
             std::ptrdiff_t ind; arcDataTADif.minCoeff(&ind);
 
-            interpolatedErrorMatrix.block(i,0,1,3) = arcDataPosition.block(ind,0,1,3);
+            currentInterpolatedError = arcDataPosition.block(ind,0,1,3);
 
         }
 
@@ -419,20 +422,28 @@ Eigen::MatrixXd interpolatePositionErrorsBasedOnTrueAnomaly(const Eigen::MatrixX
             LinearInterpolatorDouble yInterpolator2(arct, arcy, huntingAlgorithm, use_boundary_value);
             LinearInterpolatorDouble zInterpolator2(arct, arcz, huntingAlgorithm, use_boundary_value);
 
-            interpolatedErrorMatrix(i,0) = xInterpolator2.interpolate(currentTime);
-            interpolatedErrorMatrix(i,1) = yInterpolator2.interpolate(currentTime);
-            interpolatedErrorMatrix(i,2) = zInterpolator2.interpolate(currentTime);
+            currentInterpolatedError <<
+                    xInterpolator2.interpolate(currentTime),
+                    yInterpolator2.interpolate(currentTime),
+                    zInterpolator2.interpolate(currentTime);
 
             arct.clear(); arcx.clear(); arcy.clear(); arcz.clear();
         }
 
-    if (interpolatedErrorMatrix(i,0) == 0.0 && interpolatedErrorMatrix(i,1) == 0.0 && interpolatedErrorMatrix(i,2) == 0.0){
+        interpolatedErrorMatrix.insert(std::make_pair(currentTime, currentInterpolatedError));
+
+    if (interpolatedErrorMatrix.at(currentTime)(0) == 0.0
+            || interpolatedErrorMatrix.at(currentTime)(1)  == 0.0
+            || interpolatedErrorMatrix.at(currentTime)(2)  == 0.0){
         std::runtime_error("ERROR: satellite error cannot be equal to 0");
         std::cout<<"prev arc: "<<previousArc<<" flag: "<<inBetweenTwoArcsFlag<<std::endl;
-        std::cout<<interpolatedErrorMatrix.block(i,0,1,3)<<std::endl;
+        std::cout<<interpolatedErrorMatrix.at(currentTime) <<std::endl;
     }
 
     }
+
+    std::string output_dir = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Output/interpolatedErrorMatrix/";
+    writeDataMapToTextFile(interpolatedErrorMatrix, vehicleName+".dat", output_dir);
 
     return interpolatedErrorMatrix;
 }
@@ -502,12 +513,14 @@ std::map< double, Eigen::MatrixXd > tabulatedSphericalHarmonicsCoefficientCorrec
 
     }
 
-//    std::string outputPath = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Output/SHtable/";
-//    std::string amplitudeString = std::to_string(amplitude);
+    std::string outputPath = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Output/SHtable/";
+    std::string amplitudeString = "_Amp" + std::to_string(amplitude*(1E8)) + "E-8";
+    std::string periodString = "_Per" + std::to_string(period*(1E-8)) + "E8";
+    std::string phaseString = "_Ph" + std::to_string(phase);
 
-//    using namespace tudat::input_output;
-//    writeDataMapToTextFile( coefficientCorrections, "cosineCoefficientCorrectionsAmp"+amplitudeString+".dat",
-//                                          outputPath, "", std::numeric_limits< double >::digits10, std::numeric_limits< double >::digits10, "," );
+    using namespace tudat::input_output;
+    writeDataMapToTextFile( coefficientCorrections, "CosCoeffTable"+amplitudeString+periodString+phaseString+".dat",
+                                          outputPath, "", std::numeric_limits< double >::digits10, std::numeric_limits< double >::digits10, "," );
 
     return coefficientCorrections;
 

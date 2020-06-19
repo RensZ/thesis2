@@ -830,12 +830,34 @@ int main( )
             varianceVector.push_back(sigmaTVGP*sigmaTVGP);
         }
 
-
         // gravity field Sun (mu and spherical harmonics)
         parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                  ("Sun", gravitational_parameter));
         varianceVector.push_back(sigmaSunGM*sigmaSunGM);
 
+        // time varying J2 Sun
+        double variableJ2parametersVariance = 1.0; //sigma taken as a percentage of the mean
+        if (estimateJ2Amplitude){
+            parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                     ("Sun", variable_J2_amplitude));
+            double sigmaJ2Amplitude = variableJ2parametersVariance * relativity::variableJ2Interface->getAmplitude();
+            varianceVector.push_back(sigmaJ2Amplitude*sigmaJ2Amplitude);
+        }
+        if (estimateJ2Period){
+            parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                     ("Sun", variable_J2_period));
+            double sigmaJ2Period = variableJ2parametersVariance * relativity::variableJ2Interface->getPeriod();
+            varianceVector.push_back(sigmaJ2Period*sigmaJ2Period);
+        }
+        if (estimateJ2Phase){
+            parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                     ("Sun", variable_J2_phase));
+            double sigmaJ2Phase = variableJ2parametersVariance * relativity::variableJ2Interface->getPhase();
+            varianceVector.push_back(sigmaJ2Phase*sigmaJ2Phase);
+        }
+
+
+        // conventional J2 (always needs to be last)
         std::vector< std::pair< int, int > > blockIndices;
         for (unsigned int d=2; d<=maximumDegreeSunGravitationalMomentVariation; d+=2){
             blockIndices.push_back(std::make_pair(d,0));
@@ -843,28 +865,6 @@ int main( )
         }
         parameterNames.push_back(std::make_shared<SphericalHarmonicEstimatableParameterSettings>
                                  (blockIndices,"Sun",spherical_harmonics_cosine_coefficient_block));
-
-
-        // time varying J2 Sun
-        Eigen::Vector3d variableJ2parametersVariance = {1.0, 1.0, 1.0}; //sigma taken as a percentage of the parameter value
-        if (estimateJ2Amplitude){
-            parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                                     ("Sun", variable_J2_amplitude));
-            double sigmaJ2Amplitude = variableJ2parametersVariance(0) * relativity::variableJ2Interface->getAmplitude();
-            varianceVector.push_back(sigmaJ2Amplitude*sigmaJ2Amplitude);
-        }
-        if (estimateJ2Period){
-            parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                                     ("Sun", variable_J2_period));
-            double sigmaJ2Period = variableJ2parametersVariance(1) * relativity::variableJ2Interface->getPeriod();
-            varianceVector.push_back(sigmaJ2Period*sigmaJ2Period);
-        }
-        if (estimateJ2Phase){
-            parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                                     ("Sun", variable_J2_phase));
-            double sigmaJ2Phase = variableJ2parametersVariance(2) * relativity::variableJ2Interface->getPhase();
-            varianceVector.push_back(sigmaJ2Phase*sigmaJ2Phase);
-        }
 
 
         // Create parameters
@@ -905,6 +905,7 @@ int main( )
                                         maximumNumberOfTrackingDays,
                                         unit_conversions::convertDegreesToRadians(maxMSEAngleDeg),
                                         flybyList);
+        int baseTimeListSize = baseTimeList.size();
 
         // Create measurement simulation input
         std::map< ObservableType, std::map< LinkEnds, std::shared_ptr< ObservationSimulationTimeSettings< double > > > >
@@ -960,21 +961,33 @@ int main( )
 
         // Simulate observations
         PodInputDataType observationsAndTimes = simulateObservationsWithNoise< double, double >(
-                    measurementSimulationInput, orbitDeterminationManager.getObservationSimulators( ),
+                    measurementSimulationInput,
+                    orbitDeterminationManager.getObservationSimulators( ),
                     noiseFunctions);
 
         // similar container, but the "observation" will be the noise value instead of the actual observation
         PodInputDataType observationWeightsAndTimes = observationsAndTimes;
 
         // add spacecraft initial position error to the observations
-        std::map<double, Eigen::Vector3d> saveSatelliteError;
+        std::map< double, Eigen::Vector3d > interpolatedErrorMatrix;
         if (includeSpacecraftPositionError == true){
 
             std::cout << "Adding satellite estimation initial position error..." << std::endl;
     //        Eigen::Vector3d constantSatelliteError; constantSatelliteError << 10.0, 10.0, 10.0;
 
+            // get interpolated error maps for list of vehicle observation times
             std::string vehicleErrorFilename = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/error_inputs_"+vehicle+".txt";
             Eigen::MatrixXd error_input = input_output::readMatrixFromFile(vehicleErrorFilename, ",");
+
+            interpolatedErrorMatrix =
+                    interpolatePositionErrorsBasedOnTrueAnomaly(
+                        error_input, baseTimeList, vehicle, mercuryGravitationalParameter);
+
+            int interpolatedErrorMatrixSize = interpolatedErrorMatrix.size();
+            std::cout << "Size interpolated vehicle error map: "<< interpolatedErrorMatrixSize << std::endl;
+            if (baseTimeListSize != interpolatedErrorMatrixSize){
+                std::runtime_error("observation lists unequal!");
+            }
 
             std::random_device rd;
             std::mt19937 gen(rd());
@@ -994,18 +1007,15 @@ int main( )
                         ObservationVectorType allObservations = singleObservableIterator->second.first;
                         std::vector< double > allObservationTimes = singleObservableIterator->second.second.first;
 
-    //                    Eigen::MatrixXd interpolatedErrorMatrix = interpolatePositionErrors(error_input, allObservationTimes);
-                        Eigen::MatrixXd interpolatedErrorMatrix = interpolatePositionErrorsBasedOnTrueAnomaly(
-                                    error_input, allObservationTimes, vehicle, mercuryGravitationalParameter);
-
                         ObservationVectorType newObservations = Eigen::VectorXd(allObservations.size());
                         ObservationVectorType observationWeights = Eigen::VectorXd(allObservations.size());
 
                         // for every observation, retrieve and add the range bias that should be added
                         for (unsigned int i=0; i<allObservationTimes.size(); i++){
+
                             double observationTime = allObservationTimes.at( i );
 
-                            Eigen::Vector3d currentSatelliteError = interpolatedErrorMatrix.row(i);
+                            Eigen::Vector3d currentSatelliteError = interpolatedErrorMatrix.at(observationTime);
                             Eigen::Vector3d randomErrorSample;
                             for (unsigned int j=0; j<3; j++){
                                 std::normal_distribution<double> d(0.0, currentSatelliteError( j ));
@@ -1018,20 +1028,24 @@ int main( )
                             double rangeCorrection = randomErrorSample.dot(rangeUnitVector);
                             if (podInputIterator->first == n_way_range){rangeCorrection *= 2.0;}
 
+                            if (rangeCorrection > 10000.0){
+                                std::cout<<"ERROR: unusually large range correction at time "<<observationTime<<std::endl;
+                                std::cout<<" interpolated vehicle error: "<<currentSatelliteError.transpose()<<std::endl;
+                                std::cout<<" range correction (from random sample): "<<rangeCorrection<<std::endl;
+                            }
+
                             newObservations(i) = allObservations(i) + rangeCorrection;
 
-                            double noiseLevel = abs(rangeCorrection)
-                                    + noiseLevelBasedOnMSEangle(observationTime, noiseAtMinAngle, noiseAtMaxAngle, maxMSEAngleDeg);
+                            double noiseLevel = abs(rangeCorrection) + noiseSampleBasedOnMSEangle(
+                                        observationTime, noiseAtMinAngle, noiseAtMaxAngle, maxMSEAngleDeg);
+
                             observationWeights(i) = 1.0/(noiseLevel*noiseLevel);
 
     //                        std::cout<<observationTime<<" // "<<
     //                                   currentSatelliteError.transpose()<<" // "<<
     //                                   randomErrorSample.transpose()<<" // "<<
     //                                   rangeCorrection<<" // "<<
-    //                                   noiseLevelBasedOnMSEangle(observationTime, noiseAtMinAngle, noiseAtMaxAngle, maxMSEAngleDeg)<<" // "<<
     //                                   noiseLevel<<std::endl;
-
-                            saveSatelliteError.insert(std::make_pair(observationTime,currentSatelliteError));
                         }
 
                         singleObservableIterator->second.first = newObservations;
@@ -1324,7 +1338,7 @@ int main( )
 
 
         // observations
-        input_output::writeDataMapToTextFile( saveSatelliteError, vehicle+"ErrorBasedOnTrueAnomaly.dat", outputSubFolder );
+        input_output::writeDataMapToTextFile( interpolatedErrorMatrix, "interpolatedErrorMatrix.dat", outputSubFolder );
         input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ), "ObservationMeasurements.dat", 16, outputSubFolder );
         input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector( getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
                                          "ObservationTimes.dat", 16, outputSubFolder );

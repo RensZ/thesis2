@@ -43,10 +43,11 @@ double averageOfDoubleVector(std::vector<double> input);
 Eigen::MatrixXd interpolatePositionErrors(const Eigen::MatrixXd errorMatrix,
                                           const std::vector<double> timesAtWhichToInterpolate);
 
-Eigen::MatrixXd interpolatePositionErrorsBasedOnTrueAnomaly(const Eigen::MatrixXd errorMatrix,
-                                                            const std::vector<double> timesAtWhichToInterpolate,
-                                                            const std::string vehicle,
-                                                            const double mercuryGravitationalParameter);
+std::map< double, Eigen::Vector3d > interpolatePositionErrorsBasedOnTrueAnomaly(
+        const Eigen::MatrixXd errorMatrix,
+        const std::vector<double> timesAtWhichToInterpolate,
+        const std::string vehicle,
+        const double mercuryGravitationalParameter);
 
 Eigen::Matrix3d transformAngularMomentumFromLocalToGlobalFrame(
         const Eigen::Matrix3d angularMomentumInLocalFrame,
