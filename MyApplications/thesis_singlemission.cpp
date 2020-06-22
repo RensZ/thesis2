@@ -66,7 +66,7 @@ int main( )
 
     // Acceleration settings
     const bool calculateDeSitterCorrection = false;
-    const bool includeTimeVaryingGravitationalMomentsSun = true;
+    const bool includeTimeVaryingGravitationalMomentsSun = false;
     const unsigned int maximumDegreeSunGravitationalMomentVariation = 2;
 
     // Parameter estimation settings
@@ -106,15 +106,13 @@ int main( )
     // Load json input
     std::vector< std::string > filenames;
     filenames.push_back("inputs_Schettino2015.json"); // 0
-    filenames.push_back("inputs_Imperi2018_nvtrue.json"); // 1
-    filenames.push_back("inputs_Imperi2018_nvfalse.json"); // 2
-    filenames.push_back("inputs_Schettino2015_flybys.json"); // 3
-    filenames.push_back("inputs_Imperi2018_nvtrue_flybys.json"); // 4
-    filenames.push_back("inputs_Imperi2018_nvfalse_flybys.json"); // 5
-    filenames.push_back("inputs_Genova2018.json"); // 6
+    filenames.push_back("inputs_Schettino2015_flybys.json"); // 1
+    filenames.push_back("inputs_Imperi2018_nvtrue_flybys.json"); // 2
+    filenames.push_back("inputs_Imperi2018_nvfalse_flybys.json"); // 3
+    filenames.push_back("inputs_Genova2018.json"); // 4
 
-    for (unsigned int f = 6; f<7; f++){
-//    for (unsigned int f = 0; f<filenames.size(); f++){
+//    for (unsigned int f = 4; f<5; f++){
+    for (unsigned int f = 0; f<filenames.size(); f++){
 
         std::string input_filename = filenames.at(f);
         std::cout<<"---- RUNNING SIMULATION FOR INPUTS WITH FILENAME: "<<input_filename<<" ----"<<std::endl;
@@ -255,22 +253,13 @@ int main( )
         double finalSimulationTime = secondsAfterJ2000(finalTime);
 
         // Load spice kernels.
-        std::cout << "loading SPICE kernels..." << std::endl;
-
         std::string kernelsPath = input_output::getSpiceKernelPath( );
 
-        spice_interface::loadStandardSpiceKernels( );
+        std::vector< std::string > customKernels;
+        customKernels.push_back( kernelsPath + "tudat_merged_spk_kernel_thesis4.bsp" );
+        spice_interface::loadStandardSpiceKernels( customKernels );
 
-    //    std::vector< std::string > customKernels;
-    //    customKernels.push_back( kernelsPath + "tudat_merged_spk_kernel_thesis2.bsp" );
-    //    spice_interface::loadStandardSpiceKernels( customKernels );
-
-//        loadSpiceKernelInTudat(kernelsPath + "de430.bsp");
-//        Eigen::Vector6d uranusTest = getBodyCartesianStateAtEpoch("Uranus","SSB","ECLIPJ2000","None",(initialSimulationTime+finalSimulationTime)/2.0);
-//        std::cout<<uranusTest.transpose()<<std::endl;
-
-        // Define bodies
-        unsigned int totalNumberOfBodies = 8;
+        unsigned int totalNumberOfBodies = 10;
         std::vector< std::string > bodyNames;
         bodyNames.resize( totalNumberOfBodies );
         bodyNames[ 0 ] = "Sun";
@@ -280,9 +269,9 @@ int main( )
         bodyNames[ 4 ] = "Mars";
         bodyNames[ 5 ] = "Jupiter";
         bodyNames[ 6 ] = "Saturn";
-    //    bodyNames[ 7 ] = "Uranus";
-    //    bodyNames[ 8 ] = "Neptune";
-        bodyNames[ 7 ] = "Moon";
+        bodyNames[ 7 ] = "Uranus";
+        bodyNames[ 8 ] = "Neptune";
+        bodyNames[ 9 ] = "Moon";
 
         // Default body settings
         double buffer = maximumOrder*maximumStepSize; //see Tudat libraries 1.1.3.
@@ -377,6 +366,8 @@ int main( )
         const Eigen::Vector3d sunAngularMomentumVectorPerUnitMassInSunFrame =
                 sunAngularMomentumVectorInSunFrame /
                 (sunGravitationalParameter/physical_constants::GRAVITATIONAL_CONSTANT);
+
+        std::cout << "creating environment..." << std::endl;
 
         // Create body map
         NamedBodyMap bodyMap = createBodies( bodySettings );
@@ -613,8 +604,8 @@ int main( )
         // Write dependent variables history to file.
 
         input_output::writeDataMapToTextFile(
-                    dependentVariablesHistory,
-                    "DependentVariablesHistory.dat",
+                    onlyEveryXthValueFromDataMap(dependentVariablesHistory,10),
+                    "DependentVariablesHistoryReality.dat",
                     outputSubFolder,
                     "",
                     std::numeric_limits< double >::digits10,
@@ -632,8 +623,7 @@ int main( )
         std::shared_ptr< PropagationTimeTerminationSettings > backwardTerminationSettings =
               std::make_shared< propagators::PropagationTimeTerminationSettings >( initialSimulationTime, true );
 
-        Eigen::VectorXd systemFinalState = getInitialStatesOfBodies(
-                    bodiesToPropagate, centralBodies, bodyMap, initialSimulationTime );
+        Eigen::VectorXd systemFinalState = allBodiesPropagationHistory[ 0 ].at(finalSimulationTime);
 
         std::shared_ptr< TranslationalStatePropagatorSettings< double > > backwardPropagatorSettings =
                 std::make_shared< TranslationalStatePropagatorSettings< double > >
@@ -1106,7 +1096,7 @@ int main( )
                     observationsAndTimes, initialParameterEstimate.rows( ),
                     inverseOfAprioriCovariance,
                     initialParameterEstimate - truthParameters );
-        podInput->defineEstimationSettings( true, true, true, true );
+        podInput->defineEstimationSettings( true, true, true, true, true, true );
         podInput->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
 
         // Perform estimation
@@ -1302,9 +1292,9 @@ int main( )
                 it++;
             }
 
-            input_output::writeDataMapToTextFile( propagatedCovariance, "Propagated"+saveString+"Covariance.dat", outputSubFolder );
-            input_output::writeDataMapToTextFile( propagatedErrorUsingCovMatrix, "propagatedErrorUsing"+saveString+"CovMatrix.dat", outputSubFolder );
-            input_output::writeDataMapToTextFile( propagatedRSWErrorUsingCovMatrix, "propagatedRSWErrorUsing"+saveString+"CovMatrix.dat", outputSubFolder );
+            input_output::writeDataMapToTextFile( onlyEveryXthValueFromDataMap(propagatedCovariance,10), "Propagated"+saveString+"Covariance.dat", outputSubFolder );
+            input_output::writeDataMapToTextFile( onlyEveryXthValueFromDataMap(propagatedErrorUsingCovMatrix,10), "propagatedErrorUsing"+saveString+"CovMatrix.dat", outputSubFolder );
+            input_output::writeDataMapToTextFile( onlyEveryXthValueFromDataMap(propagatedRSWErrorUsingCovMatrix,10), "propagatedRSWErrorUsing"+saveString+"CovMatrix.dat", outputSubFolder );
         }
 
 
@@ -1348,6 +1338,11 @@ int main( )
                                          "ObservationObservableTypes.dat", 16, outputSubFolder );
         input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
                                          "ObservationMeasurements.dat", 16, outputSubFolder );
+
+        // dependent variables
+        input_output::writeDataMapToTextFile(
+                    onlyEveryXthValueFromDataMap(podOutput->dependentVariableHistoryFinalIteration_.at(0),10), "DependentVariablesHistoryFinalIteration.dat",
+                    outputSubFolder, "", std::numeric_limits< double >::digits10, std::numeric_limits< double >::digits10, "," );
 
         std::cout << "done!" << std::endl;
     }

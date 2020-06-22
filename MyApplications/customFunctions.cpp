@@ -572,3 +572,72 @@ Eigen::MatrixXd calculateConsiderCovarianceMatrix(
 }
 
 
+std::map< double, Eigen::MatrixXd > onlyEveryXthValueFromDataMap(
+        std::map< double, Eigen::MatrixXd > inputMap,
+        const int reductionFactor){
+
+    std::map< double, Eigen::MatrixXd > outputMap;
+    std::map< double, Eigen::MatrixXd >::iterator it = inputMap.begin();
+    int counter = 0;
+
+    while (it != inputMap.end()){
+
+        if (counter == reductionFactor){ counter = 0; }
+        if (counter == 0){
+            outputMap.insert(std::make_pair(it->first,inputMap.at(it->first)));
+        }
+
+        counter++;
+        it++;
+    }
+
+    return outputMap;
+}
+
+std::map< double, Eigen::Vector6d > onlyEveryXthValueFromDataMap(
+        std::map< double, Eigen::Vector6d > inputMap,
+        const int reductionFactor){
+
+    std::map< double, Eigen::Vector6d> outputMap;
+    std::map< double, Eigen::Vector6d >::iterator it = inputMap.begin();
+    int counter = 0;
+
+    while (it != inputMap.end()){
+
+        if (counter == reductionFactor){ counter = 0; }
+        if (counter == 0){
+            outputMap.insert(std::make_pair(it->first,inputMap.at(it->first)));
+        }
+
+        counter++;
+        it++;
+    }
+
+    return outputMap;
+}
+
+std::map< double, Eigen::VectorXd > onlyEveryXthValueFromDataMap(
+        std::map< double, Eigen::VectorXd > inputMap,
+        const int reductionFactor){
+
+    std::map< double, Eigen::VectorXd> outputMap;
+    std::map< double, Eigen::VectorXd >::iterator it = inputMap.begin();
+    int counter = 0;
+
+    while (it != inputMap.end()){
+
+        if (counter == reductionFactor){ counter = 0; }
+        if (counter == 0){
+            outputMap.insert(std::make_pair(it->first,inputMap.at(it->first)));
+        }
+
+        counter++;
+        it++;
+    }
+
+    return outputMap;
+}
+
+
+
+

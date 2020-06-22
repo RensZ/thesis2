@@ -83,4 +83,16 @@ Eigen::MatrixXd calculateConsiderCovarianceMatrix(
         const Eigen::MatrixXd Hx,
         const Eigen::MatrixXd Hc);
 
+std::map< double, Eigen::MatrixXd > onlyEveryXthValueFromDataMap(
+        std::map< double, Eigen::MatrixXd > inputMap,
+        const int reductionFactor);
+
+std::map< double, Eigen::Vector6d > onlyEveryXthValueFromDataMap(
+        std::map< double, Eigen::Vector6d > inputMap,
+        const int reductionFactor);
+
+std::map< double, Eigen::VectorXd > onlyEveryXthValueFromDataMap(
+        std::map< double, Eigen::VectorXd > inputMap,
+        const int reductionFactor);
+
 #endif // CUSTOMFUNCTIONS_H

@@ -105,6 +105,8 @@ int main( )
     // Load json input
 
     std::string input_filename = "inputs_MESSENGER_and_BepiColombo.json";
+//    std::string input_filename = "inputs_MESSENGER_and_BepiColombo_timevariableJ2.json";
+
     std::cout<<"---- RUNNING SIMULATION FOR INPUTS WITH FILENAME: "<<input_filename<<" ----"<<std::endl;
 
     std::string json_directory = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/";
@@ -273,21 +275,13 @@ int main( )
     /////////////////////
 
     // Load spice kernels.
-    std::cout << "loading SPICE kernels..." << std::endl;
-
     std::string kernelsPath = input_output::getSpiceKernelPath( );
 
-    spice_interface::loadStandardSpiceKernels( );
+    std::vector< std::string > customKernels;
+    customKernels.push_back( kernelsPath + "tudat_merged_spk_kernel_thesis4.bsp" );
+    spice_interface::loadStandardSpiceKernels( customKernels );
 
-//    std::vector< std::string > customKernels;
-//    customKernels.push_back( kernelsPath + "tudat_merged_spk_kernel_thesis2.bsp" );
-//    spice_interface::loadStandardSpiceKernels( customKernels );
-
-    std::cout << "building environment..." << std::endl;
-
-
-    // Define bodies
-    unsigned int totalNumberOfBodies = 8;
+    unsigned int totalNumberOfBodies = 10;
     std::vector< std::string > bodyNames;
     bodyNames.resize( totalNumberOfBodies );
     bodyNames[ 0 ] = "Sun";
@@ -297,14 +291,14 @@ int main( )
     bodyNames[ 4 ] = "Mars";
     bodyNames[ 5 ] = "Jupiter";
     bodyNames[ 6 ] = "Saturn";
-//    bodyNames[ 7 ] = "Uranus";
-//    bodyNames[ 8 ] = "Neptune";
-    bodyNames[ 7 ] = "Moon";
+    bodyNames[ 7 ] = "Uranus";
+    bodyNames[ 8 ] = "Neptune";
+    bodyNames[ 9 ] = "Moon";
 
     // load SPICE settings
-    double initialSimulationTime = *std::min_element(initialTimeVector.begin(), initialTimeVector.end());
-    double finalSimulationTime = *std::max_element(finalTimeVector.begin(), finalTimeVector.end());
-    double buffer = maximumOrder*maximumStepSize; //see Tudat libraries 1.1.3.
+    const double initialSimulationTime = *std::min_element(initialTimeVector.begin(), initialTimeVector.end());
+    const double finalSimulationTime = *std::max_element(finalTimeVector.begin(), finalTimeVector.end());
+    const double buffer = maximumOrder*maximumStepSize; //see Tudat libraries 1.1.3.
     std::map< std::string, std::shared_ptr< BodySettings > > bodySettings;
 
     // Default body settings
@@ -559,11 +553,12 @@ int main( )
 
     std::cout << "defining propagation settings..." << std::endl;
 
-    std::vector< std::shared_ptr< SingleArcPropagatorSettings< double > > > propagatorSettingsList;
     Eigen::VectorXd systemInitialState;
     std::shared_ptr< PropagatorSettings< double > > propagatorSettings;
+    std::vector< std::shared_ptr< SingleArcPropagatorSettings< double > > > propagatorSettingsList;
 
     if (useMultipleMercuryArcs){
+
         std::vector< Eigen::VectorXd > arcInitialStates;
 
         for (unsigned int m=0; m<numberOfMissions; m++){
@@ -598,8 +593,7 @@ int main( )
         std::shared_ptr< PropagationTimeTerminationSettings > terminationSettings =
               std::make_shared< propagators::PropagationTimeTerminationSettings >( finalSimulationTime, true );
 
-        propagatorSettings =
-                std::make_shared< TranslationalStatePropagatorSettings< double > >
+        propagatorSettings = std::make_shared< TranslationalStatePropagatorSettings< double > >
                 ( centralBodies, accelerationModelMap, bodiesToPropagate,
                   systemInitialState, terminationSettings, cowell, dependentVariablesToSave);
 
@@ -628,12 +622,14 @@ int main( )
 
     std::vector< std::map< double, Eigen::VectorXd > > allBodiesPropagationHistory;
     std::vector< std::map< double, Eigen::VectorXd > > spiceStatesAtPropagationTimes;
+    std::vector< Eigen::VectorXd > arcFinalStates;
     allBodiesPropagationHistory.resize( bodiesToPropagate.size() );
     spiceStatesAtPropagationTimes.resize( bodiesToPropagate.size() );
 
     std::map< double, Eigen::VectorXd > dependentVariablesHistory;
 
     if (useMultipleMercuryArcs){
+
 
         MultiArcDynamicsSimulator <> dynamicsSimulator (bodyMap,
                                                         integratorSettings,
@@ -661,12 +657,14 @@ int main( )
                 }
             }
 
+            arcFinalStates.push_back(allBodiesPropagationHistory[0].at(finalTimeVector.at(m)));
+
             std::map< double, Eigen::VectorXd > intermediateDependentVariablesResult = dependentVariablesResult.at( m );
 
             for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateDependentVariablesResult.begin( );
                  stateIterator != intermediateDependentVariablesResult.end( ); stateIterator++ )
             {
-                dependentVariablesHistory[ stateIterator->first ] = stateIterator->second.segment( 0, 6 );
+                dependentVariablesHistory[ stateIterator->first ] = stateIterator->second;
             }
         }
 
@@ -715,13 +713,121 @@ int main( )
 
     // Write dependent variables history to file.
     input_output::writeDataMapToTextFile(
-                dependentVariablesHistory,
-                "DependentVariablesHistory.dat",
+                onlyEveryXthValueFromDataMap(dependentVariablesHistory,10),
+                "DependentVariablesHistoryReality.dat",
                 outputSubFolder,
                 "",
                 std::numeric_limits< double >::digits10,
                 std::numeric_limits< double >::digits10,
                 "," );
+
+
+
+    ////////////////////////////
+    //// BACKWARD PROPAGATION ////
+    ////////////////////////////
+
+    std::cout << "performing backward propagation..." << std::endl;
+
+    std::shared_ptr< AdamsBashforthMoultonSettings< double > > backwardIntegratorSettings =
+            std::make_shared< AdamsBashforthMoultonSettings< double > > (
+                finalSimulationTime, -1.0*initialTimeStep,
+                -1.0*minimumStepSize, -1.0*maximumStepSize,
+                relativeErrorTolerence, absoluteErrorTolerence,
+                minimumOrder, maximumOrder);
+
+    std::shared_ptr< PropagationTimeTerminationSettings > backwardTerminationSettings;
+    std::shared_ptr< PropagatorSettings< double > > backwardPropagatorSettings;
+
+    std::vector< std::map< double, Eigen::VectorXd > > allBodiesBackwardPropagationHistory;
+    allBodiesBackwardPropagationHistory.resize( bodiesToPropagate.size() );
+
+    if (useMultipleMercuryArcs){
+
+        std::vector< std::shared_ptr< SingleArcPropagatorSettings< double > > > backwardPropagatorSettingsList;
+
+        for (unsigned int m=0; m<numberOfMissions; m++){
+
+            backwardTerminationSettings = std::make_shared< propagators::PropagationTimeTerminationSettings >(
+                        initialTimeVector.at(m), true );
+
+            backwardPropagatorSettingsList.push_back(
+                        std::make_shared< TranslationalStatePropagatorSettings< double > >(
+                            centralBodies, accelerationModelMap, bodiesToPropagate,
+                            arcFinalStates.at(m), backwardTerminationSettings, cowell ) );
+        }
+
+        // Create propagator settings
+        backwardPropagatorSettings = std::make_shared< MultiArcPropagatorSettings< double > >( backwardPropagatorSettingsList );
+
+
+        MultiArcDynamicsSimulator <> backwardDynamicsSimulator (bodyMap,
+                                                        integratorSettings,
+                                                        propagatorSettings,
+                                                        initialTimeVector,
+                                                        true,false,true);
+
+        std::vector< std::map< double, Eigen::VectorXd > > integrationResult = backwardDynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+
+        for( unsigned int m = 0; m < numberOfMissions; m++ ){
+
+            std::map< double, Eigen::VectorXd > intermediateIntegrationResult = integrationResult.at( m );
+
+            // Retrieve numerically integrated state for each body.
+            for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateIntegrationResult.begin( );
+                 stateIterator != intermediateIntegrationResult.end( ); stateIterator++ )
+            {
+                for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
+                {
+                    allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
+                    spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
+                            getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),"SSB","ECLIPJ2000","None",stateIterator->first);
+
+                }
+            }
+
+        }
+
+    } else{
+
+        backwardTerminationSettings = std::make_shared< propagators::PropagationTimeTerminationSettings >( initialSimulationTime, true );
+
+        Eigen::VectorXd systemFinalState = allBodiesPropagationHistory[ 0 ].at(finalSimulationTime);
+
+        backwardPropagatorSettings = std::make_shared< TranslationalStatePropagatorSettings< double > >
+                ( centralBodies, accelerationModelMap, bodiesToPropagate,
+                  systemFinalState, backwardTerminationSettings);
+
+
+        SingleArcDynamicsSimulator <> backwardDynamicsSimulator (bodyMap,integratorSettings,propagatorSettings,true,false,true);
+        std::map< double, Eigen::VectorXd > backwardIntegrationResult = backwardDynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+
+        // Retrieve numerically integrated state for each body.
+        for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = backwardIntegrationResult.begin( );
+             stateIterator != backwardIntegrationResult.end( ); stateIterator++ )
+        {
+            for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
+            {
+                allBodiesBackwardPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
+
+            }
+        }
+
+    }
+
+    for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
+    {
+        // Write propagation history to file.
+        input_output::writeDataMapToTextFile(
+                    allBodiesBackwardPropagationHistory[ i ],
+                    "StatePropagationHistoryBackwards" + bodiesToPropagate.at( i ) + ".dat",
+                    outputSubFolder,
+                    "",
+                    std::numeric_limits< double >::digits10,
+                    std::numeric_limits< double >::digits10,
+                    "," );
+
+    }
 
 
 
@@ -1203,7 +1309,7 @@ int main( )
                 observationsAndTimes, initialParameterEstimate.rows( ),
                 inverseOfAprioriCovariance,
                 initialParameterEstimate - truthParameters );
-    podInput->defineEstimationSettings( true, reintegrateVariationalEquations, true, true );
+    podInput->defineEstimationSettings( true, reintegrateVariationalEquations, true, true, true, true );
     podInput->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
 
     // Perform estimation
@@ -1404,11 +1510,13 @@ int main( )
             it++;
         }
 
-        input_output::writeDataMapToTextFile( propagatedCovariance, "Propagated"+saveString+"Covariance.dat", outputSubFolder );
-        input_output::writeDataMapToTextFile( propagatedErrorUsingCovMatrix, "propagatedErrorUsing"+saveString+"CovMatrix.dat", outputSubFolder );
-        input_output::writeDataMapToTextFile( propagatedRSWErrorUsingCovMatrix, "propagatedRSWErrorUsing"+saveString+"CovMatrix.dat", outputSubFolder );
+        input_output::writeDataMapToTextFile( onlyEveryXthValueFromDataMap(propagatedCovariance,10),
+                                              "Propagated"+saveString+"Covariance.dat", outputSubFolder );
+        input_output::writeDataMapToTextFile( onlyEveryXthValueFromDataMap(propagatedErrorUsingCovMatrix,10),
+                                                                           "propagatedErrorUsing"+saveString+"CovMatrix.dat", outputSubFolder );
+        input_output::writeDataMapToTextFile( onlyEveryXthValueFromDataMap(propagatedRSWErrorUsingCovMatrix,10),
+                                              "propagatedRSWErrorUsing"+saveString+"CovMatrix.dat", outputSubFolder );
     }
-
 
     // Save data in files
     std::cout<<"writing output to files..."<<std::endl;
@@ -1450,6 +1558,32 @@ int main( )
                                      "ObservationObservableTypes.dat", 16, outputSubFolder );
     input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
                                      "ObservationMeasurements.dat", 16, outputSubFolder );
+
+    // dependent variables
+    std::map< double, Eigen::VectorXd > dependentVariablesHistoryFinalIteration;
+    std::vector< std::map< double, Eigen::VectorXd > > dependentVariablesHistoryFinalIterationAllArcs =
+            podOutput->dependentVariableHistoryFinalIteration_;
+
+    if (useMultipleMercuryArcs){
+        for (unsigned int a=0; a<dependentVariablesHistoryFinalIterationAllArcs.size(); a++){
+            std::map< double, Eigen::VectorXd > dependentVariablesHistoryCurrentArc = dependentVariablesHistoryFinalIterationAllArcs.at(a);
+            if (dependentVariablesHistoryFinalIteration.size() == 0){
+                dependentVariablesHistoryFinalIteration = dependentVariablesHistoryCurrentArc;
+            } else{
+                std::map< double, Eigen::VectorXd >::iterator it = dependentVariablesHistoryCurrentArc.begin();
+                while (it != dependentVariablesHistoryCurrentArc.end()){
+                    dependentVariablesHistoryFinalIteration.insert(std::make_pair(it->first, it->second));
+                    it++;
+                }
+            }
+        }
+    } else{
+        dependentVariablesHistoryFinalIteration = dependentVariablesHistoryFinalIterationAllArcs.at(0);
+    }
+
+    input_output::writeDataMapToTextFile(
+                onlyEveryXthValueFromDataMap(dependentVariablesHistoryFinalIteration,10), "DependentVariablesHistoryFinalIteration.dat",
+                outputSubFolder, "", std::numeric_limits< double >::digits10, std::numeric_limits< double >::digits10, "," );
 
     std::cout << "done!" << std::endl;
 

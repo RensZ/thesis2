@@ -10,14 +10,14 @@ Purpose: wrapper file for all the post-processing of thesis_v1.cpp
 #### INPUTS ####
 ################
 
-publication_string = ["MESSENGER_and_BepiColombo",
-                      "MESSENGER_and_BepiColombo_multiarc",
+publication_string = [ # "MESSENGER_and_BepiColombo",
+#                       "MESSENGER_and_BepiColombo_multiarc",
                       "MESSENGER_and_BepiColombo_timevariableJ2",
                       "Genova2018",
                       "Imperi2018_nvtrue_flybys",
-                      "Imperi2018_nvtrue",
+                      # "Imperi2018_nvtrue",
                       "Imperi2018_nvfalse_flybys",
-                      "Imperi2018_nvfalse",
+                      # "Imperi2018_nvfalse",
                       "Schettino2015_flybys",
                       "Schettino2015" ]
 
@@ -57,7 +57,7 @@ for ps in publication_string:
             parameters = parameters + p
             b += 1
 
-    dependent_variables = ["Venus_CG", "Earth_CG", "Mars_CG", "Jupiter_CG", "Saturn_CG", "Moon_CG",
+    dependent_variables = ["Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Moon",
                            "Sun_CG",
                            "exclude",  # J1
                            "Sun_J2"]
@@ -104,7 +104,7 @@ for ps in publication_string:
 
     print(" ", parameters)
 
-    if ps == "MESSENGER_and_BepiColombo" or ps == "MESSENGER_and_BepiColombo_multiarc":
+    if ps == "MESSENGER_and_BepiColombo" or ps == "MESSENGER_and_BepiColombo_multiarc" or ps == "MESSENGER_and_BepiColombo_timevariableJ2":
         vehicle = "vehicle"
     else:
         vehicle = json_input["vehicle"]
@@ -118,11 +118,6 @@ for ps in publication_string:
     import IntegrationErrorWrtSPICE
     IntegrationErrorWrtSPICE.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
 
-    # # Plot integration error
-    # print("---- making plots of the integration errors after backward propagation ----" )
-    # import IntegrationError
-    # IntegrationError.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
-
     # Plot propagated bodies
     print("---- making plots of propagated bodies ----")
     import PropagatedBodies
@@ -132,11 +127,6 @@ for ps in publication_string:
     print("---- making plots of parameter estimation history ----")
     import ParameterHistory
     ParameterHistory.f(dir_cpp_output, dir_plots, parameters, no_bodies, json_input)
-
-    # # Plot integration error
-    # print("---- making plots of the integration errors after backward propagation ----" )
-    # import IntegrationError
-    # IntegrationError.f(dir_cpp_output, dir_plots, bodies[0], no_arcs)
 
     # Make correlation heat map
     print("---- making heat map of parameter correlations ----")
