@@ -46,7 +46,7 @@ def f(dir_output, dir_plots, dependent_variables):
                 legend.append(var)
 
         plt.grid(which='major')
-        plt.legend(legend, loc='upper left')
+        plt.legend(legend, loc='upper right')
         if f == 0:
             plt.savefig(dir_plots + 'dependent_variable_history_reality.png')
         else:

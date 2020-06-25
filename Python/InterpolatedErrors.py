@@ -12,7 +12,7 @@ def f(dir_output, dir_plots, body, no_arcs, vehicle):
     import matplotlib.pyplot as plt
     from ToolKit import format_spines
 
-    filename = vehicle + "ErrorBasedOnTrueAnomaly.dat"
+    filename = "interpolatedErrorMatrix.dat"
     data = np.genfromtxt(dir_output+filename)
 
     t = data[:,0]

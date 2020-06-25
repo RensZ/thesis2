@@ -105,14 +105,16 @@ int main( )
 
     // Load json input
     std::vector< std::string > filenames;
-    filenames.push_back("inputs_Schettino2015.json"); // 0
-    filenames.push_back("inputs_Schettino2015_flybys.json"); // 1
+    filenames.push_back("inputs_Genova2018.json"); // 0
+    filenames.push_back("inputs_Schettino2015.json"); // 1
     filenames.push_back("inputs_Imperi2018_nvtrue_flybys.json"); // 2
     filenames.push_back("inputs_Imperi2018_nvfalse_flybys.json"); // 3
-    filenames.push_back("inputs_Genova2018.json"); // 4
+    filenames.push_back("inputs_Schettino2015_alphas.json"); // 4
+    filenames.push_back("inputs_Imperi2018_nvtrue_flybys_alphas.json"); // 5
+    filenames.push_back("inputs_Imperi2018_nvfalse_flybys_alphas.json"); // 6
 
-//    for (unsigned int f = 4; f<5; f++){
-    for (unsigned int f = 0; f<filenames.size(); f++){
+    for (unsigned int f = 2; f<7; f++){
+ //   for (unsigned int f = 0; f<filenames.size(); f++){
 
         std::string input_filename = filenames.at(f);
         std::cout<<"---- RUNNING SIMULATION FOR INPUTS WITH FILENAME: "<<input_filename<<" ----"<<std::endl;
@@ -167,8 +169,7 @@ int main( )
         // Parameter settings
         const bool useNordtvedtConstraint = json_input["useNordtvedtConstraint"];
         const bool estimatePPNalphas = json_input["estimatePPNalphas"];
-        bool ppnAlphasAreConsiderParameters = false;
-        if (estimatePPNalphas == false){ ppnAlphasAreConsiderParameters = true; };
+        bool ppnAlphasAreConsiderParameters = json_input["ppnAlphasAreConsiderParameters"];
         const bool gammaIsAConsiderParameter = json_input["gammaIsAConsiderParameter"];
 
         // retreive regular observation schedule
@@ -240,6 +241,10 @@ int main( )
                 (estimateJ2Amplitude || estimateJ2Period || estimateJ2Phase)){
             std::runtime_error("cannot estimate time varying gravitational parameters when includeTimeVaryingGravitationalMoments is set to false");
         }
+        if ((estimatePPNalphas) && (ppnAlphasAreConsiderParameters)){
+            std::runtime_error("ppn alphas cannot both be estimatable parameters and consider parameters");
+        }
+
 
 
         /////////////////////
@@ -1153,13 +1158,15 @@ int main( )
                 considerVarianceVector.push_back(sigmaGamma*sigmaGamma);
             }
 
-            considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                                     ("global_metric", ppn_parameter_alpha1 ) );
-            considerVarianceVector.push_back(sigmaAlpha1*sigmaAlpha1);
+            if ( ppnAlphasAreConsiderParameters){
+                considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                         ("global_metric", ppn_parameter_alpha1 ) );
+                considerVarianceVector.push_back(sigmaAlpha1*sigmaAlpha1);
 
-            considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                                     ("global_metric", ppn_parameter_alpha2 ) );
-            considerVarianceVector.push_back(sigmaAlpha2*sigmaAlpha2);
+                considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                         ("global_metric", ppn_parameter_alpha2 ) );
+                considerVarianceVector.push_back(sigmaAlpha2*sigmaAlpha2);
+            }
 
             std::shared_ptr< estimatable_parameters::EstimatableParameterSet< double > > considerParametersToEstimate =
                     createParametersToEstimate( considerParameterNames, bodyMap );

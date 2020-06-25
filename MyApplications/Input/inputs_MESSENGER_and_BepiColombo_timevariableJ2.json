@@ -21,6 +21,7 @@
     "useNordtvedtConstraint": true,
     "estimatePPNalphas": false,
     "gammaIsAConsiderParameter": false,
+    "ppnAlphasAreConsiderParameters": true,
 
     "sigma_gamma": 2.3E-5,
     "sigma_beta": 6.9E-5,

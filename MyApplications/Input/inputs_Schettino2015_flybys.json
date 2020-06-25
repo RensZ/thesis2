@@ -33,6 +33,7 @@
     "useNordtvedtConstraint": true,
     "estimatePPNalphas": false,
     "gammaIsAConsiderParameter": false,
+    "ppnAlphasAreConsiderParameters": false,
 
     "observationInitialTime": [2026, 3, 15, 0, 0, 0],
     "observationFinalTime": [2027, 5, 1, 0, 0, 0],

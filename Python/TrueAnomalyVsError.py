@@ -11,10 +11,16 @@ def f(dir_output, dir_plots, body, no_arcs, useRSW):
     import numpy as np
     import matplotlib.pyplot as plt
     from math import pi
+    from os import path
 
     useAbs = True
 
-    for consider in range(2):
+    if path.exists(dir_output + "EstimationConsiderCorrelations.dat"):
+        c = 2
+    else:
+        c = 1
+
+    for consider in range(c):
 
         if consider == 0:
             filestring = ""
@@ -119,3 +125,12 @@ def f(dir_output, dir_plots, body, no_arcs, useRSW):
             if no_arcs > 1:
                 gaps_filename = "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/arcindices_"+body+savestring+".txt"
                 np.savetxt(gaps_filename, np.asarray(gaps), delimiter=",")
+
+        fig99 = plt.figure(figsize=(10,6))
+        plt.plot(TA, pos_norm, "o", markersize=0.25)
+        plt.xlabel("true anomaly [deg]")
+        plt.ylabel("position error [m/s]")
+        plt.yscale(yscale)
+        plt.grid()
+        plt.tight_layout()
+        plt.savefig(dir_plots+"ErrorsVSTrueAnomalyOnlyPosition"+saveRSW+savestring)

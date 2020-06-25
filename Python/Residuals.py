@@ -11,10 +11,16 @@ def f(dir_output, dir_plots, body, no_arcs, useRSW):
     import numpy as np
     import matplotlib.pyplot as plt
     from ToolKit import format_spines
+    from os import path
 
     useAbs = True
 
-    for consider in range(2):
+    if path.exists(dir_output + "EstimationConsiderCorrelations.dat"):
+        c = 2
+    else:
+        c = 1
+
+    for consider in range(c):
 
         if consider == 0:
             filestring = ""

@@ -28,6 +28,11 @@ for i in range(len(vehicles)):
     dir_cpp_output = '/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Output/' + v + '/'
     dir_plots = '/home/rens/Documents/PostProcessing_plots/MercuryStateOrbiter/' + v + '/'
 
+    # Plot residuals over time
+    print("---- making plots of the propagated errors vs true anomaly ----")
+    import TrueAnomalyVsError
+    TrueAnomalyVsError.f(dir_cpp_output, dir_plots, v, no_arcs, False)
+    TrueAnomalyVsError.f(dir_cpp_output, dir_plots, v, no_arcs, True)
 
     # Plot integration error
     print("---- making plots of the integration errors after backward propagation ----" )
@@ -43,12 +48,6 @@ for i in range(len(vehicles)):
     print("---- making plots of propagated bodies ----")
     import PropagatedBodies
     PropagatedBodies.f(dir_cpp_output, dir_plots, v, no_arcs)
-
-    # Plot residuals over time
-    print("---- making plots of the propagated errors vs true anomaly ----")
-    import TrueAnomalyVsError
-    TrueAnomalyVsError.f(dir_cpp_output, dir_plots, v, no_arcs, False)
-    TrueAnomalyVsError.f(dir_cpp_output, dir_plots, v, no_arcs, True)
 
     # Plot residuals over time
     print("---- making plots of the observation residuals and propagated errors ----")

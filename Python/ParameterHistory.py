@@ -15,8 +15,14 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input):
     from math import ceil
     from ToolKit import Knm
     import pandas as pd
+    from os import path
 
-    for consider in range(2):
+    if path.exists(dir_output + "ObservationFormalEstimationErrorWithConsiderParameters.dat"):
+        c = 2
+    else:
+        c = 1
+
+    for consider in range(c):
 
         if consider == 0:
             parameterFormalSigmas = np.genfromtxt(dir_output + "ObservationFormalEstimationError.dat")
@@ -219,7 +225,10 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input):
                                 "publication":paperFormalSigmas,
                                 "ratio e/p":ratioFormalSigmas})
 
-        df.to_latex(dir_plots + 'formal_errors'+savestring+'.txt', header=True, index=True)
+        df['improvement'] = df['improvement'].map(lambda x: '{0:.2f}'.format(x))
+        df['ratio e/p'] = df['ratio e/p'].map(lambda x: '{0:.3f}'.format(x))
+
+        df.to_latex(dir_plots + 'formal_errors'+savestring+'.txt', header=True, index=True, float_format="%.2e")
         with pd.option_context('display.max_rows', None,
                                'display.max_columns', None,
                                'precision', 2):
