@@ -73,6 +73,10 @@ int main( )
     const unsigned int maximumNumberOfIterations = 3;
     const double sigmaPosition = 1000.0; //educated guess
     const double sigmaVelocity = 1.0; //educated guess
+    const bool ignoreNordtvedtConstraintInEstimation = false;
+    const bool includeSpacecraftPositionError = true;
+    const bool includeLightTimeCorrections = false;
+
 
     // ABM integrator settings (if RK4 is used instead, initialstepsize is taken)
     const double initialTimeStep = 3600.0/2.0;
@@ -82,9 +86,6 @@ int main( )
     const double absoluteErrorTolerence = 1.0;
     const unsigned int minimumOrder = 8;
     const unsigned int maximumOrder = 8;
-
-    // Observation settings
-    const bool includeSpacecraftPositionError = true;
 
     // Other planetary parameters, currently not included in json
     const double mercuryGravitationalParameter = (2.2031870798779644e+04)*(1E9); //m3/s2, from https://pgda.gsfc.nasa.gov/products/71
@@ -107,14 +108,14 @@ int main( )
     std::vector< std::string > filenames;
     filenames.push_back("inputs_Genova2018.json"); // 0
     filenames.push_back("inputs_Schettino2015.json"); // 1
-    filenames.push_back("inputs_Imperi2018_nvtrue_flybys.json"); // 2
-    filenames.push_back("inputs_Imperi2018_nvfalse_flybys.json"); // 3
-    filenames.push_back("inputs_Schettino2015_alphas.json"); // 4
-    filenames.push_back("inputs_Imperi2018_nvtrue_flybys_alphas.json"); // 5
+    filenames.push_back("inputs_Schettino2015_alphas.json"); // 2
+    filenames.push_back("inputs_Imperi2018_nvtrue_flybys.json"); // 3
+    filenames.push_back("inputs_Imperi2018_nvtrue_flybys_alphas.json"); // 4
+    filenames.push_back("inputs_Imperi2018_nvfalse_flybys.json"); // 5
     filenames.push_back("inputs_Imperi2018_nvfalse_flybys_alphas.json"); // 6
 
-    for (unsigned int f = 2; f<7; f++){
- //   for (unsigned int f = 0; f<filenames.size(); f++){
+//    for (unsigned int f = 5; f<7; f++){
+    for (unsigned int f = 0; f<filenames.size(); f++){
 
         std::string input_filename = filenames.at(f);
         std::cout<<"---- RUNNING SIMULATION FOR INPUTS WITH FILENAME: "<<input_filename<<" ----"<<std::endl;
@@ -167,7 +168,7 @@ int main( )
         const double sigmaSunJ4 = unnormalisedSigmaSunJ4 / calculateLegendreGeodesyNormalizationFactor(4,0);
 
         // Parameter settings
-        const bool useNordtvedtConstraint = json_input["useNordtvedtConstraint"];
+        const bool nordtvedtConstraintTrueOrFalse = json_input["useNordtvedtConstraint"];
         const bool estimatePPNalphas = json_input["estimatePPNalphas"];
         bool ppnAlphasAreConsiderParameters = json_input["ppnAlphasAreConsiderParameters"];
         const bool gammaIsAConsiderParameter = json_input["gammaIsAConsiderParameter"];
@@ -409,6 +410,11 @@ int main( )
         relativity::ppnParameterSet->setParameterBeta(1.0);
         relativity::ppnParameterSet->setParameterAlpha1(0.0);
         relativity::ppnParameterSet->setParameterAlpha2(0.0);
+//        if (nordtvedtConstraintTrueOrFalse == false){
+//            relativity::ppnParameterSet->setNordtvedtParameter(1.0E-10);
+//        } else{
+            relativity::ppnParameterSet->setNordtvedtParameter(0.0);
+//        }
 
         // Set accelerations between bodies that are to be taken into account (mutual point mass gravity between all bodies).
         SelectedAccelerationMap accelerationMap;
@@ -436,7 +442,7 @@ int main( )
                         if (includeSEPViolationAcceleration == true){
                             currentAccelerations[ bodyNames.at( j ) ].push_back(
                                         std::make_shared< SEPViolationAccelerationSettings >(
-                                            bodyNames, useNordtvedtConstraint));
+                                            bodyNames, nordtvedtConstraintTrueOrFalse, ignoreNordtvedtConstraintInEstimation));
                         }
 
                         if (includeTVGPAcceleration == true){
@@ -736,10 +742,13 @@ int main( )
 
         std::cout << "creating observation settings..." << std::endl;
 
-        std::vector< std::string > lightTimePerturbingBodies = { "Sun" };
+
         std::vector< std::shared_ptr< LightTimeCorrectionSettings > > lightTimeCorrectionSettings;
-        lightTimeCorrectionSettings.push_back( std::make_shared< FirstOrderRelativisticLightTimeCorrectionSettings >(
-                                                   lightTimePerturbingBodies ) );
+        if (includeLightTimeCorrections){
+            std::vector< std::string > lightTimePerturbingBodies = { "Sun" };
+            lightTimeCorrectionSettings.push_back( std::make_shared< FirstOrderRelativisticLightTimeCorrectionSettings >(
+                                                       lightTimePerturbingBodies ) );
+        }
 
         observation_models::ObservationSettingsMap observationSettingsMap;
 
@@ -785,6 +794,10 @@ int main( )
             }
         }
 
+        bool gammaIsEstimated = false;
+        bool betaIsEstimated = false;
+        bool nordtvedtParameterIsEstimated = false;
+
         // relativistic parameters
         if (calculateSchwarzschildCorrection == true
             || includeSEPViolationAcceleration == true){
@@ -793,19 +806,25 @@ int main( )
                 parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                          ("global_metric", ppn_parameter_gamma ) );
                 varianceVector.push_back(sigmaGamma*sigmaGamma);
+                gammaIsEstimated = true;
             }
 
 
             parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                      ("global_metric", ppn_parameter_beta ) );
             varianceVector.push_back(sigmaBeta*sigmaBeta);
+            betaIsEstimated = true;
         }
 
         // Nordtvedt parameter
-        if (includeSEPViolationAcceleration == true && useNordtvedtConstraint == false){
+        int nordtvedtParameterIndex = -1;
+        if (includeSEPViolationAcceleration &&
+                (nordtvedtConstraintTrueOrFalse == false || ignoreNordtvedtConstraintInEstimation == false)){
             parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                      ("global_metric", ppn_nordtvedt_parameter ) );
             varianceVector.push_back(sigmaNordtvedt*sigmaNordtvedt);
+            nordtvedtParameterIsEstimated = true;
+            nordtvedtParameterIndex = varianceVector.size()-1;
         }
 
         if (estimatePPNalphas == true){
@@ -868,6 +887,16 @@ int main( )
 
         // Print identifiers and indices of parameters to terminal
         printEstimatableParameterEntries( parametersToEstimate );
+
+
+        // If gamma, beta, eta, are estimatable parameters and nordtvedt constraint is set to true, enforce it in the estimation
+        bool enforceNordtvedtConstraintInEstimation = false;
+        if ( (gammaIsEstimated || gammaIsAConsiderParameter )
+            && betaIsEstimated && nordtvedtParameterIsEstimated
+            && nordtvedtConstraintTrueOrFalse
+            && ignoreNordtvedtConstraintInEstimation == false){
+            enforceNordtvedtConstraintInEstimation = true;
+        }
 
 
         ////////////////////////////////////////
@@ -1075,11 +1104,17 @@ int main( )
             parameterPerturbation.segment(i*6+3,3) = Eigen::Vector3d::Constant( 0.001 );
         }
 
+        // if nv-constraint false, perturb eta to prevent partials from being 0 due to which the estimation is unable to estimate eta
+        if (nordtvedtParameterIndex >= 0){
+            parameterPerturbation(nordtvedtParameterIndex) = 1.0E-10;
+        }
+
         initialParameterEstimate += parameterPerturbation;
 
         std::cout << "True parameter values:" << std::endl;
         std::cout << truthParameters.transpose() << std::endl;
-
+        std::cout << "Parameter perturbations:" << std::endl;
+        std::cout << parameterPerturbation.transpose() << std::endl;
         std::cout << "Initial guesses:" << std::endl;
         std::cout << initialParameterEstimate.transpose() << std::endl;
 
@@ -1101,7 +1136,7 @@ int main( )
                     observationsAndTimes, initialParameterEstimate.rows( ),
                     inverseOfAprioriCovariance,
                     initialParameterEstimate - truthParameters );
-        podInput->defineEstimationSettings( true, true, true, true, true, true );
+        podInput->defineEstimationSettings( true, true, true, true, true, true, enforceNordtvedtConstraintInEstimation );
         podInput->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
 
         // Perform estimation

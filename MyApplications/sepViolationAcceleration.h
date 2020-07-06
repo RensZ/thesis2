@@ -97,6 +97,10 @@ public:
                 sepRelativeAcceleration_ =
                         (sepCorrectedCentralGravityAcceleration_ - centralGravityAcceleration_).cast<double>();
             }
+
+//            std::cout<<sepPositionCorrection_.transpose()<<" / ";
+//            std::cout<<nordtvedtParameter_<<" / ";
+//            std::cout<<sepRelativeAcceleration_.transpose()<<std::endl;
         }
     }
 

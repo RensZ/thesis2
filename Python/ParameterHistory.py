@@ -127,7 +127,7 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input):
                 nordtvedt = 4.0*beta-gamma-3.0-alpha1-(2.0/3.0)*alpha2
             else:
                 nordtvedt = 4.0*beta-gamma-3.0
-            #print("  nordtvedt parameter from gamma and beta:", nordtvedt)
+            print("  nordtvedt parameter from ppn parameters:", nordtvedt)
 
             k = no_bodies * 2 + 1 + len(parameters) - 6 * no_bodies
             plt.subplot(subplotrows, subplotcolumns, k)

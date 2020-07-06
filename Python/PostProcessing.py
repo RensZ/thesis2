@@ -10,8 +10,8 @@ Purpose: wrapper file for all the post-processing of thesis_v1.cpp
 #### INPUTS ####
 ################
 
-publication_string = ["MESSENGER_and_BepiColombo",
-                      "MESSENGER_and_BepiColombo_timevariableJ2",
+publication_string = [#"MESSENGER_and_BepiColombo",
+                      #"MESSENGER_and_BepiColombo_timevariableJ2",
                       "Genova2018",
                       "Imperi2018_nvtrue_flybys_alphas",
                       "Imperi2018_nvtrue_flybys",
@@ -79,8 +79,8 @@ for ps in publication_string:
         #     dependent_variables.append("Sun_DS")
 
     if json_input["includeSEPViolationAcceleration"]:
-        if not json_input["useNordtvedtConstraint"]:
-            parameters.append("Nordtvedt")
+        # if not json_input["useNordtvedtConstraint"]:
+        parameters.append("Nordtvedt")
         dependent_variables.append("Sun_SEP")
 
     if json_input["estimatePPNalphas"]:
