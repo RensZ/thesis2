@@ -13,6 +13,9 @@
     "estimateJ2Amplitude": false,
     "estimateJ2Period": false,
     "estimateJ2Phase": false,
+    "estimateJ4Amplitude": false,
+    "estimateJ4Period": false,
+    "estimateJ4Phase": false,
 
     "sunJ2": 2.20E-7,
     "sunJ4": -4.34E-9,
@@ -66,6 +69,9 @@
     "sigma_J2_phi": 1.0,
     "formalSigma_J2_A": 1.1E-7,
     "formalSigma_J2_P": 3.154E7,
-    "formalSigma_J2_phi": 1.0
+    "formalSigma_J2_phi": 1.0,
+
+    "sigma_J4_A": 0.06E-9,
+    "formalSigma_J4_A": 0.06E-9
 
 }

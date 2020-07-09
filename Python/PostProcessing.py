@@ -10,7 +10,7 @@ Purpose: wrapper file for all the post-processing of thesis_v1.cpp
 #### INPUTS ####
 ################
 
-publication_string = [#"MESSENGER_and_BepiColombo",
+publication_string = ["MESSENGER_and_BepiColombo",
                       #"MESSENGER_and_BepiColombo_timevariableJ2",
                       "Genova2018",
                       "Imperi2018_nvtrue_flybys_alphas",
@@ -67,6 +67,10 @@ for ps in publication_string:
     with open(json_file) as f:
         json_input = json.load(f)
 
+    # if json_input["estimateJ4Amplitude"] or json_input["estimateJ4Amplitude"] or json_input["estimateJ4Amplitude"]:
+    dependent_variables.append("exclude") #J3
+    dependent_variables.append("J4_Sun")
+
     if json_input["calculateSchwarzschildCorrection"]:
         if not json_input["gammaIsAConsiderParameter"]:
             parameters.append("gamma")
@@ -99,8 +103,17 @@ for ps in publication_string:
         parameters.append("J2_P")
     if json_input["estimateJ2Phase"]:
         parameters.append("J2_phi")
+    if json_input["estimateJ4Amplitude"]:
+        parameters.append("J4_A")
+    if json_input["estimateJ4Period"]:
+        parameters.append("J4_P")
+    if json_input["estimateJ4Phase"]:
+        parameters.append("J4_phi")
 
     parameters.append("J2_Sun")
+    # if json_input["estimateJ4Amplitude"] or json_input["estimateJ4Amplitude"] or json_input["estimateJ4Amplitude"]:
+    parameters.append("J4_Sun")
+
 
     print(" ", parameters)
 
@@ -112,6 +125,11 @@ for ps in publication_string:
     #################
     #### OUTPUTS ####
     #################
+
+    # Plot dependent variable history
+    print("---- making plots of dependent variable history ----")
+    import DependentVariableHistory
+    DependentVariableHistory.f(dir_cpp_output, dir_plots, dependent_variables)
 
     # Plot integration error
     print("---- making plots of the integration errors wrt SPICE and backwards integration ----" )
@@ -144,11 +162,6 @@ for ps in publication_string:
     print("---- plotting errors interpolated from results of the mercury orbiter ----")
     import InterpolatedErrors
     InterpolatedErrors.f(dir_cpp_output, dir_plots, bodies[0], no_arcs, vehicle)
-
-    # Plot dependent variable history
-    print("---- making plots of dependent variable history ----")
-    import DependentVariableHistory
-    DependentVariableHistory.f(dir_cpp_output, dir_plots, dependent_variables)
 
     from matplotlib.pyplot import close
     close('all')

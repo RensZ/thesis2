@@ -64,16 +64,19 @@ int main( )
     // Acceleration settings
     const bool calculateDeSitterCorrection = false; //no partials implemented
     bool includeTimeVaryingGravitationalMomentsSun = false; // automatically gets set to true if a parameter concerning time variable J2 is to be estimated
-    const unsigned int maximumDegreeSunGravitationalMomentVariation = 2;
-
-    // Use multiple arcs for Mercury per mission
-    const bool useMultipleMercuryArcs = false;
-    const bool reintegrateVariationalEquations = false;
+    unsigned int maximumDegreeSunGravitationalMoment = 4;
+    unsigned int maximumDegreeSunGravitationalMomentVariation = 4;
 
     // Parameter estimation settings
-    const unsigned int maximumNumberOfIterations = 5;
+    const unsigned int maximumNumberOfIterations = 3;
     const double sigmaPosition = 1000.0; //educated guess
     const double sigmaVelocity = 1.0; //educated guess
+    const bool useMultipleMercuryArcs = false;
+    const bool reintegrateVariationalEquations = true; //warning: when setting this false and estimating eta with a true value of 0, eta won't improve as the partials are not calculated after perturbing the initial state
+    const bool ignoreNordtvedtConstraintInEstimation = false;
+    const bool includeSpacecraftPositionError = true;
+    const bool includeLightTimeCorrections = false;
+    const double observationReductionFactor = 2.0; //decreases amount of observations by a factor n to speed up the algorithm considerably
 
     // ABM integrator settings (if RK4 is used instead, initialstepsize is taken)
     const double initialTimeStep = 3600.0/2.0;
@@ -83,9 +86,6 @@ int main( )
     const double absoluteErrorTolerence = 1.0;
     const unsigned int minimumOrder = 8;
     const unsigned int maximumOrder = 8;
-
-    // Observation settings
-    const bool includeSpacecraftPositionError = true;
 
     // Other planetary parameters, currently not included in json
     const double mercuryGravitationalParameter = (2.2031870798779644e+04)*(1E9); //m3/s2, from https://pgda.gsfc.nasa.gov/products/71
@@ -102,12 +102,11 @@ int main( )
     //// MISSION INPUTS ////
     ////////////////////////
 
-    // Load json input
 
     // Load json input
     std::vector< std::string > filenames;
     filenames.push_back("inputs_MESSENGER_and_BepiColombo.json"); // 0
-    filenames.push_back("inputs_MESSENGER_and_BepiColombo_timevariableJ2.json"); // 1
+//    filenames.push_back("inputs_MESSENGER_and_BepiColombo_timevariableJ2.json"); // 1
 
     for (unsigned int f = 0; f<filenames.size(); f++){
 
@@ -132,6 +131,9 @@ int main( )
         if (estimateJ2Amplitude || estimateJ2Period || estimateJ2Phase){
             includeTimeVaryingGravitationalMomentsSun = true;
         }
+        const bool estimateJ4Amplitude = json_input["estimateJ4Amplitude"];
+        const bool estimateJ4Period = json_input["estimateJ4Period"];
+        const bool estimateJ4Phase = json_input["estimateJ4Phase"];
 
         // Retrieve input parameters including uncertainties and apriori values
         const double sunAngularMomentum = json_input["sunAngularMomentum"];
@@ -156,7 +158,7 @@ int main( )
         const double sigmaSunJ4 = unnormalisedSigmaSunJ4 / calculateLegendreGeodesyNormalizationFactor(4,0);
 
         // Parameter settings
-        const bool useNordtvedtConstraint = json_input["useNordtvedtConstraint"];
+        const bool nordtvedtConstraintTrueOrFalse = json_input["useNordtvedtConstraint"];
         const bool estimatePPNalphas = json_input["estimatePPNalphas"];
         bool ppnAlphasAreConsiderParameters = false;
         if (estimatePPNalphas == false){ ppnAlphasAreConsiderParameters = true; };
@@ -269,15 +271,25 @@ int main( )
 
         // some checks to prevent incompatible inputs
         if ((includeTimeVaryingGravitationalMomentsSun == false) &&
-                (estimateJ2Amplitude || estimateJ2Period || estimateJ2Phase)){
+                (estimateJ2Amplitude || estimateJ2Period || estimateJ2Phase || estimateJ4Amplitude || estimateJ4Period || estimateJ4Phase)){
             std::runtime_error("cannot estimate time varying gravitational parameters when includeTimeVaryingGravitationalMoments is set to false");
         }
+        if ((estimatePPNalphas) && (ppnAlphasAreConsiderParameters)){
+            std::runtime_error("ppn alphas cannot both be estimatable parameters and consider parameters");
+        }
+        if ((estimateJ4Amplitude || estimateJ4Period || estimateJ4Phase)
+                && maximumDegreeSunGravitationalMomentVariation < 4){
+            std::runtime_error("incompatible settings, cannot estimate sine parameters of J4 when J4 is not included.");
+        }
+
 
 
 
         /////////////////////
         //// ENVIRONMENT ////
         /////////////////////
+
+        std::cout << "building environment..." << std::endl;
 
         // Load spice kernels.
         std::string kernelsPath = input_output::getSpiceKernelPath( );
@@ -313,11 +325,11 @@ int main( )
 
         // Nominal values spherical harmonics Sun
         Eigen::MatrixXd normalizedSineCoefficients
-                = Eigen::MatrixXd::Zero(maximumDegreeSunGravitationalMomentVariation + 1,
-                                        maximumDegreeSunGravitationalMomentVariation + 1);
+                = Eigen::MatrixXd::Zero(maximumDegreeSunGravitationalMoment + 1,
+                                        maximumDegreeSunGravitationalMoment + 1);
         Eigen::MatrixXd normalizedCosineCoefficients
-                = Eigen::MatrixXd::Zero(maximumDegreeSunGravitationalMomentVariation + 1,
-                                        maximumDegreeSunGravitationalMomentVariation + 1);
+                = Eigen::MatrixXd::Zero(maximumDegreeSunGravitationalMoment + 1,
+                                        maximumDegreeSunGravitationalMoment+ 1);
 
         if (normalizedCosineCoefficients.col(0).size() != valuesSunGravitationalMoments.size()){
             std::runtime_error("error: vector sizes incompatible");
@@ -333,61 +345,71 @@ int main( )
         // Time varying spherical harmonics coefficients Sun
         if (includeTimeVaryingGravitationalMomentsSun){
 
+            // J2
             std::vector< std::shared_ptr< GravityFieldVariationSettings > > gravityFieldVariationSettings;
 
             relativity::variableJ2Interface->setAmplitude(amplitudesSunGravitationalMomentsVariation(2));
             relativity::variableJ2Interface->setPeriod(periodsSunGravitationalMomentsVariation(2));
             relativity::variableJ2Interface->setPhase(phasesSunGravitationalMomentsVariation(2));
 
-            std::function< double() > amplitudeFunction =
+            std::function< double() > amplitudeFunctionJ2 =
                     std::bind( &relativity::VariableJ2Interface::getAmplitude, relativity::variableJ2Interface );
-            std::function< double() > periodFunction =
+            std::function< double() > periodFunctionJ2 =
                     std::bind( &relativity::VariableJ2Interface::getPeriod, relativity::variableJ2Interface );
-            std::function< double() > phaseFunction =
+            std::function< double() > phaseFunctionJ2 =
                     std::bind( &relativity::VariableJ2Interface::getPhase, relativity::variableJ2Interface );
 
 
-            std::function< std::map< double, Eigen::MatrixXd >( ) > tabulatedSphericalHarmonicsCoefficientCorrectionsFunction =
+            std::function< std::map< double, Eigen::MatrixXd >( ) > tabulatedSphericalHarmonicsCoefficientCorrectionsFunctionJ2 =
                     std::bind(tabulatedSphericalHarmonicsCoefficientCorrections,
                               initialSimulationTime, finalSimulationTime,
-                              amplitudeFunction, periodFunction, phaseFunction);
+                              amplitudeFunctionJ2, periodFunctionJ2, phaseFunctionJ2);
 
-            std::map< double, Eigen::MatrixXd > sineCoefficientCorrections =
+            std::map< double, Eigen::MatrixXd > sineCoefficientCorrectionsJ2 =
                     zeroTabulatedSphericalHarmonicsCoefficientCorrections(initialSimulationTime, finalSimulationTime);
 
-            const std::shared_ptr< GravityFieldVariationSettings > timeVaryingSphericalHarmonicsSettings =
+            const std::shared_ptr< GravityFieldVariationSettings > timeVaryingSphericalHarmonicsSettingsJ2 =
                     std::make_shared< TabulatedGravityFieldVariationSettingsWithCosineFunction >(
-                        tabulatedSphericalHarmonicsCoefficientCorrectionsFunction,
-                        sineCoefficientCorrections,
+                        tabulatedSphericalHarmonicsCoefficientCorrectionsFunctionJ2,
+                        sineCoefficientCorrectionsJ2,
                         2, 0, interpolatorSettings,
                         initialSimulationTime, finalSimulationTime, 3600.0);
 
-            gravityFieldVariationSettings.push_back( timeVaryingSphericalHarmonicsSettings );
+            gravityFieldVariationSettings.push_back( timeVaryingSphericalHarmonicsSettingsJ2 );
+
+            //J4
+            if (maximumDegreeSunGravitationalMomentVariation >= 4){
+
+                relativity::variableJ4Interface->setAmplitude(amplitudesSunGravitationalMomentsVariation(4));
+                relativity::variableJ4Interface->setPeriod(periodsSunGravitationalMomentsVariation(4));
+                relativity::variableJ4Interface->setPhase(phasesSunGravitationalMomentsVariation(4));
+
+                std::function< double() > amplitudeFunctionJ4 =
+                        std::bind( &relativity::VariableJ4Interface::getAmplitude, relativity::variableJ4Interface );
+                std::function< double() > periodFunctionJ4 =
+                        std::bind( &relativity::VariableJ4Interface::getPeriod, relativity::variableJ4Interface );
+                std::function< double() > phaseFunctionJ4 =
+                        std::bind( &relativity::VariableJ4Interface::getPhase, relativity::variableJ4Interface );
 
 
-    //            for (unsigned int d=2; d<=maximumDegreeSunGravitationalMomentVariation; d+=2){
+                std::function< std::map< double, Eigen::MatrixXd >( ) > tabulatedSphericalHarmonicsCoefficientCorrectionsFunctionJ4 =
+                        std::bind(tabulatedSphericalHarmonicsCoefficientCorrections,
+                                  initialSimulationTime, finalSimulationTime,
+                                  amplitudeFunctionJ4, periodFunctionJ4, phaseFunctionJ4);
 
-    //                std::map< double, Eigen::MatrixXd > cosineCoefficientCorrections =
-    //                        tabulatedSphericalHarmonicsCoefficientCorrections(initialSimulationTime, finalSimulationTime,
-    //                                                                          amplitudesSunGravitationalMomentsVariation(d),
-    //                                                                          periodsSunGravitationalMomentsVariation(d),
-    //                                                                          phasesSunGravitationalMomentsVariation(d));
-    //                std::map< double, Eigen::MatrixXd > sineCoefficientCorrections =
-    //                        zeroTabulatedSphericalHarmonicsCoefficientCorrections(initialSimulationTime, finalSimulationTime);
+                std::map< double, Eigen::MatrixXd > sineCoefficientCorrectionsJ4 =
+                        zeroTabulatedSphericalHarmonicsCoefficientCorrections(initialSimulationTime, finalSimulationTime);
 
-    //                input_output::writeDataMapToTextFile( cosineCoefficientCorrections, "cosineCoefficientCorrectionsJ"+std::to_string(d)+".dat",
-    //                                                      outputSubFolder, "", std::numeric_limits< double >::digits10, std::numeric_limits< double >::digits10, "," );
-    //                input_output::writeDataMapToTextFile( sineCoefficientCorrections, "sineCoefficientCorrectionsJ"+std::to_string(d)+".dat",
-    //                                                      outputSubFolder, "", std::numeric_limits< double >::digits10, std::numeric_limits< double >::digits10, "," );
+                const std::shared_ptr< GravityFieldVariationSettings > timeVaryingSphericalHarmonicsSettingsJ4 =
+                        std::make_shared< TabulatedGravityFieldVariationSettingsWithCosineFunction >(
+                            tabulatedSphericalHarmonicsCoefficientCorrectionsFunctionJ4,
+                            sineCoefficientCorrectionsJ4,
+                            2, 0, interpolatorSettings,
+                            initialSimulationTime, finalSimulationTime, 3600.0);
 
-    //                const std::shared_ptr< GravityFieldVariationSettings > timeVaryingSphericalHarmonicsSettings =
-    //                        std::make_shared< TabulatedGravityFieldVariationSettings >( cosineCoefficientCorrections,
-    //                                                                                    sineCoefficientCorrections,
-    //                                                                                    2, 0, interpolatorSettings,
-    //                                                                                    initialSimulationTime, finalSimulationTime, 3600.0);
+                gravityFieldVariationSettings.push_back( timeVaryingSphericalHarmonicsSettingsJ4 );
+            }
 
-    //                gravityFieldVariationSettings.push_back( timeVaryingSphericalHarmonicsSettings );
-    //            }
 
             bodySettings[ "Sun" ]->gravityFieldVariationSettings = gravityFieldVariationSettings;
         }
@@ -398,10 +420,7 @@ int main( )
                 sunAngularMomentumVectorInSunFrame /
                 (sunGravitationalParameter/physical_constants::GRAVITATIONAL_CONSTANT);
 
-    //    std::cout<<computeRotationMatrixBetweenFrames("ECLIPJ2000","IAU_Sun",initialSimulationTime+100000.0)<<std::endl;
-    //    std::cout<<computeRotationMatrixBetweenFrames("ECLIPJ2000","IAU_Sun",(initialSimulationTime+finalSimulationTime)/2.0)<<std::endl;
-    //    std::cout<<computeRotationMatrixBetweenFrames("ECLIPJ2000","IAU_Sun",finalSimulationTime)<<std::endl;
-
+        std::cout << "creating environment..." << std::endl;
 
         // Create body map
         NamedBodyMap bodyMap = createBodies( bodySettings );
@@ -439,10 +458,12 @@ int main( )
             }
         }
 
+        // Setting all PPN parameters to GR values (if multiple simulations are done in sequence, estmiated parameters are not reset automatically)
         relativity::ppnParameterSet->setParameterGamma(1.0);
         relativity::ppnParameterSet->setParameterBeta(1.0);
         relativity::ppnParameterSet->setParameterAlpha1(0.0);
         relativity::ppnParameterSet->setParameterAlpha2(0.0);
+        relativity::ppnParameterSet->setNordtvedtParameter(0.0);
 
         // Set accelerations between bodies that are to be taken into account (mutual point mass gravity between all bodies).
         SelectedAccelerationMap accelerationMap;
@@ -455,7 +476,7 @@ int main( )
                 {
                     if (bodyNames.at( j ) == "Sun"){
                         currentAccelerations[ bodyNames.at( j ) ].push_back(
-                                    std::make_shared< SphericalHarmonicAccelerationSettings > (maximumDegreeSunGravitationalMomentVariation,0));
+                                    std::make_shared< SphericalHarmonicAccelerationSettings > (maximumDegreeSunGravitationalMoment,0));
 
                         if (calculateSchwarzschildCorrection || calculateLenseThirringCorrection || calculateDeSitterCorrection){
                             currentAccelerations[ bodyNames.at( j ) ].push_back(
@@ -470,7 +491,7 @@ int main( )
                         if (includeSEPViolationAcceleration == true){
                             currentAccelerations[ bodyNames.at( j ) ].push_back(
                                         std::make_shared< SEPViolationAccelerationSettings >(
-                                            bodyNames, useNordtvedtConstraint));
+                                            bodyNames, nordtvedtConstraintTrueOrFalse, ignoreNordtvedtConstraintInEstimation));
                         }
 
                         if (includeTVGPAcceleration == true){
@@ -512,7 +533,7 @@ int main( )
 
         dependentVariablesList.push_back(
                     std::make_shared< SphericalHarmonicAccelerationTermsDependentVariableSaveSettings >(
-                    "Mercury", "Sun", maximumDegreeSunGravitationalMomentVariation, 0 ) );
+                    "Mercury", "Sun", maximumDegreeSunGravitationalMoment, 0 ) );
 
         if (calculateSchwarzschildCorrection){
             dependentVariablesList.push_back(
@@ -726,6 +747,9 @@ int main( )
                     std::numeric_limits< double >::digits10,
                     "," );
 
+        // clear memory
+        allBodiesPropagationHistory.clear();
+        dependentVariablesHistory.clear();
 
 
         ////////////////////////////
@@ -834,9 +858,8 @@ int main( )
 
         }
 
-
-
-
+        // clear memory
+        allBodiesBackwardPropagationHistory.clear();
 
 
 
@@ -895,17 +918,18 @@ int main( )
 
 
 
-
         /////////////////////////////////////
         //// CREATE OBSERVATION SETTINGS ////
         /////////////////////////////////////
 
         std::cout << "creating observation settings..." << std::endl;
 
-        std::vector< std::string > lightTimePerturbingBodies = { "Sun" };
         std::vector< std::shared_ptr< LightTimeCorrectionSettings > > lightTimeCorrectionSettings;
-        lightTimeCorrectionSettings.push_back( std::make_shared< FirstOrderRelativisticLightTimeCorrectionSettings >(
-                                                   lightTimePerturbingBodies ) );
+        if (includeLightTimeCorrections){
+            std::vector< std::string > lightTimePerturbingBodies = { "Sun" };
+            lightTimeCorrectionSettings.push_back( std::make_shared< FirstOrderRelativisticLightTimeCorrectionSettings >(
+                                                       lightTimePerturbingBodies ) );
+        }
 
         observation_models::ObservationSettingsMap observationSettingsMap;
 
@@ -922,9 +946,6 @@ int main( )
                                                                std::make_shared< ObservationSettings >( currentObservable, lightTimeCorrectionSettings ) ) );
             }
         }
-
-
-
 
 
 
@@ -960,6 +981,10 @@ int main( )
         }
 
 
+        bool gammaIsEstimated = false;
+        bool betaIsEstimated = false;
+        bool nordtvedtParameterIsEstimated = false;
+
         // relativistic parameters
         if (calculateSchwarzschildCorrection == true
             || includeSEPViolationAcceleration == true){
@@ -968,20 +993,27 @@ int main( )
                 parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                          ("global_metric", ppn_parameter_gamma ) );
                 varianceVector.push_back(sigmaGamma*sigmaGamma);
+                gammaIsEstimated = true;
             }
 
 
             parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                      ("global_metric", ppn_parameter_beta ) );
             varianceVector.push_back(sigmaBeta*sigmaBeta);
+            betaIsEstimated = true;
         }
 
         // Nordtvedt parameter
-        if (includeSEPViolationAcceleration == true && useNordtvedtConstraint == false){
+        int nordtvedtParameterIndex = -1;
+        if (includeSEPViolationAcceleration &&
+                (nordtvedtConstraintTrueOrFalse == false || ignoreNordtvedtConstraintInEstimation == false)){
             parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                      ("global_metric", ppn_nordtvedt_parameter ) );
             varianceVector.push_back(sigmaNordtvedt*sigmaNordtvedt);
+            nordtvedtParameterIsEstimated = true;
+            nordtvedtParameterIndex = varianceVector.size()-1;
         }
+
 
         if (estimatePPNalphas == true){
             parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
@@ -1005,9 +1037,8 @@ int main( )
                                  ("Sun", gravitational_parameter));
         varianceVector.push_back(sigmaSunGM*sigmaSunGM);
 
-
         // time varying J2 Sun
-        double variableJ2parametersVariance = 0.5; //sigma taken as a percentage of the mean
+        double variableJ2parametersVariance = 1.0; //sigma taken as a percentage of the mean
         if (estimateJ2Amplitude){
             parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                      ("Sun", variable_J2_amplitude));
@@ -1027,16 +1058,36 @@ int main( )
             varianceVector.push_back(sigmaJ2Phase*sigmaJ2Phase);
         }
 
+        // time varying J4 Sun
+        double variableJ4parametersVariance = 1.0; //sigma taken as a percentage of the mean
+        if (estimateJ4Amplitude){
+            parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                     ("Sun", variable_J4_amplitude));
+            double sigmaJ4Amplitude = variableJ4parametersVariance * relativity::variableJ4Interface->getAmplitude();
+            varianceVector.push_back(sigmaJ4Amplitude*sigmaJ4Amplitude);
+        }
+        if (estimateJ4Period){
+            parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                     ("Sun", variable_J4_period));
+            double sigmaJ4Period = variableJ4parametersVariance * relativity::variableJ4Interface->getPeriod();
+            varianceVector.push_back(sigmaJ4Period*sigmaJ4Period);
+        }
+        if (estimateJ4Phase){
+            parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                     ("Sun", variable_J4_phase));
+            double sigmaJ4Phase = variableJ4parametersVariance * relativity::variableJ4Interface->getPhase();
+            varianceVector.push_back(sigmaJ4Phase*sigmaJ4Phase);
+        }
 
-        // conventional J2 (always needs to be last)
+
+        // conventional spherical harmonics (always needs to be last estimatable parameter)
         std::vector< std::pair< int, int > > blockIndices;
-        for (unsigned int d=2; d<=maximumDegreeSunGravitationalMomentVariation; d+=2){
+        for (unsigned int d=2; d<=maximumDegreeSunGravitationalMoment; d+=2){
             blockIndices.push_back(std::make_pair(d,0));
             varianceVector.push_back(sigmaValuesSunGravitationalMoments(d)*sigmaValuesSunGravitationalMoments(d));
         }
         parameterNames.push_back(std::make_shared<SphericalHarmonicEstimatableParameterSettings>
                                  (blockIndices,"Sun",spherical_harmonics_cosine_coefficient_block));
-
 
         // Create parameters
         std::shared_ptr< estimatable_parameters::EstimatableParameterSet< double > > parametersToEstimate =
@@ -1044,6 +1095,16 @@ int main( )
 
         // Print identifiers and indices of parameters to terminal
         printEstimatableParameterEntries( parametersToEstimate );
+
+
+        // If gamma, beta, eta, are estimatable parameters and nordtvedt constraint is set to true, enforce it in the estimation
+        bool enforceNordtvedtConstraintInEstimation = false;
+        if ( (gammaIsEstimated || gammaIsAConsiderParameter )
+            && betaIsEstimated && nordtvedtParameterIsEstimated
+            && nordtvedtConstraintTrueOrFalse
+            && ignoreNordtvedtConstraintInEstimation == false){
+            enforceNordtvedtConstraintInEstimation = true;
+        }
 
 
         ////////////////////////////////////////
@@ -1068,6 +1129,10 @@ int main( )
 
 
         // generate list of observations
+        if (observationReductionFactor > 1){
+            std::cout<<"WARNING: amount of observations is being reduced by a factor "<<observationReductionFactor<<std::endl;
+        }
+
         std::vector< double > baseTimeList;
         std::vector< std::vector< double > > seperateBaseTimeLists;
         for( unsigned int m = 0; m < numberOfMissions; m++ ){
@@ -1075,7 +1140,7 @@ int main( )
             std::vector< double > currentMissionBaseTimeList =
                     makeObservationTimeList(observationInitialTimeVector.at(m),
                                             observationFinalTimeVector.at(m),
-                                            observationTimeStepVector.at(m),
+                                            observationTimeStepVector.at(m)*observationReductionFactor,
                                             trackingArcDurationVector.at(m),
                                             maximumNumberOfTrackingDaysVector.at(m),
                                             unit_conversions::convertDegreesToRadians(maxMSEAngleDegVector.at(m)),
@@ -1288,11 +1353,17 @@ int main( )
             parameterPerturbation.segment(i*6+3,3) = Eigen::Vector3d::Constant( 0.001 );
         }
 
+        // perturb eta slightly to prevent partials from being 0 due to which the estimation is unable to estimate eta
+        if (nordtvedtParameterIndex >= 0){
+            parameterPerturbation(nordtvedtParameterIndex) = 1.0E-10;
+        }
+
         initialParameterEstimate += parameterPerturbation;
 
         std::cout << "True parameter values:" << std::endl;
         std::cout << truthParameters.transpose() << std::endl;
-
+        std::cout << "Parameter perturbations:" << std::endl;
+        std::cout << parameterPerturbation.transpose() << std::endl;
         std::cout << "Initial guesses:" << std::endl;
         std::cout << initialParameterEstimate.transpose() << std::endl;
 
@@ -1314,8 +1385,14 @@ int main( )
                     observationsAndTimes, initialParameterEstimate.rows( ),
                     inverseOfAprioriCovariance,
                     initialParameterEstimate - truthParameters );
-        podInput->defineEstimationSettings( true, reintegrateVariationalEquations, true, true, true, true );
+        podInput->defineEstimationSettings( true,
+                                            reintegrateVariationalEquations,
+                                            true, true, true, true,
+                                            enforceNordtvedtConstraintInEstimation );
         podInput->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
+
+        // clear memory
+        observationWeightsAndTimes.clear();
 
         // Perform estimation
         std::shared_ptr< PodOutput< double > > podOutput = orbitDeterminationManager.estimateParameters(
@@ -1331,6 +1408,46 @@ int main( )
                      ( podOutput->getFormalErrorVector( ).cwiseQuotient( estimationError ) ).transpose( ) << std::endl;
 
 
+        std::cout<< "writing output to files that is not needed for the next steps..." << std::endl;
+
+        // errors
+        input_output::writeMatrixToFile( truthParameters, "TruthParameters.dat", 16, outputSubFolder );
+        input_output::writeMatrixToFile( estimationError, "ObservationTrueEstimationError.dat", 16, outputSubFolder );
+        input_output::writeMatrixToFile( formalError, "ObservationFormalEstimationError.dat", 16, outputSubFolder );
+
+        // residuals, parameters
+        input_output::writeMatrixToFile( podOutput->residuals_, "EstimationResiduals.dat", 16, outputSubFolder );
+        input_output::writeMatrixToFile( podOutput->getResidualHistoryMatrix( ), "ResidualHistory.dat", 16, outputSubFolder );
+        input_output::writeMatrixToFile( podOutput->getParameterHistoryMatrix( ), "ParameterHistory.dat", 16, outputSubFolder );
+        input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ), "EstimationCorrelations.dat", 16, outputSubFolder );
+
+        // dependent variables
+        std::map< double, Eigen::VectorXd > dependentVariablesHistoryFinalIteration;
+        std::vector< std::map< double, Eigen::VectorXd > > dependentVariablesHistoryFinalIterationAllArcs =
+                podOutput->dependentVariableHistoryFinalIteration_;
+
+        if (useMultipleMercuryArcs){
+            for (unsigned int a=0; a<dependentVariablesHistoryFinalIterationAllArcs.size(); a++){
+                std::map< double, Eigen::VectorXd > dependentVariablesHistoryCurrentArc = dependentVariablesHistoryFinalIterationAllArcs.at(a);
+                if (dependentVariablesHistoryFinalIteration.size() == 0){
+                    dependentVariablesHistoryFinalIteration = dependentVariablesHistoryCurrentArc;
+                } else{
+                    std::map< double, Eigen::VectorXd >::iterator it = dependentVariablesHistoryCurrentArc.begin();
+                    while (it != dependentVariablesHistoryCurrentArc.end()){
+                        dependentVariablesHistoryFinalIteration.insert(std::make_pair(it->first, it->second));
+                        it++;
+                    }
+                }
+            }
+        } else{
+            dependentVariablesHistoryFinalIteration = dependentVariablesHistoryFinalIterationAllArcs.at(0);
+        }
+
+        input_output::writeDataMapToTextFile(
+                    onlyEveryXthValueFromDataMap(dependentVariablesHistoryFinalIteration,10), "DependentVariablesHistoryFinalIteration.dat",
+                    outputSubFolder, "", std::numeric_limits< double >::digits10, std::numeric_limits< double >::digits10, "," );
+
+
         /////////////////////////////
         //// CONSIDER PARAMETERS ////
         /////////////////////////////
@@ -1342,6 +1459,10 @@ int main( )
         Eigen::MatrixXd considerCovarianceMatrix;
         unsigned int maxcovtype = 1;
 
+        // clear memory
+        podOutput = nullptr;
+
+        // start consider covariance analysis
         if (gammaIsAConsiderParameter || ppnAlphasAreConsiderParameters){
 
             std::cout<< "calculating covariance due to consider parameters..."<< std::endl;
@@ -1440,11 +1561,11 @@ int main( )
         }
 
 
+
         /////////////////////////////////////////////
         //// PROVIDE OUTPUT TO CONSOLE AND FILES ////
         /////////////////////////////////////////////
 
-        std::cout<< "provide output..." << std::endl;
 
         // propagate according to integration history. earlier result is separated here as the times are needed on their own.
         std::vector<double> fullStateHistoryTimes;
@@ -1457,6 +1578,9 @@ int main( )
         }
 
         // Propagate covariance matrix (twice, both with and without the consider parameters included in the covariance)
+        std::map< double, Eigen::MatrixXd > propagatedCovariance;
+        std::map<double, Eigen::Vector6d> propagatedErrorUsingCovMatrix;
+        std::map<double, Eigen::Vector6d> propagatedRSWErrorUsingCovMatrix;
 
         for (unsigned int covtype = 0; covtype<maxcovtype; covtype++){
 
@@ -1472,7 +1596,6 @@ int main( )
                 saveString = "Consider";
             }
 
-            std::map< double, Eigen::MatrixXd > propagatedCovariance;
             propagateCovariance(propagatedCovariance, initialCovariance,
                                 orbitDeterminationManager.getStateTransitionAndSensitivityMatrixInterface( ),
                                 fullStateHistoryTimes);
@@ -1480,8 +1603,7 @@ int main( )
                                 //60.0, initialEphemerisTime + 3600.0, finalEphemerisTime - 3600.0 );
 
             std::map<double, double> trueAnomalyMap;
-            std::map<double, Eigen::Vector6d> propagatedErrorUsingCovMatrix;
-            std::map<double, Eigen::Vector6d> propagatedRSWErrorUsingCovMatrix;
+
 
             std::map<double, Eigen::MatrixXd>::iterator it = propagatedCovariance.begin();
 
@@ -1521,26 +1643,21 @@ int main( )
                                                                                "propagatedErrorUsing"+saveString+"CovMatrix.dat", outputSubFolder );
             input_output::writeDataMapToTextFile( onlyEveryXthValueFromDataMap(propagatedRSWErrorUsingCovMatrix,10),
                                                   "propagatedRSWErrorUsing"+saveString+"CovMatrix.dat", outputSubFolder );
+
+            // clear memory
+            propagatedCovariance.clear();
+            propagatedErrorUsingCovMatrix.clear();
+            propagatedRSWErrorUsingCovMatrix.clear();
+
         }
 
         // Save data in files
         std::cout<<"writing output to files..."<<std::endl;
 
-        // errors
-        input_output::writeMatrixToFile( truthParameters, "TruthParameters.dat", 16, outputSubFolder );
-        input_output::writeMatrixToFile( estimationError, "ObservationTrueEstimationError.dat", 16, outputSubFolder );
-        input_output::writeMatrixToFile( formalError, "ObservationFormalEstimationError.dat", 16, outputSubFolder );
-
-        // residuals, parameters
-        input_output::writeMatrixToFile( podOutput->residuals_, "EstimationResiduals.dat", 16, outputSubFolder );
-        input_output::writeMatrixToFile( podOutput->getResidualHistoryMatrix( ), "ResidualHistory.dat", 16, outputSubFolder );
-        input_output::writeMatrixToFile( podOutput->getParameterHistoryMatrix( ), "ParameterHistory.dat", 16, outputSubFolder );
-
         // covariance and correlation
         input_output::writeMatrixToFile( considerCovarianceMatrix, "ConsiderCovarianceMatrix.dat", 16, outputSubFolder );
         input_output::writeMatrixToFile( initialCovarianceMatrix, "InitialCovarianceMatrix.dat", 16, outputSubFolder );
         input_output::writeMatrixToFile( observationWeightDiagonal, "ObservationWeightDiagonal.dat", 16, outputSubFolder );
-        input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ), "EstimationCorrelations.dat", 16, outputSubFolder );
 
     //        input_output::writeMatrixToFile( unnormalizedPartialDerivatives, "test_unnormalizedPartialDerivatives.dat", 16, outputSubFolder );
     //        input_output::writeMatrixToFile( partialDerivativesOfConsiderParameters, "test_partialDerivativesOfConsiderParameters.dat", 16, outputSubFolder );
@@ -1550,7 +1667,6 @@ int main( )
     //        input_output::writeMatrixToFile( podInput->getInverseOfAprioriCovariance( ), "InverseAPrioriCovariance.dat", 16, outputSubFolder );
     //        input_output::writeMatrixToFile( podOutput->inverseNormalizedCovarianceMatrix_, "InverseNormalizedCovariance.dat", 16, outputSubFolder );
     //        input_output::writeMatrixToFile( podOutput->getUnnormalizedCovarianceMatrix( ), "UnnormalizedCovariance.dat", 16, outputSubFolder );
-
 
         // observations
         input_output::writeDataMapToTextFile( interpolatedErrorMatrix, "interpolatedErrorMatrix.dat", outputSubFolder );
@@ -1563,32 +1679,6 @@ int main( )
                                          "ObservationObservableTypes.dat", 16, outputSubFolder );
         input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
                                          "ObservationMeasurements.dat", 16, outputSubFolder );
-
-        // dependent variables
-        std::map< double, Eigen::VectorXd > dependentVariablesHistoryFinalIteration;
-        std::vector< std::map< double, Eigen::VectorXd > > dependentVariablesHistoryFinalIterationAllArcs =
-                podOutput->dependentVariableHistoryFinalIteration_;
-
-        if (useMultipleMercuryArcs){
-            for (unsigned int a=0; a<dependentVariablesHistoryFinalIterationAllArcs.size(); a++){
-                std::map< double, Eigen::VectorXd > dependentVariablesHistoryCurrentArc = dependentVariablesHistoryFinalIterationAllArcs.at(a);
-                if (dependentVariablesHistoryFinalIteration.size() == 0){
-                    dependentVariablesHistoryFinalIteration = dependentVariablesHistoryCurrentArc;
-                } else{
-                    std::map< double, Eigen::VectorXd >::iterator it = dependentVariablesHistoryCurrentArc.begin();
-                    while (it != dependentVariablesHistoryCurrentArc.end()){
-                        dependentVariablesHistoryFinalIteration.insert(std::make_pair(it->first, it->second));
-                        it++;
-                    }
-                }
-            }
-        } else{
-            dependentVariablesHistoryFinalIteration = dependentVariablesHistoryFinalIterationAllArcs.at(0);
-        }
-
-        input_output::writeDataMapToTextFile(
-                    onlyEveryXthValueFromDataMap(dependentVariablesHistoryFinalIteration,10), "DependentVariablesHistoryFinalIteration.dat",
-                    outputSubFolder, "", std::numeric_limits< double >::digits10, std::numeric_limits< double >::digits10, "," );
 
         std::cout << "done!" << std::endl;
 

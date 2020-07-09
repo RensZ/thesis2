@@ -143,6 +143,7 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input):
         #### PART 2: PRINT FORMAL ERRORS
 
         parameters2 = []
+        trueErrors = []
         aPrioriSigmas = []
         outputFormalSigmas = []
         factorOfImprovement = []
@@ -152,6 +153,7 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input):
         for i in range(6 * no_bodies, len(parameters)):
             p = parameters[i]
             parameters2.append(p)
+            trueErrors.append(data[i,-1] - truth[i])
 
             if p == "J2_Sun":
                 K = Knm(2,0)
@@ -216,17 +218,21 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input):
             aPrioriSigmas.append(aps)
             ratioFormalSigmas.append(nordtvedtFormalError / fs)
             parameters2.append("NordtvedtEq")
+            trueErrors.append(0.0-nordtvedt[-1])
 
-
+        trueToFormalRatio = np.abs(np.asarray(trueErrors)/np.asarray(outputFormalSigmas))
         df = pd.DataFrame(data={"parameter":parameters2,
-                                "apriori":aPrioriSigmas,
-                                "estimation":outputFormalSigmas,
-                                "improvement":factorOfImprovement,
-                                "publication":paperFormalSigmas,
-                                "ratio e/p":ratioFormalSigmas})
+                                "apriori er.":aPrioriSigmas,
+                                "true er.":trueErrors,
+                                "formal er.":outputFormalSigmas,
+                                "t/f ratio":trueToFormalRatio,
+                                "f/a improvement":factorOfImprovement,
+                                "paper formal er.":paperFormalSigmas,
+                                "f/p ratio":ratioFormalSigmas})
 
-        df['improvement'] = df['improvement'].map(lambda x: '{0:.2f}'.format(x))
-        df['ratio e/p'] = df['ratio e/p'].map(lambda x: '{0:.3f}'.format(x))
+        df['f/a improvement'] = df['f/a improvement'].map(lambda x: '{0:.2f}'.format(x))
+        df['t/f ratio'] = df['t/f ratio'].map(lambda x: '{0:.2f}'.format(x))
+        df['f/p ratio'] = df['f/p ratio'].map(lambda x: '{0:.3f}'.format(x))
 
         df.to_latex(dir_plots + 'formal_errors'+savestring+'.txt', header=True, index=True, float_format="%.2e")
         with pd.option_context('display.max_rows', None,

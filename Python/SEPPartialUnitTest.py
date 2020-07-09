@@ -152,23 +152,23 @@ da = SEPcorrection(mu_S, r_S, r_M, dr_SEP)
 # print("partial - central difference wrt position: \n", partial_pos-cd_pos)
 
 
-# p_mu = Decimal(1E19)
-# cd_mu = CentralDifferenceWrtMu(p_mu, mu_S, r_S, r_M, dr_SEP)
-# partial_mu = PartialWrtMu(mu_S, r_S, r_M, dr_SEP, da)
+p_mu = Decimal(1E19)
+cd_mu = CentralDifferenceWrtMu(p_mu, mu_S, r_S, r_M, dr_SEP)
+partial_mu = PartialWrtMu(mu_S, r_S, r_M, dr_SEP, da)
+
+print("central difference wrt mu: \n", cd_mu)
+print("partial wrt mu: \n", partial_mu)
+print("partial - central difference wrt mu: \n", partial_mu-cd_mu)
+
+
+# p_eta = Decimal(1.0E-4)
+# eta = Decimal(1.0E-3)
+# cd_eta = CentralDifferenceWrtEta(p_eta, mu_S, r_S, r_M, dr_SEP, eta)
+# partial_eta = PartialWrtEta(mu_S, r_S, r_M, dr_SEP, eta)
 #
-# print("central difference wrt mu: \n", cd_mu)
-# print("partial wrt mu: \n", partial_mu)
-# print("partial - central difference wrt mu: \n", partial_mu-cd_mu)
-
-
-p_eta = Decimal(1.0E-4)
-eta = Decimal(1.0E-3)
-cd_eta = CentralDifferenceWrtEta(p_eta, mu_S, r_S, r_M, dr_SEP, eta)
-partial_eta = PartialWrtEta(mu_S, r_S, r_M, dr_SEP, eta)
-
-print("central difference wrt eta: \n", cd_eta)
-print("partial wrt eta: \n", partial_eta)
-print("partial - central difference wrt eta: \n", partial_eta-cd_eta)
+# print("central difference wrt eta: \n", cd_eta)
+# print("partial wrt eta: \n", partial_eta)
+# print("partial - central difference wrt eta: \n", partial_eta-cd_eta)
 
 
 

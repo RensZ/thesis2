@@ -12,6 +12,9 @@
     "estimateJ2Amplitude": false,
     "estimateJ2Period": false,
     "estimateJ2Phase": false,
+    "estimateJ4Amplitude": false,
+    "estimateJ4Period": false,
+    "estimateJ4Phase": false,
 
     "sunJ2": 2.3E-7,
     "sunJ4": -4.34E-9,
