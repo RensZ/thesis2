@@ -10,6 +10,7 @@
     "estimateJ2Amplitude": false,
     "estimateJ2Period": false,
     "estimateJ2Phase": false,
+
     "estimateJ4Amplitude": false,
     "estimateJ4Period": false,
     "estimateJ4Phase": false,
@@ -22,10 +23,12 @@
     "timeVaryingGravitationalParameter": 0.0,
 
     "useNordtvedtConstraint": true,
+    "estimateSunAngularMomentum": false,
     "estimatePPNalphas": false,
     "gammaIsAConsiderParameter": false,
     "ppnAlphasAreConsiderParameters": true,
 
+    "sigma_S_Sun": 1.5E39,
     "sigma_gamma": 2.3E-5,
     "sigma_beta": 6.9E-5,
     "sigma_alpha1": 6.0E-6,
@@ -38,6 +41,7 @@
 
     "outputSubFolderName": "MESSENGER_and_BepiColombo",
 
+    "formalSigma_S_Sun": 1.5E39,
     "formalSigma_beta": 1.8E-5,
     "formalSigma_gamma": 2.3E-5,
     "formalSigma_Nordtvedt": 7.2E-5,

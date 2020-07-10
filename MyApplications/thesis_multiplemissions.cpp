@@ -96,6 +96,7 @@ int main( )
     solarMinimumDatetime << 2008, 12, 15, 0, 0, 0;
     const double solarMinimumEpoch = secondsAfterJ2000(solarMinimumDatetime);
     const double solarCycleDuration = 11.0*physical_constants::JULIAN_YEAR;
+    const double solarDay = 25.38*physical_constants::JULIAN_DAY; //carrington sidereal rotation period
 
 
     ////////////////////////
@@ -139,7 +140,7 @@ int main( )
         const double sunAngularMomentum = json_input["sunAngularMomentum"];
         const double sunGravitationalParameter = json_input["sunGravitationalParameter"];
         const double timeVaryingGravitationalParameter = json_input["timeVaryingGravitationalParameter"];
-
+        const double sigmaSunAngularMomentum = json_input["sigma_S_Sun"];
         const double sigmaGamma = json_input["sigma_gamma"];
         const double sigmaBeta = json_input["sigma_beta"];
         const double sigmaAlpha1 = json_input["sigma_alpha1"];
@@ -158,11 +159,18 @@ int main( )
         const double sigmaSunJ4 = unnormalisedSigmaSunJ4 / calculateLegendreGeodesyNormalizationFactor(4,0);
 
         // Parameter settings
-        const bool nordtvedtConstraintTrueOrFalse = json_input["useNordtvedtConstraint"];
-        const bool estimatePPNalphas = json_input["estimatePPNalphas"];
-        bool ppnAlphasAreConsiderParameters = false;
-        if (estimatePPNalphas == false){ ppnAlphasAreConsiderParameters = true; };
         const bool gammaIsAConsiderParameter = json_input["gammaIsAConsiderParameter"];
+        const bool nordtvedtConstraintTrueOrFalse = json_input["useNordtvedtConstraint"];
+
+        const bool estimateSunAngularMomentum = json_input["estimateSunAngularMomentum"];
+        bool considerSunAngularMomentum = false;
+        if (estimateSunAngularMomentum == false){ considerSunAngularMomentum = true; };
+        const bool estimatePPNalphas = json_input["estimatePPNalphas"];
+
+        bool considerPPNalphas = false;
+        if (estimatePPNalphas == false){ considerPPNalphas = true; };
+
+
 
         // Location of simulation output
         std::string outputSubFolderName = json_input["outputSubFolderName"];
@@ -274,7 +282,13 @@ int main( )
                 (estimateJ2Amplitude || estimateJ2Period || estimateJ2Phase || estimateJ4Amplitude || estimateJ4Period || estimateJ4Phase)){
             std::runtime_error("cannot estimate time varying gravitational parameters when includeTimeVaryingGravitationalMoments is set to false");
         }
-        if ((estimatePPNalphas) && (ppnAlphasAreConsiderParameters)){
+        if ((calculateLenseThirringCorrection == false) && (estimateSunAngularMomentum)){
+            std::runtime_error("cannot estimate sun angular momentum when lense thirring acceleration is not calculated");
+        }
+        if ((estimateSunAngularMomentum) && (considerSunAngularMomentum)){
+            std::runtime_error("ppn alphas cannot both be estimatable parameters and consider parameters");
+        }
+        if ((estimatePPNalphas) && (considerPPNalphas)){
             std::runtime_error("ppn alphas cannot both be estimatable parameters and consider parameters");
         }
         if ((estimateJ4Amplitude || estimateJ4Period || estimateJ4Phase)
@@ -340,6 +354,22 @@ int main( )
         bodySettings[ "Sun" ] -> gravityFieldSettings = std::make_shared< SphericalHarmonicsGravityFieldSettings >(
                     sunGravitationalParameter, sunRadius,
                     normalizedCosineCoefficients, normalizedSineCoefficients, "IAU_Sun" );
+
+        // angular momentum
+//        const Eigen::Vector3d sunAngularMomentumVectorInSunFrame(0.0, 0.0, sunAngularMomentum);
+//        const Eigen::Vector3d sunAngularMomentumVectorPerUnitMassInSunFrame =
+//                sunAngularMomentumVectorInSunFrame /
+//                (sunGravitationalParameter/physical_constants::GRAVITATIONAL_CONSTANT);
+//        const double sunAngularMomentumPerUnitMass =
+//                sunAngularMomentum / (sunGravitationalParameter/physical_constants::GRAVITATIONAL_CONSTANT);
+
+
+        bodySettings[ "Sun" ]->rotationModelSettings = std::make_shared< SimpleRotationModelSettings >(
+                    "ECLIPJ2000", "IAU_Sun",
+                    spice_interface::computeRotationQuaternionBetweenFrames("ECLIPJ2000", "IAU_Sun", initialSimulationTime ),
+                    initialSimulationTime, 2.0 * mathematical_constants::PI / solarDay,
+                    sunAngularMomentum );
+
 
 
         // Time varying spherical harmonics coefficients Sun
@@ -414,11 +444,7 @@ int main( )
             bodySettings[ "Sun" ]->gravityFieldVariationSettings = gravityFieldVariationSettings;
         }
 
-        // Prepare angular momentum vector Sun
-        const Eigen::Vector3d sunAngularMomentumVectorInSunFrame(0.0, 0.0, sunAngularMomentum);
-        const Eigen::Vector3d sunAngularMomentumVectorPerUnitMassInSunFrame =
-                sunAngularMomentumVectorInSunFrame /
-                (sunGravitationalParameter/physical_constants::GRAVITATIONAL_CONSTANT);
+
 
         std::cout << "creating environment..." << std::endl;
 
@@ -465,6 +491,12 @@ int main( )
         relativity::ppnParameterSet->setParameterAlpha2(0.0);
         relativity::ppnParameterSet->setNordtvedtParameter(0.0);
 
+//        std::shared_ptr< ephemerides::RotationalEphemeris > sunRotationalEphemeris
+//                = bodyMap.at("Sun")->getRotationalEphemeris();
+//        Eigen::Matrix3d localSunFrameToGlobalFrame =
+//                sunRotationalEphemeris->getRotationToTargetFrame(initialSimulationTime).normalized().toRotationMatrix();
+
+
         // Set accelerations between bodies that are to be taken into account (mutual point mass gravity between all bodies).
         SelectedAccelerationMap accelerationMap;
         for( unsigned int i = 0; i < numberOfNumericalBodies; i++ )
@@ -483,9 +515,7 @@ int main( )
                                         std::make_shared< RelativisticAccelerationCorrectionSettings >(
                                             calculateSchwarzschildCorrection,
                                             calculateLenseThirringCorrection,
-                                            calculateDeSitterCorrection,
-                                            "",
-                                            sunAngularMomentumVectorPerUnitMassInSunFrame));
+                                            calculateDeSitterCorrection));
                         }
 
                         if (includeSEPViolationAcceleration == true){
@@ -1025,6 +1055,14 @@ int main( )
             varianceVector.push_back(sigmaAlpha2*sigmaAlpha2);
         }
 
+        // angular momentum
+        if (calculateLenseThirringCorrection && estimateSunAngularMomentum){
+            parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                     ("Sun", angular_momentum));
+            varianceVector.push_back(sigmaSunAngularMomentum*sigmaSunAngularMomentum);
+        }
+
+
         // time varying gravitational parameter
         if (includeTVGPAcceleration == true){
             parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
@@ -1391,9 +1429,6 @@ int main( )
                                             enforceNordtvedtConstraintInEstimation );
         podInput->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
 
-        // clear memory
-        observationWeightsAndTimes.clear();
-
         // Perform estimation
         std::shared_ptr< PodOutput< double > > podOutput = orbitDeterminationManager.estimateParameters(
                     podInput, std::make_shared< EstimationConvergenceChecker >( maximumNumberOfIterations ) );
@@ -1463,7 +1498,7 @@ int main( )
         podOutput = nullptr;
 
         // start consider covariance analysis
-        if (gammaIsAConsiderParameter || ppnAlphasAreConsiderParameters){
+        if (gammaIsAConsiderParameter || considerPPNalphas || considerSunAngularMomentum){
 
             std::cout<< "calculating covariance due to consider parameters..."<< std::endl;
 
@@ -1495,6 +1530,12 @@ int main( )
                 considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                          ("global_metric", ppn_parameter_gamma ) );
                 considerVarianceVector.push_back(sigmaGamma*sigmaGamma);
+            }
+
+            if ( calculateLenseThirringCorrection && considerSunAngularMomentum ){
+                parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                         ("Sun", angular_momentum));
+                varianceVector.push_back(sigmaSunAngularMomentum*sigmaSunAngularMomentum);
             }
 
             considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >

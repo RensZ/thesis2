@@ -23,6 +23,7 @@
     "nordtvedtParameter": 0.0,
     "timeVaryingGravitationalParameter": 0.0,
 
+    "sigma_S_Sun": 1.5E39,
     "sigma_gamma": 2.0E-6,
     "sigma_beta": 1.1E-4,
     "sigma_alpha1": 6.0E-6,
@@ -34,6 +35,7 @@
     "sigma_TVGP": 4.1E-14,
 
     "useNordtvedtConstraint": true,
+    "estimateSunAngularMomentum": false,
     "estimatePPNalphas": false,
     "gammaIsAConsiderParameter": false,
     "ppnAlphasAreConsiderParameters": true,
@@ -56,6 +58,7 @@
 
     "outputSubFolderName": "Schettino2015",
 
+    "formalSigma_S_Sun": 1.5E39,
     "formalSigma_beta": 3.8E-7,
     "formalSigma_gamma": 8.9E-7,
     "formalSigma_Nordtvedt": 2.0E-6,
@@ -63,5 +66,8 @@
     "formalSigma_alpha2": 6.9E-8,
     "formalSigma_mu_Sun": 4.0E7,
     "formalSigma_J2_Sun": 3.7E-10,
-    "formalSigma_TVGP": 2.0E-14
+    "formalSigma_TVGP": 2.0E-14,
+
+    "sigma_J4_A": 0.06E-9,
+    "formalSigma_J4_A": 0.06E-9
 }

@@ -62,6 +62,16 @@
     "formalSigma_alpha2": 1.3E-7,
     "formalSigma_mu_Sun": 5.3E7,
     "formalSigma_J2_Sun": 5.5E-10,
-    "formalSigma_TVGP": 2.8E-14
+    "formalSigma_TVGP": 2.8E-14,
+
+    "estimateSunAngularMomentum": false,
+    "sigma_S_Sun": 1.5E39,
+    "formalSigma_S_Sun": 1.5E39,
+
+    "estimateJ4Amplitude": false,
+    "estimateJ4Period": false,
+    "estimateJ4Phase": false,
+    "sigma_J4_A": 0.06E-9,
+    "formalSigma_J4_A": 0.06E-9
 
 }

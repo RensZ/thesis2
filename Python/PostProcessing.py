@@ -10,7 +10,7 @@ Purpose: wrapper file for all the post-processing of thesis_v1.cpp
 #### INPUTS ####
 ################
 
-publication_string = ["MESSENGER_and_BepiColombo",
+publication_string = [#"MESSENGER_and_BepiColombo",
                       #"MESSENGER_and_BepiColombo_timevariableJ2",
                       "Genova2018",
                       "Imperi2018_nvtrue_flybys_alphas",
@@ -90,6 +90,9 @@ for ps in publication_string:
     if json_input["estimatePPNalphas"]:
         parameters.append("alpha1")
         parameters.append("alpha2")
+
+    if json_input["calculateLenseThirringCorrection"] and json_input["estimateSunAngularMomentum"]:
+        parameters.append("S_Sun")
 
     if json_input["includeTVGPAcceleration"]:
         parameters.append("TVGP")
