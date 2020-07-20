@@ -10,8 +10,8 @@ Purpose: wrapper file for all the post-processing of thesis_v1.cpp
 #### INPUTS ####
 ################
 
-publication_string = [#"MESSENGER_and_BepiColombo",
-                      #"MESSENGER_and_BepiColombo_timevariableJ2",
+publication_string = ["MESSENGER_and_BepiColombo",
+                      "MESSENGER_and_BepiColombo_timevariableJ2",
                       "Genova2018",
                       "Imperi2018_nvtrue_flybys_alphas",
                       "Imperi2018_nvtrue_flybys",

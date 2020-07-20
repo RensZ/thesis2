@@ -778,7 +778,7 @@ int main( )
                     "," );
 
         // clear memory
-        allBodiesPropagationHistory.clear();
+//        allBodiesPropagationHistory.clear();
         dependentVariablesHistory.clear();
 
 
@@ -1532,10 +1532,11 @@ int main( )
                 considerVarianceVector.push_back(sigmaGamma*sigmaGamma);
             }
 
+            std::cout<<calculateLenseThirringCorrection<<considerSunAngularMomentum<<std::endl;
             if ( calculateLenseThirringCorrection && considerSunAngularMomentum ){
-                parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                          ("Sun", angular_momentum));
-                varianceVector.push_back(sigmaSunAngularMomentum*sigmaSunAngularMomentum);
+                considerVarianceVector.push_back(sigmaSunAngularMomentum*sigmaSunAngularMomentum);
             }
 
             considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
