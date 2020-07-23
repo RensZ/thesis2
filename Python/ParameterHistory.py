@@ -8,7 +8,7 @@ Purpose: to plot the parameter history along the iterations
 
 
 
-def f(dir_output, dir_plots, parameters, no_bodies, json_input):
+def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas):
 
     import numpy as np
     import matplotlib.pyplot as plt
@@ -144,6 +144,7 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input):
 
         parameters2 = []
         trueErrors = []
+        estimatedValues = []
         aPrioriSigmas = []
         outputFormalSigmas = []
         factorOfImprovement = []
@@ -153,6 +154,7 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input):
         for i in range(6 * no_bodies, len(parameters)):
             p = parameters[i]
             parameters2.append(p)
+            estimatedValues.append(data[i,-1])
             trueErrors.append(data[i,-1] - truth[i])
 
             if p == "J2_Sun":
@@ -163,12 +165,15 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input):
                 K = 1.0
 
             aps = json_input["sigma_" + p]
-            fs = json_input["formalSigma_" + p]
+
             outputFormalSigmas.append(K*parameterFormalSigmas[i])
             aPrioriSigmas.append(aps)
             factorOfImprovement.append(aps/(K*parameterFormalSigmas[i]))
-            paperFormalSigmas.append(fs)
-            ratioFormalSigmas.append(K*parameterFormalSigmas[i]/fs)
+
+            if useformalsigmas:
+                fs = json_input["formalSigma_" + p]
+                paperFormalSigmas.append(fs)
+                ratioFormalSigmas.append(K*parameterFormalSigmas[i]/fs)
 
         if (("gamma" in parameters) or (json_input["useNordtvedtConstraint"])) and ("beta" in parameters) and json_input["useNordtvedtConstraint"]:
 
@@ -211,28 +216,44 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input):
             nordtvedtFormalError = np.sqrt(nordtvedtFormalVariance)
 
             aps = json_input["sigma_Nordtvedt"]
-            fs = json_input["formalSigma_Nordtvedt"]
+
             outputFormalSigmas.append(nordtvedtFormalError)
             factorOfImprovement.append(aps / nordtvedtFormalError)
-            paperFormalSigmas.append(fs)
             aPrioriSigmas.append(aps)
-            ratioFormalSigmas.append(nordtvedtFormalError / fs)
             parameters2.append("NordtvedtEq")
-            trueErrors.append(0.0-nordtvedt[-1])
+            estimatedValues.append(nordtvedt[-1])
+            trueErrors.append(nordtvedt[-1])
+
+            if useformalsigmas:
+                fs = json_input["formalSigma_Nordtvedt"]
+                paperFormalSigmas.append(fs)
+                ratioFormalSigmas.append(nordtvedtFormalError / fs)
 
         trueToFormalRatio = np.abs(np.asarray(trueErrors)/np.asarray(outputFormalSigmas))
-        df = pd.DataFrame(data={"parameter":parameters2,
-                                "apriori er.":aPrioriSigmas,
-                                "true er.":trueErrors,
-                                "formal er.":outputFormalSigmas,
-                                "t/f ratio":trueToFormalRatio,
-                                "f/a improvement":factorOfImprovement,
-                                "paper formal er.":paperFormalSigmas,
-                                "f/p ratio":ratioFormalSigmas})
+        if useformalsigmas:
+            df = pd.DataFrame(data={"parameter":parameters2,
+                                    "apriori er.":aPrioriSigmas,
+                                    # "est. value:":estimatedValues,
+                                    "true er.":trueErrors,
+                                    "formal er.":outputFormalSigmas,
+                                    "t/f ratio":trueToFormalRatio,
+                                    "f/a improvement":factorOfImprovement,
+                                    "paper formal er.":paperFormalSigmas,
+                                    "f/p ratio":ratioFormalSigmas})
+            df['f/p ratio'] = df['f/p ratio'].map(lambda x: '{0:.3f}'.format(x))
+
+        else:
+            df = pd.DataFrame(data={"parameter":parameters2,
+                                    "apriori er.":aPrioriSigmas,
+                                    # "est. value:": estimatedValues,
+                                    "true er.":trueErrors,
+                                    "formal er.":outputFormalSigmas,
+                                    "t/f ratio":trueToFormalRatio,
+                                    "f/a improvement":factorOfImprovement})
+
 
         df['f/a improvement'] = df['f/a improvement'].map(lambda x: '{0:.2f}'.format(x))
         df['t/f ratio'] = df['t/f ratio'].map(lambda x: '{0:.2f}'.format(x))
-        df['f/p ratio'] = df['f/p ratio'].map(lambda x: '{0:.3f}'.format(x))
 
         df.to_latex(dir_plots + 'formal_errors'+savestring+'.txt', header=True, index=True, float_format="%.2e")
         with pd.option_context('display.max_rows', None,

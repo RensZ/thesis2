@@ -146,7 +146,8 @@ std::vector<double> makeObservationTimeList(const double initialTime,
     return finalObservationList;
 }
 
-
+//! retreive noise level (sigma) at a certain time, dependent on the MSE angle.
+//! if second and third input are equal, the MSE angle does not influence the noise level.
 double noiseLevelBasedOnMSEangle(const double time,
                                  const double noiseAtMinAngle,
                                  const double noiseAtMaxAngle,
@@ -184,6 +185,7 @@ double noiseSampleBasedOnMSEangle(const double time,
                             const double noiseAtMaxAngle,
                             const double maxAngleDeg){ //in degrees
 
+    // retreive noise level
     double noise = noiseLevelBasedOnMSEangle(time, noiseAtMinAngle, noiseAtMaxAngle, maxAngleDeg);
 
     // create a gaussian sample
@@ -198,9 +200,8 @@ double noiseSampleBasedOnMSEangle(const double time,
     return sample;
 }
 
-//! Function to make the noise level dependent on the Mercury-Sun-Earth angle,
-//! based on a linear relation constructed with the minimum and maximum noise.
-double noiseSampleBasedOnMSEangleForMultipleMissions(const double time,
+//! Wrapper around noiseLevelBasedOnMSEAngle for multiple missions.
+double noiseLevelBasedOnMSEangleForMultipleMissions(const double time,
                             std::vector< double > noiseAtMinAngleVector,
                             std::vector< double > noiseAtMaxAngleVector,
                             std::vector< double > maxAngleDegVector, //in degrees
@@ -233,6 +234,23 @@ double noiseSampleBasedOnMSEangleForMultipleMissions(const double time,
                  <<" check = "<<check<<std::endl;
         std::runtime_error("time found in multiple mission observation lists");
     }
+
+    return noise;
+
+}
+
+
+//! Function to make the noise level dependent on the Mercury-Sun-Earth angle,
+//! based on a linear relation constructed with the minimum and maximum noise.
+double noiseSampleBasedOnMSEangleForMultipleMissions(const double time,
+                            std::vector< double > noiseAtMinAngleVector,
+                            std::vector< double > noiseAtMaxAngleVector,
+                            std::vector< double > maxAngleDegVector, //in degrees
+                            std::vector< std::vector< double > > seperateBaseTimeLists){
+
+    // retreive noise level
+    double noise = noiseLevelBasedOnMSEangleForMultipleMissions(
+                time, noiseAtMinAngleVector, noiseAtMaxAngleVector, maxAngleDegVector, seperateBaseTimeLists);
 
     // create a gaussian sample
     boost::random::mt19937 rng(time);
@@ -638,6 +656,21 @@ std::map< double, Eigen::VectorXd > onlyEveryXthValueFromDataMap(
     return outputMap;
 }
 
+std::string printScenario(const int scenario){
+
+    std::string output;
+    switch (scenario)
+    {
+    case 1 : output = "static J2"; break;
+    case 2 : output = "static J2 and J4"; break;
+    case 3 : output = "dynamic J2"; break;
+    case 4 : output = "dynamic J2 and J4"; break;
+    case 5 : output = "dynamic J2, out of phase"; break;
+    case 6 : output = "dynamic J2 and J4, out of phase"; break;
+    default : output = "ERROR: invalid scenario " + std::to_string(scenario); break;
+    }
+    return output;
+}
 
 
 

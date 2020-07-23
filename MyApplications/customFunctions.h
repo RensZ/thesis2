@@ -31,6 +31,12 @@ double noiseSampleBasedOnMSEangle(const double time,
                             const double noiseAtMaxAngle,
                             const double maxAngleDeg);
 
+double noiseLevelBasedOnMSEangleForMultipleMissions(const double time,
+                            std::vector< double > noiseAtMinAngleVector,
+                            std::vector< double > noiseAtMaxAngleVector,
+                            std::vector< double > maxAngleDegVector, //in degrees
+                            std::vector< std::vector< double > > seperateBaseTimeLists);
+
 double noiseSampleBasedOnMSEangleForMultipleMissions(const double time,
                             std::vector< double > noiseAtMinAngleVector,
                             std::vector< double > noiseAtMaxAngleVector,
@@ -94,5 +100,7 @@ std::map< double, Eigen::Vector6d > onlyEveryXthValueFromDataMap(
 std::map< double, Eigen::VectorXd > onlyEveryXthValueFromDataMap(
         std::map< double, Eigen::VectorXd > inputMap,
         const int reductionFactor);
+
+std::string printScenario(const int scenario);
 
 #endif // CUSTOMFUNCTIONS_H

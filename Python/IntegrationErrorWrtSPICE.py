@@ -109,7 +109,6 @@ def f(dir_output, dir_plots, body, no_arcs):
             plt.yscale("log")
             plt.ylim(y_min_pos, y_max_pos)
 
-
             plt.subplot(2,1,2)
             plt.plot(t - t[0], allerrors_vel_norm, linewidth=0.75)
             plt.xlabel("t [h]", horizontalalignment='left', x=0.01)
@@ -119,4 +118,4 @@ def f(dir_output, dir_plots, body, no_arcs):
             plt.ylim(y_min_vel, y_max_vel)
 
             plt.tight_layout()
-            plt.savefig(dir_plots + body + '_state_history_integration_error'+output_string+'.png')
+            plt.savefig(dir_plots + body + '_state_history_integration_error_norm'+output_string+'.png')

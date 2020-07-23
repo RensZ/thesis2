@@ -10,8 +10,8 @@ Purpose: wrapper file for all the post-processing of thesis_v1.cpp
 #### INPUTS ####
 ################
 
-publication_string = ["MESSENGER_and_BepiColombo",
-                      "MESSENGER_and_BepiColombo_timevariableJ2",
+publication_string = [#"MESSENGER_and_BepiColombo",
+                      #"MESSENGER_and_BepiColombo_timevariableJ2",
                       "Genova2018",
                       "Imperi2018_nvtrue_flybys_alphas",
                       "Imperi2018_nvtrue_flybys",
@@ -68,8 +68,8 @@ for ps in publication_string:
         json_input = json.load(f)
 
     # if json_input["estimateJ4Amplitude"] or json_input["estimateJ4Amplitude"] or json_input["estimateJ4Amplitude"]:
-    dependent_variables.append("exclude") #J3
-    dependent_variables.append("J4_Sun")
+    # dependent_variables.append("exclude") #J3
+    # dependent_variables.append("J4_Sun")
 
     if json_input["calculateSchwarzschildCorrection"]:
         if not json_input["gammaIsAConsiderParameter"]:
@@ -114,8 +114,8 @@ for ps in publication_string:
         parameters.append("J4_phi")
 
     parameters.append("J2_Sun")
-    # if json_input["estimateJ4Amplitude"] or json_input["estimateJ4Amplitude"] or json_input["estimateJ4Amplitude"]:
-    parameters.append("J4_Sun")
+    # # if json_input["estimateJ4Amplitude"] or json_input["estimateJ4Amplitude"] or json_input["estimateJ4Amplitude"]:
+    # parameters.append("J4_Sun")
 
 
     print(" ", parameters)
@@ -147,7 +147,7 @@ for ps in publication_string:
     # Plot parameter history
     print("---- making plots of parameter estimation history ----")
     import ParameterHistory
-    ParameterHistory.f(dir_cpp_output, dir_plots, parameters, no_bodies, json_input)
+    ParameterHistory.f(dir_cpp_output, dir_plots, parameters, no_bodies, json_input, True)
 
     # Make correlation heat map
     print("---- making heat map of parameter correlations ----")

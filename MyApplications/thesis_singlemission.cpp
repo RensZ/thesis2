@@ -66,7 +66,7 @@ int main( )
     // Acceleration settings
     const bool calculateDeSitterCorrection = false;
     const bool includeTimeVaryingGravitationalMomentsSun = false;
-    unsigned int maximumDegreeSunGravitationalMoment = 4;
+    unsigned int maximumDegreeSunGravitationalMoment = 2;
     unsigned int maximumDegreeSunGravitationalMomentVariation = 2;
 
     // Parameter estimation settings
@@ -97,6 +97,9 @@ int main( )
     const double solarMinimumEpoch = secondsAfterJ2000(solarMinimumDatetime);
     const double solarCycleDuration = 11.0*physical_constants::JULIAN_YEAR;
     const double solarDay = 25.38*physical_constants::JULIAN_DAY; //carrington sidereal rotation period
+
+    // output settings
+    int onlyEveryXthValue = 20;
 
 
     ////////////////////////
@@ -639,7 +642,7 @@ int main( )
         // Write dependent variables history to file.
 
         input_output::writeDataMapToTextFile(
-                    onlyEveryXthValueFromDataMap(dependentVariablesHistory,10),
+                    onlyEveryXthValueFromDataMap(dependentVariablesHistory, onlyEveryXthValue),
                     "DependentVariablesHistoryReality.dat",
                     outputSubFolder,
                     "",
@@ -1108,7 +1111,7 @@ int main( )
 
                             newObservations(i) = allObservations(i) + rangeCorrection;
 
-                            double noiseLevel = abs(rangeCorrection) + noiseSampleBasedOnMSEangle(
+                            double noiseLevel = abs(rangeCorrection) + noiseLevelBasedOnMSEangle(
                                         observationTime, noiseAtMinAngle, noiseAtMaxAngle, maxMSEAngleDeg);
 
                             observationWeights(i) = 1.0/(noiseLevel*noiseLevel);
@@ -1383,9 +1386,9 @@ int main( )
                 it++;
             }
 
-            input_output::writeDataMapToTextFile( onlyEveryXthValueFromDataMap(propagatedCovariance,10), "Propagated"+saveString+"Covariance.dat", outputSubFolder );
-            input_output::writeDataMapToTextFile( onlyEveryXthValueFromDataMap(propagatedErrorUsingCovMatrix,10), "propagatedErrorUsing"+saveString+"CovMatrix.dat", outputSubFolder );
-            input_output::writeDataMapToTextFile( onlyEveryXthValueFromDataMap(propagatedRSWErrorUsingCovMatrix,10), "propagatedRSWErrorUsing"+saveString+"CovMatrix.dat", outputSubFolder );
+            input_output::writeDataMapToTextFile( onlyEveryXthValueFromDataMap(propagatedCovariance, onlyEveryXthValue), "Propagated"+saveString+"Covariance.dat", outputSubFolder );
+            input_output::writeDataMapToTextFile( onlyEveryXthValueFromDataMap(propagatedErrorUsingCovMatrix, onlyEveryXthValue), "propagatedErrorUsing"+saveString+"CovMatrix.dat", outputSubFolder );
+            input_output::writeDataMapToTextFile( onlyEveryXthValueFromDataMap(propagatedRSWErrorUsingCovMatrix, onlyEveryXthValue), "propagatedRSWErrorUsing"+saveString+"CovMatrix.dat", outputSubFolder );
         }
 
 
@@ -1432,7 +1435,7 @@ int main( )
 
         // dependent variables
         input_output::writeDataMapToTextFile(
-                    onlyEveryXthValueFromDataMap(podOutput->dependentVariableHistoryFinalIteration_.at(0),10), "DependentVariablesHistoryFinalIteration.dat",
+                    onlyEveryXthValueFromDataMap(podOutput->dependentVariableHistoryFinalIteration_.at(0), onlyEveryXthValue), "DependentVariablesHistoryFinalIteration.dat",
                     outputSubFolder, "", std::numeric_limits< double >::digits10, std::numeric_limits< double >::digits10, "," );
 
         std::cout << "done!" << std::endl;
