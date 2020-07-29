@@ -85,7 +85,7 @@ int main( )
     const bool estimateJ4Phase = false;
 
     // Parameter estimation settings
-    const unsigned int maximumNumberOfIterations = 3;
+    const unsigned int maximumNumberOfIterations = 5;
     const double sigmaPosition = 1000.0; //educated guess
     const double sigmaVelocity = 1.0; //educated guess
     const bool useMultipleMercuryArcs = false;
@@ -134,10 +134,10 @@ int main( )
     std::vector< std::pair<int,int> > scenarioPairs;
 //    scenarioPairs.push_back(std::make_pair(1,1));
 //    scenarioPairs.push_back(std::make_pair(2,2));
-    scenarioPairs.push_back(std::make_pair(3,3));
-//    scenarioPairs.push_back(std::make_pair(4,4));
-//    scenarioPairs.push_back(std::make_pair(3,1));
-//    scenarioPairs.push_back(std::make_pair(1,3));
+//    scenarioPairs.push_back(std::make_pair(3,3));
+    scenarioPairs.push_back(std::make_pair(4,4));
+    scenarioPairs.push_back(std::make_pair(3,1));
+    scenarioPairs.push_back(std::make_pair(1,3));
 
 
     for (unsigned int f = 0; f<filenames.size(); f++){
@@ -1302,18 +1302,18 @@ int main( )
             }
 
 
-            // Create noise functions per observable
+//            // Create noise functions per observable
 
-            std::map< ObservableType, std::function< double( const double ) > > noiseFunctions;
+//            std::map< ObservableType, std::function< double( const double ) > > noiseFunctions;
 
-            std::function< double( const double ) > mercuryOrbiterNoiseFunction;
-            mercuryOrbiterNoiseFunction = [noiseAtMinAngleVector, noiseAtMaxAngleVector, maxMSEAngleDegVector, seperateBaseTimeLists](const double time){
-                return noiseSampleBasedOnMSEangleForMultipleMissions
-                        (time, noiseAtMinAngleVector, noiseAtMaxAngleVector, maxMSEAngleDegVector, seperateBaseTimeLists);
-            };
+//            std::function< double( const double ) > mercuryOrbiterNoiseFunction;
+//            mercuryOrbiterNoiseFunction = [noiseAtMinAngleVector, noiseAtMaxAngleVector, maxMSEAngleDegVector, seperateBaseTimeLists](const double time){
+//                return noiseSampleBasedOnMSEangleForMultipleMissions
+//                        (time, noiseAtMinAngleVector, noiseAtMaxAngleVector, maxMSEAngleDegVector, seperateBaseTimeLists);
+//            };
 
-            noiseFunctions[ one_way_range ] = mercuryOrbiterNoiseFunction;
-            noiseFunctions[ n_way_range ] = mercuryOrbiterNoiseFunction;
+//            noiseFunctions[ one_way_range ] = mercuryOrbiterNoiseFunction;
+//            noiseFunctions[ n_way_range ] = mercuryOrbiterNoiseFunction;
 
 
 
@@ -1330,11 +1330,11 @@ int main( )
                     SingleObservablePodInputType;
             typedef std::map< ObservableType, SingleObservablePodInputType > PodInputDataType;
 
-            // Simulate observations
-            PodInputDataType observationsAndTimes = simulateObservationsWithNoise< double, double >(
+            // Simulate perfect observations
+            PodInputDataType observationsAndTimes = simulateObservations< double, double >(
                         measurementSimulationInput,
-                        orbitDeterminationManager.getObservationSimulators( ),
-                        noiseFunctions);
+                        orbitDeterminationManager.getObservationSimulators( ) );
+                        //,noiseFunctions);
 
             // similar container, but the "observation" will be the noise value instead of the actual observation
             PodInputDataType observationWeightsAndTimes = observationsAndTimes;
@@ -1408,34 +1408,25 @@ int main( )
 
                                 double observationTime = allObservationTimes.at( i );
 
-                                Eigen::Vector3d currentSatelliteError = interpolatedErrorMatrix.at(observationTime);
-                                Eigen::Vector3d randomErrorSample;
-                                for (unsigned int j=0; j<3; j++){
-                                    std::normal_distribution<double> d(0.0, currentSatelliteError( j ));
-                                    randomErrorSample( j ) = d(gen);
-                                }
-
-                                Eigen::Vector3d mercuryPositionWrtEarth = -getBodyCartesianStateAtEpoch("Earth","Mercury","IAU_Mercury","None",observationTime).segment(0,3);
-                                Eigen::Vector3d rangeUnitVector = mercuryPositionWrtEarth / mercuryPositionWrtEarth.norm( );
-
-                                double rangeCorrection = randomErrorSample.dot(rangeUnitVector);
-                                if (podInputIterator->first == n_way_range){rangeCorrection *= 2.0;}
-
-                                if (rangeCorrection > 10000.0){
-                                    std::cout<<"ERROR: unusually large range correction at time "<<observationTime<<std::endl;
-                                    std::cout<<" interpolated vehicle error: "<<currentSatelliteError.transpose()<<std::endl;
-                                    std::cout<<" range correction (from random sample): "<<rangeCorrection<<std::endl;
-                                }
-
-                                newObservations(i) = allObservations(i) + rangeCorrection;
-
-                                double noiseLevel = abs(rangeCorrection) + noiseLevelBasedOnMSEangleForMultipleMissions(
+                                double rangeNoiseLevel = noiseLevelBasedOnMSEangleForMultipleMissions(
                                             observationTime, noiseAtMinAngleVector, noiseAtMaxAngleVector, maxMSEAngleDegVector, seperateBaseTimeLists);
-                                // currently neglecting the range noise error below, and only considering the satellite error
-                                //+ noiseSampleBasedOnMSEangleForMultipleMissions (observationTime,
-                                     //noiseAtMinAngleVector, noiseAtMaxAngleVector, maxMSEAngleDegVector, seperateBaseTimeLists);
 
-                                observationWeights(i) = 1.0/(noiseLevel*noiseLevel);
+                                double totalErrorLevel = combinedRangeAndSatelliteErrorLevel(
+                                            observationTime, interpolatedErrorMatrix.at(observationTime), rangeNoiseLevel);
+
+                                std::normal_distribution<double> d(0.0, totalErrorLevel);
+                                double rangeErrorSample = d(gen);
+
+                                if (podInputIterator->first == n_way_range){rangeErrorSample *= 2.0;}
+
+                                if (rangeErrorSample > 10000.0){
+                                    std::cout<<"ERROR: unusually large range correction at time "<<observationTime<<std::endl;
+                                    std::cout<<" total error level: "<<totalErrorLevel<<std::endl;
+                                    std::cout<<" range correction (from random sample): "<<rangeErrorSample<<std::endl;
+                                }
+
+                                newObservations(i) = allObservations(i) + rangeErrorSample;
+                                observationWeights(i) = 1.0/(totalErrorLevel*totalErrorLevel);
 
         //                        std::cout<<observationTime<<" // "<<
         //                                   currentSatelliteError.transpose()<<" // "<<

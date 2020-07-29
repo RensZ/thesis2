@@ -1090,31 +1090,25 @@ int main( )
 
                             double observationTime = allObservationTimes.at( i );
 
-                            Eigen::Vector3d currentSatelliteError = interpolatedErrorMatrix.at(observationTime);
-                            Eigen::Vector3d randomErrorSample;
-                            for (unsigned int j=0; j<3; j++){
-                                std::normal_distribution<double> d(0.0, currentSatelliteError( j ));
-                                randomErrorSample( j ) = d(gen);
-                            }
-
-                            Eigen::Vector3d mercuryPositionWrtEarth = -getBodyCartesianStateAtEpoch("Earth","Mercury","IAU_Mercury","None",observationTime).segment(0,3);
-                            Eigen::Vector3d rangeUnitVector = mercuryPositionWrtEarth / mercuryPositionWrtEarth.norm( );
-
-                            double rangeCorrection = randomErrorSample.dot(rangeUnitVector);
-                            if (podInputIterator->first == n_way_range){rangeCorrection *= 2.0;}
-
-                            if (rangeCorrection > 10000.0){
-                                std::cout<<"ERROR: unusually large range correction at time "<<observationTime<<std::endl;
-                                std::cout<<" interpolated vehicle error: "<<currentSatelliteError.transpose()<<std::endl;
-                                std::cout<<" range correction (from random sample): "<<rangeCorrection<<std::endl;
-                            }
-
-                            newObservations(i) = allObservations(i) + rangeCorrection;
-
-                            double noiseLevel = abs(rangeCorrection) + noiseLevelBasedOnMSEangle(
+                            double rangeNoiseLevel = noiseLevelBasedOnMSEangle(
                                         observationTime, noiseAtMinAngle, noiseAtMaxAngle, maxMSEAngleDeg);
 
-                            observationWeights(i) = 1.0/(noiseLevel*noiseLevel);
+                            double totalErrorLevel = combinedRangeAndSatelliteErrorLevel(
+                                        observationTime, interpolatedErrorMatrix.at(observationTime), rangeNoiseLevel);
+
+                            std::normal_distribution<double> d(0.0, totalErrorLevel);
+                            double rangeErrorSample = d(gen);
+
+                            if (podInputIterator->first == n_way_range){rangeErrorSample *= 2.0;}
+
+                            if (rangeErrorSample > 10000.0){
+                                std::cout<<"ERROR: unusually large range correction at time "<<observationTime<<std::endl;
+                                std::cout<<" total error level: "<<totalErrorLevel<<std::endl;
+                                std::cout<<" range correction (from random sample): "<<rangeErrorSample<<std::endl;
+                            }
+
+                            newObservations(i) = allObservations(i) + rangeErrorSample;
+                            observationWeights(i) = 1.0/(totalErrorLevel*totalErrorLevel);
 
     //                        std::cout<<observationTime<<" // "<<
     //                                   currentSatelliteError.transpose()<<" // "<<
@@ -1122,6 +1116,45 @@ int main( )
     //                                   rangeCorrection<<" // "<<
     //                                   noiseLevel<<std::endl;
                         }
+
+
+//                        for (unsigned int i=0; i<allObservationTimes.size(); i++){
+
+//                            double observationTime = allObservationTimes.at( i );
+
+//                            Eigen::Vector3d currentSatelliteError = interpolatedErrorMatrix.at(observationTime);
+//                            Eigen::Vector3d randomErrorSample;
+//                            for (unsigned int j=0; j<3; j++){
+//                                std::normal_distribution<double> d(0.0, currentSatelliteError( j ));
+//                                randomErrorSample( j ) = d(gen);
+//                            }
+
+//                            Eigen::Vector3d mercuryPositionWrtEarth = -getBodyCartesianStateAtEpoch("Earth","Mercury","IAU_Mercury","None",observationTime).segment(0,3);
+//                            Eigen::Vector3d rangeUnitVector = mercuryPositionWrtEarth / mercuryPositionWrtEarth.norm( );
+
+//                            double rangeCorrection = randomErrorSample.dot(rangeUnitVector);
+//                            if (podInputIterator->first == n_way_range){rangeCorrection *= 2.0;}
+
+//                            if (rangeCorrection > 10000.0){
+//                                std::cout<<"ERROR: unusually large range correction at time "<<observationTime<<std::endl;
+//                                std::cout<<" interpolated vehicle error: "<<currentSatelliteError.transpose()<<std::endl;
+//                                std::cout<<" range correction (from random sample): "<<rangeCorrection<<std::endl;
+//                            }
+
+//                            newObservations(i) = allObservations(i) + rangeCorrection;
+
+//                            double noiseLevel = abs(rangeCorrection) + noiseLevelBasedOnMSEangle(
+//                                        observationTime, noiseAtMinAngle, noiseAtMaxAngle, maxMSEAngleDeg);
+
+//                            observationWeights(i) = 1.0/(noiseLevel*noiseLevel);
+
+//    //                        std::cout<<observationTime<<" // "<<
+//    //                                   currentSatelliteError.transpose()<<" // "<<
+//    //                                   randomErrorSample.transpose()<<" // "<<
+//    //                                   rangeCorrection<<" // "<<
+//    //                                   noiseLevel<<std::endl;
+//                        }
+
 
                         singleObservableIterator->second.first = newObservations;
                         weightsIterator2->second.first = observationWeights;
@@ -1191,6 +1224,19 @@ int main( )
                                             enforceNordtvedtConstraintInEstimation );
         podInput->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
 
+
+        // save stuff related to observations
+        input_output::writeDataMapToTextFile( interpolatedErrorMatrix, "interpolatedErrorMatrix.dat", outputSubFolder );
+        input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ), "ObservationMeasurements.dat", 16, outputSubFolder );
+        input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector( getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
+                                         "ObservationTimes.dat", 16, outputSubFolder );
+        input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector( getConcatenatedGroundStationIndex( podInput->getObservationsAndTimes( ) ).first ),
+                                         "ObservationLinkEnds.dat", 16, outputSubFolder );
+        input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector( getConcatenatedObservableTypes( podInput->getObservationsAndTimes( ) ) ),
+                                         "ObservationObservableTypes.dat", 16, outputSubFolder );
+        input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
+                                         "ObservationMeasurements.dat", 16, outputSubFolder );
+
         // Perform estimation
         std::shared_ptr< PodOutput< double > > podOutput = orbitDeterminationManager.estimateParameters(
                     podInput, std::make_shared< EstimationConvergenceChecker >( maximumNumberOfIterations ) );
@@ -1214,6 +1260,7 @@ int main( )
         Eigen::VectorXd observationWeightDiagonal = podOutput->weightsMatrixDiagonal_; // diagonal of W
         Eigen::MatrixXd unnormalizedPartialDerivatives = podOutput->getUnnormalizedPartialDerivatives( ); // Hx
         Eigen::MatrixXd considerCovarianceMatrix;
+        Eigen::MatrixXd considerCovarianceMatrixIncludingAsteroids;
         unsigned int maxcovtype = 1;
 
         if (gammaIsAConsiderParameter || ppnAlphasAreConsiderParameters){
@@ -1298,6 +1345,7 @@ int main( )
                         considerParameterAprioriCovariance.block(6,6,considerParameterAprioriCovariance.rows()-6, considerParameterAprioriCovariance.cols()-6),
                         unnormalizedPartialDerivatives, partialDerivativesOfConsiderParameters);
 
+
             // get consider correlation matrix
             Eigen::VectorXd formalErrorWithConsiderParameters = considerCovarianceMatrix.diagonal( ).cwiseSqrt( );
             Eigen::MatrixXd considerCorrelationMatrix = considerCovarianceMatrix.cwiseQuotient(
@@ -1307,7 +1355,21 @@ int main( )
             input_output::writeMatrixToFile( considerCorrelationMatrix, "EstimationConsiderCorrelations.dat", 16, outputSubFolder );
             input_output::writeMatrixToFile( formalErrorWithConsiderParameters, "ObservationFormalEstimationErrorWithConsiderParameters.dat", 16, outputSubFolder );
 
-            maxcovtype = 2;
+
+            // include asteroids
+            considerCovarianceMatrixIncludingAsteroids =
+                    considerCovarianceMatrix + calculateConsiderCovarianceOfAsteroids(
+                        initialCovarianceMatrix, observationWeightDiagonal,
+                        unnormalizedPartialDerivatives, outputSubFolder + "_asteroids");
+
+            Eigen::VectorXd formalErrorWithConsiderParametersIncludingAsteroids = considerCovarianceMatrixIncludingAsteroids.diagonal( ).cwiseSqrt( );
+            Eigen::MatrixXd considerCorrelationMatrixIncludingAsteroids = considerCovarianceMatrixIncludingAsteroids.cwiseQuotient(
+                        formalErrorWithConsiderParametersIncludingAsteroids * formalErrorWithConsiderParametersIncludingAsteroids.transpose() );
+
+            input_output::writeMatrixToFile( considerCorrelationMatrixIncludingAsteroids, "EstimationConsiderIncludingAsteroidsCorrelations.dat", 16, outputSubFolder );
+            input_output::writeMatrixToFile( formalErrorWithConsiderParametersIncludingAsteroids, "ObservationFormalEstimationErrorWithConsiderIncludingAsteroidsParameters.dat", 16, outputSubFolder );
+
+            maxcovtype = 3;
         }
 
 
@@ -1337,10 +1399,14 @@ int main( )
                 std::cout<<"propagating covariance matrix..."<<std::endl;
                 initialCovariance = initialCovarianceMatrix;
                 saveString = "";
-            } else{
+            } else if (covtype == 1){
                 std::cout<<"propagating consider covariance matrix..."<<std::endl;
                 initialCovariance = considerCovarianceMatrix;
                 saveString = "Consider";
+            } else{
+                std::cout<<"propagating consider covariance matrix including asteroids..."<<std::endl;
+                initialCovariance = considerCovarianceMatrixIncludingAsteroids;
+                saveString = "ConsiderIncludingAsteroids";
             }
 
             std::map< double, Eigen::MatrixXd > propagatedCovariance;
@@ -1407,6 +1473,7 @@ int main( )
 
         // covariance and correlation
         input_output::writeMatrixToFile( considerCovarianceMatrix, "ConsiderCovarianceMatrix.dat", 16, outputSubFolder );
+        input_output::writeMatrixToFile( considerCovarianceMatrixIncludingAsteroids, "ConsiderIncludingAsteroidsCovarianceMatrix.dat", 16, outputSubFolder );
         input_output::writeMatrixToFile( initialCovarianceMatrix, "InitialCovarianceMatrix.dat", 16, outputSubFolder );
         input_output::writeMatrixToFile( observationWeightDiagonal, "ObservationWeightDiagonal.dat", 16, outputSubFolder );
         input_output::writeMatrixToFile( podOutput->getCorrelationMatrix( ), "EstimationCorrelations.dat", 16, outputSubFolder );
@@ -1420,18 +1487,6 @@ int main( )
 //        input_output::writeMatrixToFile( podOutput->inverseNormalizedCovarianceMatrix_, "InverseNormalizedCovariance.dat", 16, outputSubFolder );
 //        input_output::writeMatrixToFile( podOutput->getUnnormalizedCovarianceMatrix( ), "UnnormalizedCovariance.dat", 16, outputSubFolder );
 
-
-        // observations
-        input_output::writeDataMapToTextFile( interpolatedErrorMatrix, "interpolatedErrorMatrix.dat", outputSubFolder );
-        input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ), "ObservationMeasurements.dat", 16, outputSubFolder );
-        input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector( getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
-                                         "ObservationTimes.dat", 16, outputSubFolder );
-        input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector( getConcatenatedGroundStationIndex( podInput->getObservationsAndTimes( ) ).first ),
-                                         "ObservationLinkEnds.dat", 16, outputSubFolder );
-        input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector( getConcatenatedObservableTypes( podInput->getObservationsAndTimes( ) ) ),
-                                         "ObservationObservableTypes.dat", 16, outputSubFolder );
-        input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
-                                         "ObservationMeasurements.dat", 16, outputSubFolder );
 
         // dependent variables
         input_output::writeDataMapToTextFile(

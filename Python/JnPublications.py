@@ -26,11 +26,11 @@ for i in range(len(years)):
             years[i] += 0.2
 
 
-plt.figure(figsize=(12,8))
+plt.figure(figsize=(8,3))
 plt.errorbar(years[i_physics], J2values[i_physics], yerr=J2sigmas[i_physics],
-             marker='o', markersize=5, linewidth=0, elinewidth=1, capsize=3, capthick=1)
+             marker='o', markersize=3, linewidth=0, elinewidth=1, capsize=2, capthick=1)
 plt.errorbar(years[i_orbits], J2values[i_orbits], yerr=J2sigmas[i_orbits],
-             marker='o', markersize=5, linewidth=0, elinewidth=1, capsize=3, capthick=1)
+             marker='o', markersize=3, linewidth=0, elinewidth=1, capsize=2, capthick=1)
 
 # for i, txt in enumerate(papers):
 #     plt.annotate(txt, (years[i], J2values[i]))
@@ -38,11 +38,11 @@ plt.errorbar(years[i_orbits], J2values[i_orbits], yerr=J2sigmas[i_orbits],
 plt.xlabel('Year of publication')
 plt.ylabel('J2 value [-]')
 plt.ylim((1.6E-7,2.8E-7))
-plt.legend(['Heliophysics','Planetary orbits'], loc='upper right')
+plt.legend(['Heliophysics','Planetary orbits'], loc='upper left')
 plt.grid(axis='y')
 
 
-
+plt.tight_layout()
 plt.savefig(output_dir + "J2values")
 
 plt.close()

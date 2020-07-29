@@ -213,5 +213,14 @@ target_link_libraries(application_MercuryOrbiterStateEstimation
    ${TUDAT_APPLICATION_ESTIMATION_LIBRARIES}
    ${Boost_LIBRARIES} )
 
+# Add asteroid application.
+add_executable(application_AsteroidConsiderCovariance "${SRCROOT}/asteroidConsiderCovariance.cpp")
+setup_executable_target(application_AsteroidConsiderCovariance "${SRCROOT}")
+target_link_libraries(application_AsteroidConsiderCovariance
+   customLibrary
+   ${TUDAT_ESTIMATION_LIBRARIES}
+   ${TUDAT_APPLICATION_ESTIMATION_LIBRARIES}
+   ${Boost_LIBRARIES} )
+
 
 

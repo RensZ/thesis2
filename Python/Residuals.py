@@ -15,7 +15,9 @@ def f(dir_output, dir_plots, body, no_arcs, useRSW):
 
     useAbs = True
 
-    if path.exists(dir_output + "EstimationConsiderCorrelations.dat"):
+    if path.exists(dir_output + "PropagatedConsiderIncludingAsteroidsCovariance.dat"):
+        c = 3
+    elif path.exists(dir_output + "PropagatedConsiderIncludingAsteroidsCovariance.dat"):
         c = 2
     else:
         c = 1
@@ -25,9 +27,12 @@ def f(dir_output, dir_plots, body, no_arcs, useRSW):
         if consider == 0:
             filestring = ""
             savestring = ""
-        else:
+        elif consider == 1:
             filestring = "Consider"
             savestring = "_consider"
+        else:
+            filestring = "ConsiderIncludingAsteroids"
+            savestring = "_considerIncludingAsteroids"
 
         #residual history
         t = np.genfromtxt(dir_output+"ObservationTimes.dat")

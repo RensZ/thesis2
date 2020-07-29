@@ -17,7 +17,9 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
     import pandas as pd
     from os import path
 
-    if path.exists(dir_output + "ObservationFormalEstimationErrorWithConsiderParameters.dat"):
+    if path.exists(dir_output + "ObservationFormalEstimationErrorWithConsiderIncludingAsteroidsParameters.dat"):
+        c = 3
+    elif path.exists(dir_output + "ObservationFormalEstimationErrorWithConsiderParameters.dat"):
         c = 2
     else:
         c = 1
@@ -28,10 +30,14 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
             parameterFormalSigmas = np.genfromtxt(dir_output + "ObservationFormalEstimationError.dat")
             CovMatrix = np.genfromtxt(dir_output + "InitialCovarianceMatrix.dat")
             savestring = ""
-        else:
+        elif consider == 1:
             parameterFormalSigmas = np.genfromtxt(dir_output + "ObservationFormalEstimationErrorWithConsiderParameters.dat")
             CovMatrix = np.genfromtxt(dir_output + "ConsiderCovarianceMatrix.dat")
             savestring = "_consider"
+        else:
+            parameterFormalSigmas = np.genfromtxt(dir_output + "ObservationFormalEstimationErrorWithConsiderIncludingAsteroidsParameters.dat")
+            CovMatrix = np.genfromtxt(dir_output + "ConsiderIncludingAsteroidsCovarianceMatrix.dat")
+            savestring = "_considerIncludingAsteroids"
 
 
         #### PART 1: PLOT PARAMETER HISTORY

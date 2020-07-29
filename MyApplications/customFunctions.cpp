@@ -589,6 +589,33 @@ Eigen::MatrixXd calculateConsiderCovarianceMatrix(
     return P + term2a * C * term2c;
 }
 
+// second term only of Montenbruck & Gill eq 8.42
+// executed for consider covariance caused by asteroids, which uses external input
+Eigen::MatrixXd calculateConsiderCovarianceOfAsteroids(
+        const Eigen::MatrixXd P,
+        const Eigen::VectorXd W_diagonal,
+        const Eigen::MatrixXd Hx,
+        std::string inputFolderAsteroids)
+{
+    using namespace tudat::input_output;
+    Eigen::MatrixXd Hc = readMatrixFromFile( inputFolderAsteroids + "/partialDerivativesWrtAsteroidGravitationalParameters.dat");
+
+    Eigen::MatrixXd C_sigma = readMatrixFromFile( inputFolderAsteroids + "/aprioriUncertaintiesAsteroidGravitationalParameters.dat");
+    Eigen::MatrixXd C = C_sigma.cwiseProduct(C_sigma).diagonal();
+    writeMatrixToFile( C, "ConsiderIncludingAsteroidsParameterAprioriCovariance.dat", 16, inputFolderAsteroids);
+
+    Eigen::MatrixXd term1 = P * Hx.transpose();
+    for (unsigned int i = 0; i < Hx.rows(); i++){
+        term1.col(i) *= W_diagonal(i);
+    }
+
+    Eigen::MatrixXd term2a = term1 * Hc;
+    Eigen::MatrixXd term2c = Hc.transpose() * term1.transpose();
+
+    return term2a * C * term2c;
+}
+
+
 
 std::map< double, Eigen::MatrixXd > onlyEveryXthValueFromDataMap(
         std::map< double, Eigen::MatrixXd > inputMap,
@@ -672,5 +699,24 @@ std::string printScenario(const int scenario){
     return output;
 }
 
+double combinedRangeAndSatelliteErrorLevel( const double observationTime,
+                                                const Eigen::Vector3d satellitePositionErrorLevel,
+                                                const double rangeNoiseLevel)
+{
+
+    // get x,y,z variance of satellite position
+    Eigen::Vector3d satellitePositionVariance = satellitePositionErrorLevel.cwiseProduct(satellitePositionErrorLevel);
+//    std::cout<<observationTime<<" | "<<satellitePositionErrorLevel.transpose()<<" | "<<satellitePositionVariance.transpose()<<std::endl;
+
+    // project variance along ranging direction
+    using namespace tudat::spice_interface;
+    Eigen::Vector3d mercuryPositionWrtEarth = -getBodyCartesianStateAtEpoch("Earth","Mercury","IAU_Mercury","None",observationTime).segment(0,3);
+    Eigen::Vector3d rangeUnitVector = mercuryPositionWrtEarth / mercuryPositionWrtEarth.norm( );
+    double satellitePositionRangingVariance = abs(satellitePositionVariance.dot(rangeUnitVector));
+
+    // get root mean square of total error
+//    std::cout<<satellitePositionRangingVariance<<" / "<<rangeNoiseLevel<<" / "<<sqrt(rangeNoiseLevel*rangeNoiseLevel + satellitePositionRangingVariance)<<std::endl;
+    return sqrt(rangeNoiseLevel*rangeNoiseLevel + satellitePositionRangingVariance);
+}
 
 
