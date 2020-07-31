@@ -595,24 +595,53 @@ Eigen::MatrixXd calculateConsiderCovarianceOfAsteroids(
         const Eigen::MatrixXd P,
         const Eigen::VectorXd W_diagonal,
         const Eigen::MatrixXd Hx,
-        std::string inputFolderAsteroids)
+        std::string inputFolderAsteroids,
+        std::string outputFolderAsteroids)
 {
     using namespace tudat::input_output;
-    Eigen::MatrixXd Hc = readMatrixFromFile( inputFolderAsteroids + "/partialDerivativesWrtAsteroidGravitationalParameters.dat");
+    using namespace tudat::physical_constants;
 
-    Eigen::MatrixXd C_sigma = readMatrixFromFile( inputFolderAsteroids + "/aprioriUncertaintiesAsteroidGravitationalParameters.dat");
-    Eigen::MatrixXd C = C_sigma.cwiseProduct(C_sigma).diagonal();
-    writeMatrixToFile( C, "ConsiderIncludingAsteroidsParameterAprioriCovariance.dat", 16, inputFolderAsteroids);
+    // get asteroid numbers
+    Eigen::VectorXd asteroidNumbersDouble = readMatrixFromFile(inputFolderAsteroids + "mu.txt", " ").col(0).segment(0,10);
+    Eigen::VectorXi asteroidNumbers = asteroidNumbersDouble.cast<int>();
 
+    // get asteroid GM uncertainties
+    std::map< unsigned int, std::pair< double, double > > asteroidsINPOP19a
+            = readAsteroidsFile(inputFolderAsteroids + "AsteroidsINPOP19a.txt", " ");
+    double convertAsteroidGMtoSI = 1E-18
+            * ASTRONOMICAL_UNIT*ASTRONOMICAL_UNIT*ASTRONOMICAL_UNIT
+            / (JULIAN_DAY*JULIAN_DAY);
+
+    // calculate first term
     Eigen::MatrixXd term1 = P * Hx.transpose();
     for (unsigned int i = 0; i < Hx.rows(); i++){
         term1.col(i) *= W_diagonal(i);
     }
 
-    Eigen::MatrixXd term2a = term1 * Hc;
-    Eigen::MatrixXd term2c = Hc.transpose() * term1.transpose();
+    Eigen::MatrixXd output(P.rows(),P.cols());
 
-    return term2a * C * term2c;
+    // for each asteroid, get Hc and calculate consider covariance
+    for (unsigned int j = 0; j < asteroidNumbers.size(); j++){
+
+        Eigen::MatrixXd Hc_j = readMatrixFromFile(
+                    outputFolderAsteroids + "/partialDerivativesWrtAsteroid"+std::to_string(asteroidNumbers(j))+".dat");
+        double sigma_j = asteroidsINPOP19a.at(asteroidNumbers(j)).second*convertAsteroidGMtoSI;
+        double C_j = sigma_j*sigma_j;
+
+        Eigen::MatrixXd term2a = term1 * Hc_j;
+        Eigen::MatrixXd term2c = Hc_j.transpose() * term1.transpose();
+
+        output += term2a * C_j * term2c;
+
+        std::cout<<"asteroid: "<<asteroidNumbers(j)<<" - C_j: "<<C_j<<" - Cons cov:"<<std::endl;
+        std::cout<<term2a * C_j * term2c<<std::endl;
+
+    }
+
+    std::cout<<"P:"<<std::endl<<P<<std::endl;
+    std::cout<<"Cons.Cov.:"<<std::endl<<output<<std::endl;
+
+    return output;
 }
 
 
@@ -719,4 +748,19 @@ double combinedRangeAndSatelliteErrorLevel( const double observationTime,
     return sqrt(rangeNoiseLevel*rangeNoiseLevel + satellitePositionRangingVariance);
 }
 
+std::map< unsigned int, std::pair< double, double > > readAsteroidsFile (
+        std::string filename, std::string delimiter)
+{
+    // import data
+    using namespace tudat::input_output;
+    Eigen::MatrixXd asteroidsMatrix = readMatrixFromFile(filename, delimiter);
+
+    std::map< unsigned int, std::pair< double, double > > asteroidsMap;
+    for (unsigned int i=0; i<asteroidsMatrix.rows(); i++){
+        asteroidsMap[ static_cast<unsigned int>(asteroidsMatrix(i,0)) ]
+                = std::make_pair( asteroidsMatrix(i,1), asteroidsMatrix(i,2) );
+    }
+
+    return asteroidsMap;
+}
 

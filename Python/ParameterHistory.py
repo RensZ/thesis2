@@ -27,18 +27,16 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
     for consider in range(c):
 
         if consider == 0:
-            parameterFormalSigmas = np.genfromtxt(dir_output + "ObservationFormalEstimationError.dat")
             CovMatrix = np.genfromtxt(dir_output + "InitialCovarianceMatrix.dat")
             savestring = ""
         elif consider == 1:
-            parameterFormalSigmas = np.genfromtxt(dir_output + "ObservationFormalEstimationErrorWithConsiderParameters.dat")
             CovMatrix = np.genfromtxt(dir_output + "ConsiderCovarianceMatrix.dat")
             savestring = "_consider"
         else:
-            parameterFormalSigmas = np.genfromtxt(dir_output + "ObservationFormalEstimationErrorWithConsiderIncludingAsteroidsParameters.dat")
             CovMatrix = np.genfromtxt(dir_output + "ConsiderIncludingAsteroidsCovarianceMatrix.dat")
             savestring = "_considerIncludingAsteroids"
 
+        parameterFormalSigmas = np.sqrt(np.diagonal(CovMatrix))
 
         #### PART 1: PLOT PARAMETER HISTORY
 

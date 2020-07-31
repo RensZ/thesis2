@@ -93,7 +93,8 @@ Eigen::MatrixXd calculateConsiderCovarianceOfAsteroids(
         const Eigen::MatrixXd P,
         const Eigen::VectorXd W_diagonal,
         const Eigen::MatrixXd Hx,
-        std::string inputFolderAsteroids);
+        std::string inputFolderAsteroids,
+        std::string outputFolderAsteroids);
 
 std::map< double, Eigen::MatrixXd > onlyEveryXthValueFromDataMap(
         std::map< double, Eigen::MatrixXd > inputMap,
@@ -112,5 +113,8 @@ std::string printScenario(const int scenario);
 double combinedRangeAndSatelliteErrorLevel( const double observationTime,
                                                 const Eigen::Vector3d satellitePositionErrorLevel,
                                                 const double rangeNoiseLevel);
+
+std::map< unsigned int, std::pair< double, double > > readAsteroidsFile (
+        std::string filename, std::string delimiter);
 
 #endif // CUSTOMFUNCTIONS_H
