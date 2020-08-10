@@ -126,18 +126,18 @@ int main( )
 
     // parameter inputs
     std::vector< std::string > filenames;
-//    filenames.push_back("inputs_multiplemissions_Fienga2019.json");
+    filenames.push_back("inputs_multiplemissions_Fienga2019.json");
 //    filenames.push_back("inputs_multiplemissions_Park2017.json");
-    filenames.push_back("inputs_multiplemissions_Antia2008.json");
+//    filenames.push_back("inputs_multiplemissions_Antia2008.json");
 
     // scenario pairs
     std::vector< std::pair<int,int> > scenarioPairs;
-//    scenarioPairs.push_back(std::make_pair(1,1));
+    scenarioPairs.push_back(std::make_pair(1,1));
 //    scenarioPairs.push_back(std::make_pair(2,2));
 //    scenarioPairs.push_back(std::make_pair(3,3));
-    scenarioPairs.push_back(std::make_pair(4,4));
-    scenarioPairs.push_back(std::make_pair(3,1));
-    scenarioPairs.push_back(std::make_pair(1,3));
+//    scenarioPairs.push_back(std::make_pair(4,4));
+//    scenarioPairs.push_back(std::make_pair(3,1));
+//    scenarioPairs.push_back(std::make_pair(1,3));
 
 
     for (unsigned int f = 0; f<filenames.size(); f++){
@@ -1577,6 +1577,7 @@ int main( )
             Eigen::VectorXd observationWeightDiagonal = podOutput->weightsMatrixDiagonal_; // diagonal of W
             Eigen::MatrixXd unnormalizedPartialDerivatives = podOutput->getUnnormalizedPartialDerivatives( ); // Hx
             Eigen::MatrixXd considerCovarianceMatrix;
+            Eigen::MatrixXd considerCovarianceMatrixIncludingAsteroids;
             unsigned int maxcovtype = 1;
 
             // clear memory
@@ -1684,7 +1685,22 @@ int main( )
                 input_output::writeMatrixToFile( considerCorrelationMatrix, "EstimationConsiderCorrelations.dat", 16, outputSubFolder );
                 input_output::writeMatrixToFile( formalErrorWithConsiderParameters, "ObservationFormalEstimationErrorWithConsiderParameters.dat", 16, outputSubFolder );
 
-                maxcovtype = 2;
+
+                // include asteroids
+                considerCovarianceMatrixIncludingAsteroids =
+                        considerCovarianceMatrix + calculateConsiderCovarianceOfAsteroids(
+                            initialCovarianceMatrix, observationWeightDiagonal,
+                            unnormalizedPartialDerivatives,
+                            json_directory, json_directory + "/asteroids_multiplemissions");
+
+                Eigen::VectorXd formalErrorWithConsiderParametersIncludingAsteroids = considerCovarianceMatrixIncludingAsteroids.diagonal( ).cwiseSqrt( );
+                Eigen::MatrixXd considerCorrelationMatrixIncludingAsteroids = considerCovarianceMatrixIncludingAsteroids.cwiseQuotient(
+                            formalErrorWithConsiderParametersIncludingAsteroids * formalErrorWithConsiderParametersIncludingAsteroids.transpose() );
+
+                input_output::writeMatrixToFile( considerCorrelationMatrixIncludingAsteroids, "EstimationConsiderIncludingAsteroidsCorrelations.dat", 16, outputSubFolder );
+                input_output::writeMatrixToFile( formalErrorWithConsiderParametersIncludingAsteroids, "ObservationFormalEstimationErrorWithConsiderIncludingAsteroidsParameters.dat", 16, outputSubFolder );
+
+                maxcovtype = 3;
             }
 
             // clear memory
@@ -1720,10 +1736,14 @@ int main( )
                     std::cout<<"propagating covariance matrix..."<<std::endl;
                     initialCovariance = initialCovarianceMatrix;
                     saveString = "";
-                } else{
+                } else if (covtype == 1){
                     std::cout<<"propagating consider covariance matrix..."<<std::endl;
                     initialCovariance = considerCovarianceMatrix;
                     saveString = "Consider";
+                } else{
+                    std::cout<<"propagating consider covariance matrix including asteroids..."<<std::endl;
+                    initialCovariance = considerCovarianceMatrixIncludingAsteroids;
+                    saveString = "ConsiderIncludingAsteroids";
                 }
 
                 propagateCovariance(propagatedCovariance, initialCovariance,
@@ -1787,6 +1807,7 @@ int main( )
 
             // covariance and correlation
             input_output::writeMatrixToFile( considerCovarianceMatrix, "ConsiderCovarianceMatrix.dat", 16, outputSubFolder );
+            input_output::writeMatrixToFile( considerCovarianceMatrixIncludingAsteroids, "ConsiderIncludingAsteroidsCovarianceMatrix.dat", 16, outputSubFolder );
             input_output::writeMatrixToFile( initialCovarianceMatrix, "InitialCovarianceMatrix.dat", 16, outputSubFolder );
             input_output::writeMatrixToFile( observationWeightDiagonal, "ObservationWeightDiagonal.dat", 16, outputSubFolder );
 

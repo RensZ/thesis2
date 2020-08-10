@@ -602,7 +602,7 @@ Eigen::MatrixXd calculateConsiderCovarianceOfAsteroids(
     using namespace tudat::physical_constants;
 
     // get asteroid numbers
-    Eigen::VectorXd asteroidNumbersDouble = readMatrixFromFile(inputFolderAsteroids + "mu.txt", " ").col(0).segment(0,10);
+    Eigen::VectorXd asteroidNumbersDouble = readMatrixFromFile(inputFolderAsteroids + "mu.txt", " ").col(0).segment(0,300);
     Eigen::VectorXi asteroidNumbers = asteroidNumbersDouble.cast<int>();
 
     // get asteroid GM uncertainties
@@ -618,10 +618,12 @@ Eigen::MatrixXd calculateConsiderCovarianceOfAsteroids(
         term1.col(i) *= W_diagonal(i);
     }
 
-    Eigen::MatrixXd output(P.rows(),P.cols());
+    Eigen::MatrixXd output = Eigen::MatrixXd::Zero(P.rows(),P.cols());
 
     // for each asteroid, get Hc and calculate consider covariance
     for (unsigned int j = 0; j < asteroidNumbers.size(); j++){
+
+        std::cout<<"    calculating consider covariance for asteroid "<<asteroidNumbers(j)<<std::endl;
 
         Eigen::MatrixXd Hc_j = readMatrixFromFile(
                     outputFolderAsteroids + "/partialDerivativesWrtAsteroid"+std::to_string(asteroidNumbers(j))+".dat");
@@ -633,8 +635,14 @@ Eigen::MatrixXd calculateConsiderCovarianceOfAsteroids(
 
         output += term2a * C_j * term2c;
 
-        std::cout<<"asteroid: "<<asteroidNumbers(j)<<" - C_j: "<<C_j<<" - Cons cov:"<<std::endl;
-        std::cout<<term2a * C_j * term2c<<std::endl;
+//        std::cout<<"asteroid: "<<asteroidNumbers(j)<<" - C_j: "<<C_j<<" - Cons cov:"<<std::endl;
+//        std::cout<<term2a * C_j * term2c<<std::endl;
+
+        for (unsigned int i = 0; i < output.rows(); i++){
+            if( output(i,i) < 0){
+                std::cout<<"ERROR: consider covariance entry "<<i<<","<<i<<" is smaller than zero: "<<output(i,i)<<std::endl;
+            }
+        }
 
     }
 
