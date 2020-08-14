@@ -373,8 +373,8 @@ int main( )
             /////////////////////
 
 
-            const unsigned int increment = 20;
-            for (unsigned int inc=0; inc<300; inc += increment){
+            const unsigned int increment = 25;
+            for (unsigned int inc=0; inc<25; inc += increment){
 
                 unsigned int minIndex = inc;
                 unsigned int maxIndex = inc+increment-1;
@@ -393,6 +393,7 @@ int main( )
                 bodyNames.push_back("Saturn");
                 bodyNames.push_back("Uranus");
                 bodyNames.push_back("Neptune");
+                bodyNames.push_back("Moon");
 
                 // load stuff of asteroids
                 Eigen::VectorXd asteroidNumbersDouble = input_output::readMatrixFromFile(json_directory + "mu.txt", " ").col(0).segment(minIndex, increment);

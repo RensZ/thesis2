@@ -13,6 +13,7 @@ double secondsAfterJ2000(Eigen::Vector6i datetime){
     return (julianDay - julianDayJ2000)*secondsPerDay;
 }
 
+
 double secondsAfterJ2000(std::vector<int> datetime){
     if (datetime.size() != 6){
         std::runtime_error("error, vector input of function secondsAfterJ2000 should have size 6 (Y,M,D,h,m,s)");
@@ -200,6 +201,7 @@ double noiseSampleBasedOnMSEangle(const double time,
     return sample;
 }
 
+
 //! Wrapper around noiseLevelBasedOnMSEAngle for multiple missions.
 double noiseLevelBasedOnMSEangleForMultipleMissions(const double time,
                             std::vector< double > noiseAtMinAngleVector,
@@ -311,9 +313,6 @@ Eigen::MatrixXd interpolatePositionErrors(const Eigen::MatrixXd errorMatrix,
 
     return interpolatedErrorMatrix;
 }
-
-
-
 
 
 std::map< double, Eigen::Vector3d > interpolatePositionErrorsBasedOnTrueAnomaly(
@@ -466,6 +465,7 @@ std::map< double, Eigen::Vector3d > interpolatePositionErrorsBasedOnTrueAnomaly(
     return interpolatedErrorMatrix;
 }
 
+
 Eigen::Matrix3d transformAngularMomentumFromLocalToGlobalFrame(
         const Eigen::Matrix3d angularMomentumInLocalFrame,
         const std::string localFrame,
@@ -567,6 +567,7 @@ std::map< double, Eigen::MatrixXd > zeroTabulatedSphericalHarmonicsCoefficientCo
 
 }
 
+
 // Montenbruck & Gill eq 8.42
 // executed slightly different to avoid square matrices with size = number of observations
 // (result is tested to be identical on smaller examples)
@@ -575,18 +576,25 @@ Eigen::MatrixXd calculateConsiderCovarianceMatrix(
         const Eigen::VectorXd W_diagonal,
         const Eigen::MatrixXd C,
         const Eigen::MatrixXd Hx,
-        const Eigen::MatrixXd Hc)
+        const Eigen::MatrixXd Hc,
+        std::string outputSubFolder)
 {
+    using namespace tudat::input_output;
 
-    Eigen::MatrixXd term1 = P * Hx.transpose();
-    for (unsigned int i = 0; i < Hx.rows(); i++){
+    Eigen::MatrixXd term1 = Hx.transpose();
+    for (unsigned int i = 0; i < W_diagonal.size(); i++){
         term1.col(i) *= W_diagonal(i);
     }
 
-    Eigen::MatrixXd term2a = term1 * Hc;
-    Eigen::MatrixXd term2c = Hc.transpose() * term1.transpose();
+    Eigen::MatrixXd term2a = P * (term1 * Hc);
+    // Eigen::MatrixXd term2c = Hc.transpose() * term1.transpose();
 
-    return P + term2a * C * term2c;
+    Eigen::MatrixXd considerCovarianceTerm = term2a * C * term2a.transpose();
+    writeMatrixToFile(considerCovarianceTerm,
+                      "considerCovarianceTerm.dat", 16,
+                      outputSubFolder);
+
+    return P + considerCovarianceTerm;
 }
 
 // second term only of Montenbruck & Gill eq 8.42
@@ -596,13 +604,14 @@ Eigen::MatrixXd calculateConsiderCovarianceOfAsteroids(
         const Eigen::VectorXd W_diagonal,
         const Eigen::MatrixXd Hx,
         std::string inputFolderAsteroids,
-        std::string outputFolderAsteroids)
+        std::string inputFolderPartials,
+        std::string outputSubFolder)
 {
     using namespace tudat::input_output;
     using namespace tudat::physical_constants;
 
     // get asteroid numbers
-    Eigen::VectorXd asteroidNumbersDouble = readMatrixFromFile(inputFolderAsteroids + "mu.txt", " ").col(0).segment(0,300);
+    Eigen::VectorXd asteroidNumbersDouble = readMatrixFromFile(inputFolderAsteroids + "mu.txt", " ").col(0);
     Eigen::VectorXi asteroidNumbers = asteroidNumbersDouble.cast<int>();
 
     // get asteroid GM uncertainties
@@ -626,28 +635,37 @@ Eigen::MatrixXd calculateConsiderCovarianceOfAsteroids(
         std::cout<<"    calculating consider covariance for asteroid "<<asteroidNumbers(j)<<std::endl;
 
         Eigen::MatrixXd Hc_j = readMatrixFromFile(
-                    outputFolderAsteroids + "/partialDerivativesWrtAsteroid"+std::to_string(asteroidNumbers(j))+".dat");
+                    inputFolderPartials + "/partialDerivativesWrtAsteroid"+std::to_string(asteroidNumbers(j))+".dat");
         double sigma_j = asteroidsINPOP19a.at(asteroidNumbers(j)).second*convertAsteroidGMtoSI;
         double C_j = sigma_j*sigma_j;
 
         Eigen::MatrixXd term2a = term1 * Hc_j;
-        Eigen::MatrixXd term2c = Hc_j.transpose() * term1.transpose();
+        Eigen::MatrixXd term2c = Hc_j.transpose() * term1.transpose();          
+        Eigen::MatrixXd currentAsteroidConsiderCovariance = term2a * C_j * term2c;
 
-        output += term2a * C_j * term2c;
+        for (unsigned int i = 0; i < currentAsteroidConsiderCovariance.rows(); i++){
+            if( currentAsteroidConsiderCovariance(i,i) < 0){
+                std::cout<<"ERROR: for asteroid "<<asteroidNumbers(j)
+                         <<" the consider covariance entry "<<i<<","<<i<<" is smaller than zero: "<<currentAsteroidConsiderCovariance(i,i)<<std::endl;
+            }
+        }
+
+        writeMatrixToFile(currentAsteroidConsiderCovariance,
+                          "asteroid"+std::to_string(asteroidNumbers(j))+".dat", 16,
+                          outputSubFolder + "/considerCovarianceAsteroids/");
+
+        output += currentAsteroidConsiderCovariance;
 
 //        std::cout<<"asteroid: "<<asteroidNumbers(j)<<" - C_j: "<<C_j<<" - Cons cov:"<<std::endl;
 //        std::cout<<term2a * C_j * term2c<<std::endl;
 
-        for (unsigned int i = 0; i < output.rows(); i++){
-            if( output(i,i) < 0){
-                std::cout<<"ERROR: consider covariance entry "<<i<<","<<i<<" is smaller than zero: "<<output(i,i)<<std::endl;
-            }
-        }
-
     }
 
     std::cout<<"P:"<<std::endl<<P<<std::endl;
-    std::cout<<"Cons.Cov.:"<<std::endl<<output<<std::endl;
+    std::cout<<"Cons.Cov. term:"<<std::endl<<output<<std::endl;
+
+    Eigen::VectorXd increase = 100.0*output.diagonal().cwiseQuotient(P.diagonal());
+    std::cout<<"percentage increase of formal errors:"<<increase.transpose()<<std::endl;
 
     return output;
 }
@@ -720,6 +738,7 @@ std::map< double, Eigen::VectorXd > onlyEveryXthValueFromDataMap(
     return outputMap;
 }
 
+
 std::string printScenario(const int scenario){
 
     std::string output;
@@ -735,6 +754,7 @@ std::string printScenario(const int scenario){
     }
     return output;
 }
+
 
 double combinedRangeAndSatelliteErrorLevel( const double observationTime,
                                                 const Eigen::Vector3d satellitePositionErrorLevel,

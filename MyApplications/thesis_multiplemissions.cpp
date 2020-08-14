@@ -1691,7 +1691,9 @@ int main( )
                         considerCovarianceMatrix + calculateConsiderCovarianceOfAsteroids(
                             initialCovarianceMatrix, observationWeightDiagonal,
                             unnormalizedPartialDerivatives,
-                            json_directory, json_directory + "/asteroids_multiplemissions");
+                            json_directory,
+                            json_directory + "/asteroids_multiplemissions",
+                            outputSubFolder);
 
                 Eigen::VectorXd formalErrorWithConsiderParametersIncludingAsteroids = considerCovarianceMatrixIncludingAsteroids.diagonal( ).cwiseSqrt( );
                 Eigen::MatrixXd considerCorrelationMatrixIncludingAsteroids = considerCovarianceMatrixIncludingAsteroids.cwiseQuotient(

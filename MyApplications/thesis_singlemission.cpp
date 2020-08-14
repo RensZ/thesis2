@@ -76,6 +76,9 @@ int main( )
     const bool ignoreNordtvedtConstraintInEstimation = false;
     const bool includeSpacecraftPositionError = true;
     const bool includeLightTimeCorrections = false;
+    const bool testCeres = false; // to perform tests on the asteroid consider covariance
+    const bool testGamma = false; // to perform tests on the consider covariance calculation, only works for Genova et al 2018
+    const double observationReductionFactor = 2.0; //decreases amount of observations by a factor n to speed up the algorithm considerably
 
 
     // ABM integrator settings (if RK4 is used instead, initialstepsize is taken)
@@ -100,6 +103,12 @@ int main( )
 
     // output settings
     int onlyEveryXthValue = 20;
+
+    // conversion for the asteroids
+    double convertAsteroidGMtoSI = 1E-18
+            * physical_constants::ASTRONOMICAL_UNIT*physical_constants::ASTRONOMICAL_UNIT*physical_constants::ASTRONOMICAL_UNIT
+            / (physical_constants::JULIAN_DAY*physical_constants::JULIAN_DAY);
+
 
 
     ////////////////////////
@@ -179,7 +188,7 @@ int main( )
         const bool estimateSunAngularMomentum = json_input["estimateSunAngularMomentum"];
         const bool estimatePPNalphas = json_input["estimatePPNalphas"];
         bool ppnAlphasAreConsiderParameters = json_input["ppnAlphasAreConsiderParameters"];
-        const bool gammaIsAConsiderParameter = json_input["gammaIsAConsiderParameter"];
+        bool gammaIsAConsiderParameter = json_input["gammaIsAConsiderParameter"];
 
         // retreive regular observation schedule
         std::vector<int> json3 = json_input["observationInitialTime"];
@@ -211,7 +220,13 @@ int main( )
         // Location of simulation output
         std::string outputSubFolderName = json_input["outputSubFolderName"];
         std::string outputSubFolder = getOutputPath( ) + outputSubFolderName;
-
+        if (testCeres){
+            outputSubFolder += "_testCeres";
+        }
+        if (testGamma){
+            gammaIsAConsiderParameter = false;
+            outputSubFolder += "_testGamma";
+        }
 
         // settings time variable gravitational moments
         double J2amplitude = sunJ2/2.0;
@@ -281,24 +296,42 @@ int main( )
         customKernels.push_back( kernelsPath + "tudat_merged_spk_kernel_thesis4.bsp" );
         spice_interface::loadStandardSpiceKernels( customKernels );
 
-        unsigned int totalNumberOfBodies = 10;
         std::vector< std::string > bodyNames;
-        bodyNames.resize( totalNumberOfBodies );
-        bodyNames[ 0 ] = "Sun";
-        bodyNames[ 1 ] = "Mercury";
-        bodyNames[ 2 ] = "Venus";
-        bodyNames[ 3 ] = "Earth";
-        bodyNames[ 4 ] = "Mars";
-        bodyNames[ 5 ] = "Jupiter";
-        bodyNames[ 6 ] = "Saturn";
-        bodyNames[ 7 ] = "Uranus";
-        bodyNames[ 8 ] = "Neptune";
-        bodyNames[ 9 ] = "Moon";
+        bodyNames.push_back("Sun");
+        bodyNames.push_back("Mercury");
+        bodyNames.push_back("Venus");
+        bodyNames.push_back("Earth");
+        bodyNames.push_back("Mars");
+        bodyNames.push_back("Jupiter");
+        bodyNames.push_back("Saturn");
+        bodyNames.push_back("Uranus");
+        bodyNames.push_back("Neptune");
+        bodyNames.push_back("Moon");
+
+        if (testCeres){
+            spice_interface::loadSpiceKernelInTudat( kernelsPath + "codes_300ast_20100725.tf" );
+            spice_interface::loadSpiceKernelInTudat( kernelsPath + "codes_300ast_20100725.bsp" );
+            bodyNames.push_back("2000001");
+        }
+
+        const unsigned int totalNumberOfBodies = bodyNames.size();
 
         // Default body settings
         double buffer = maximumOrder*maximumStepSize; //see Tudat libraries 1.1.3.
         std::map< std::string, std::shared_ptr< BodySettings > > bodySettings;
         bodySettings = getDefaultBodySettings( bodyNames, initialSimulationTime - buffer, finalSimulationTime + buffer );
+
+        if (testCeres){
+
+            // set ephemeris settings to tabulated with 1 hour time step
+            bodySettings[ "2000001" ]->ephemerisSettings
+                    = std::make_shared< InterpolatedSpiceEphemerisSettings >(
+                        initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, "SSB", "ECLIPJ2000" );
+
+            // set gravitational parameter as given in INPOP19a
+            bodySettings[ "2000001" ]->gravityFieldSettings
+                    = std::make_shared< CentralGravityFieldSettings >(139643.532 * convertAsteroidGMtoSI);
+        }
 
 
         std::cout << "setting custom settings Sun..." << std::endl;
@@ -620,7 +653,7 @@ int main( )
         {
             // Write propagation history to file.
             input_output::writeDataMapToTextFile(
-                        allBodiesPropagationHistory[ i ],
+                        onlyEveryXthValueFromDataMap( allBodiesPropagationHistory[ i ], onlyEveryXthValue),
                         "StatePropagationHistory" + bodiesToPropagate.at( i ) + ".dat",
                         outputSubFolder,
                         "",
@@ -629,7 +662,7 @@ int main( )
                         "," );
 
             input_output::writeDataMapToTextFile(
-                        spiceStatesAtPropagationTimes[ i ],
+                        onlyEveryXthValueFromDataMap( spiceStatesAtPropagationTimes[ i ], onlyEveryXthValue),
                         "spiceStatesAtPropagationTimes" + bodiesToPropagate.at( i ) + ".dat",
                         outputSubFolder,
                         "",
@@ -817,6 +850,14 @@ int main( )
             }
         }
 
+        if (testCeres){
+            // set GM of the asteroid as estimatable parameter, get apriori sigma from INPOP19a
+            parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                     ("2000001", gravitational_parameter));
+            double asteroidSigma = 340.331 * convertAsteroidGMtoSI;
+            varianceVector.push_back(asteroidSigma*asteroidSigma);
+        }
+
         bool gammaIsEstimated = false;
         bool betaIsEstimated = false;
         bool nordtvedtParameterIsEstimated = false;
@@ -972,10 +1013,14 @@ int main( )
         std::cout << "Defining observation settings..." << std::endl;
 
         // generate list of observations
+        if (observationReductionFactor > 1){
+            std::cout<<"WARNING: amount of observations is being reduced by a factor "<<observationReductionFactor<<std::endl;
+        }
+
         std::vector< double > baseTimeList =
                 makeObservationTimeList(secondsAfterJ2000(observationInitialTime),
                                         secondsAfterJ2000(observationFinalTime),
-                                        observationTimeStep,
+                                        observationTimeStep*observationReductionFactor,
                                         trackingArcDuration,
                                         maximumNumberOfTrackingDays,
                                         unit_conversions::convertDegreesToRadians(maxMSEAngleDeg),
@@ -1343,7 +1388,8 @@ int main( )
             considerCovarianceMatrix = calculateConsiderCovarianceMatrix(
                         initialCovarianceMatrix, observationWeightDiagonal,
                         considerParameterAprioriCovariance.block(6,6,considerParameterAprioriCovariance.rows()-6, considerParameterAprioriCovariance.cols()-6),
-                        unnormalizedPartialDerivatives, partialDerivativesOfConsiderParameters);
+                        unnormalizedPartialDerivatives, partialDerivativesOfConsiderParameters,
+                        outputSubFolder);
 
 
             // get consider correlation matrix
@@ -1355,22 +1401,26 @@ int main( )
             input_output::writeMatrixToFile( considerCorrelationMatrix, "EstimationConsiderCorrelations.dat", 16, outputSubFolder );
             input_output::writeMatrixToFile( formalErrorWithConsiderParameters, "ObservationFormalEstimationErrorWithConsiderParameters.dat", 16, outputSubFolder );
 
+            maxcovtype = 2;
 
             // include asteroids
-            considerCovarianceMatrixIncludingAsteroids =
-                    considerCovarianceMatrix + calculateConsiderCovarianceOfAsteroids(
-                        initialCovarianceMatrix, observationWeightDiagonal,
-                        unnormalizedPartialDerivatives,
-                        json_directory, outputSubFolder + "_asteroids");
+            if (testCeres == false){
+                considerCovarianceMatrixIncludingAsteroids =
+                        considerCovarianceMatrix + calculateConsiderCovarianceOfAsteroids(
+                            initialCovarianceMatrix, observationWeightDiagonal,
+                            unnormalizedPartialDerivatives,
+                            json_directory, outputSubFolder + "_asteroids",
+                            outputSubFolder);
 
-            Eigen::VectorXd formalErrorWithConsiderParametersIncludingAsteroids = considerCovarianceMatrixIncludingAsteroids.diagonal( ).cwiseSqrt( );
-            Eigen::MatrixXd considerCorrelationMatrixIncludingAsteroids = considerCovarianceMatrixIncludingAsteroids.cwiseQuotient(
-                        formalErrorWithConsiderParametersIncludingAsteroids * formalErrorWithConsiderParametersIncludingAsteroids.transpose() );
+                Eigen::VectorXd formalErrorWithConsiderParametersIncludingAsteroids = considerCovarianceMatrixIncludingAsteroids.diagonal( ).cwiseSqrt( );
+                Eigen::MatrixXd considerCorrelationMatrixIncludingAsteroids = considerCovarianceMatrixIncludingAsteroids.cwiseQuotient(
+                            formalErrorWithConsiderParametersIncludingAsteroids * formalErrorWithConsiderParametersIncludingAsteroids.transpose() );
 
-            input_output::writeMatrixToFile( considerCorrelationMatrixIncludingAsteroids, "EstimationConsiderIncludingAsteroidsCorrelations.dat", 16, outputSubFolder );
-            input_output::writeMatrixToFile( formalErrorWithConsiderParametersIncludingAsteroids, "ObservationFormalEstimationErrorWithConsiderIncludingAsteroidsParameters.dat", 16, outputSubFolder );
+                input_output::writeMatrixToFile( considerCorrelationMatrixIncludingAsteroids, "EstimationConsiderIncludingAsteroidsCorrelations.dat", 16, outputSubFolder );
+                input_output::writeMatrixToFile( formalErrorWithConsiderParametersIncludingAsteroids, "ObservationFormalEstimationErrorWithConsiderIncludingAsteroidsParameters.dat", 16, outputSubFolder );
 
-            maxcovtype = 3;
+                maxcovtype = 3;
+            }
         }
 
 

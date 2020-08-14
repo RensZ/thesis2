@@ -129,6 +129,17 @@ for ps in publication_string:
     #### OUTPUTS ####
     #################
 
+    # Check consistency asteroid application and main application
+    from os.path import isdir
+    if isdir(dir_cpp_output[:-1]+"_asteroids/"):
+        print("---- comparing orbits asteroid application and main application----")
+        import CheckAsteroidApplication
+        CheckAsteroidApplication.f(dir_cpp_output, dir_cpp_output[:-1] + "_asteroids/", dir_plots)
+
+        print("---- making plots of dependent variables of asteroids ----")
+        import DependentVariableHistory_Asteroids
+        DependentVariableHistory_Asteroids.f(dir_cpp_output[:-1] + "_asteroids/", dir_plots)
+
     # Plot dependent variable history
     print("---- making plots of dependent variable history ----")
     import DependentVariableHistory

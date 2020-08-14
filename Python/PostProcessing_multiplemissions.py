@@ -115,6 +115,18 @@ for s in subdirs:
     #### OUTPUTS ####
     #################
 
+    # Check consistency asteroid application and main application
+    from os.path import isdir
+    print(dir_application + 'Input/asteroids_multiplemissions/')
+    if isdir(dir_application + 'Input/asteroids_multiplemissions/'):
+        print("---- comparing orbits asteroid application and main application----")
+        import CheckAsteroidApplication
+        CheckAsteroidApplication.f(s, dir_application + 'Input/asteroids_multiplemissions/', dir_plots)
+
+        print("---- making plots of dependent variables of asteroids ----")
+        import DependentVariableHistory_Asteroids
+        DependentVariableHistory_Asteroids.f(dir_application + 'Input/asteroids_multiplemissions/', dir_plots)
+
     # Plot dependent variable history
     print("---- making plots of dependent variable history ----")
     import DependentVariableHistory

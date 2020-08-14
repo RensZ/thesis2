@@ -87,14 +87,16 @@ Eigen::MatrixXd calculateConsiderCovarianceMatrix(
         const Eigen::VectorXd W_diagonal,
         const Eigen::MatrixXd C,
         const Eigen::MatrixXd Hx,
-        const Eigen::MatrixXd Hc);
+        const Eigen::MatrixXd Hc,
+        std::string outputSubFolder);
 
 Eigen::MatrixXd calculateConsiderCovarianceOfAsteroids(
         const Eigen::MatrixXd P,
         const Eigen::VectorXd W_diagonal,
         const Eigen::MatrixXd Hx,
         std::string inputFolderAsteroids,
-        std::string outputFolderAsteroids);
+        std::string inputFolderPartials,
+        std::string outputSubFolder);
 
 std::map< double, Eigen::MatrixXd > onlyEveryXthValueFromDataMap(
         std::map< double, Eigen::MatrixXd > inputMap,
