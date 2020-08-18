@@ -78,7 +78,7 @@ int main( )
     const bool includeLightTimeCorrections = false;
     const bool testCeres = false; // to perform tests on the asteroid consider covariance
     const bool testGamma = false; // to perform tests on the consider covariance calculation, only works for Genova et al 2018
-    const double observationReductionFactor = 2.0; //decreases amount of observations by a factor n to speed up the algorithm considerably
+    const double observationReductionFactor = 1.0; //decreases amount of observations by a factor n to speed up the algorithm considerably
 
 
     // ABM integrator settings (if RK4 is used instead, initialstepsize is taken)
@@ -124,8 +124,10 @@ int main( )
     filenames.push_back("inputs_Imperi2018_nvtrue_flybys_alphas.json"); // 4
     filenames.push_back("inputs_Imperi2018_nvfalse_flybys.json"); // 5
     filenames.push_back("inputs_Imperi2018_nvfalse_flybys_alphas.json"); // 6
+    filenames.push_back("inputs_Genova2018_estimateAngularMomentum.json"); // 7
+    filenames.push_back("inputs_Genova2018_considerAngularMomentum.json"); // 8
 
-    for (unsigned int f = 0; f<1; f++){
+    for (unsigned int f = 1; f<2; f++){
 //    for (unsigned int f = 0; f<filenames.size(); f++){
 
         std::string input_filename = filenames.at(f);
@@ -332,6 +334,8 @@ int main( )
             bodySettings[ "2000001" ]->gravityFieldSettings
                     = std::make_shared< CentralGravityFieldSettings >(139643.532 * convertAsteroidGMtoSI);
         }
+
+        std::cout<<"GM Ceres [m3/s2]: "<<139643.532 * convertAsteroidGMtoSI<<std::endl;
 
 
         std::cout << "setting custom settings Sun..." << std::endl;
@@ -858,6 +862,8 @@ int main( )
             varianceVector.push_back(asteroidSigma*asteroidSigma);
         }
 
+        std::cout<<"GM Ceres uncertainty [m3/s2]: "<<340.331 * convertAsteroidGMtoSI<<std::endl;
+
         bool gammaIsEstimated = false;
         bool betaIsEstimated = false;
         bool nordtvedtParameterIsEstimated = false;
@@ -1295,6 +1301,8 @@ int main( )
         std::cout << "True to form estimation error ratio is: " << std::endl <<
                      ( podOutput->getFormalErrorVector( ).cwiseQuotient( estimationError ) ).transpose( ) << std::endl;
 
+        std::cout << "improvement ratio formal w.r.t apriori error: " << std::endl <<
+                     ( podOutput->getFormalErrorVector( ).cwiseQuotient( aprioriCovariance.diagonal().cwiseSqrt() ) ).transpose( ) << std::endl;
 
         /////////////////////////////
         //// CONSIDER PARAMETERS ////
@@ -1308,7 +1316,7 @@ int main( )
         Eigen::MatrixXd considerCovarianceMatrixIncludingAsteroids;
         unsigned int maxcovtype = 1;
 
-        if (gammaIsAConsiderParameter || ppnAlphasAreConsiderParameters){
+        if (gammaIsAConsiderParameter || ppnAlphasAreConsiderParameters || input_filename == "inputs_Genova2018_considerAngularMomentum.json"){
 
             std::cout<< "calculating covariance due to consider parameters..."<< std::endl;
 
@@ -1345,6 +1353,12 @@ int main( )
                 considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                          ("global_metric", ppn_parameter_alpha2 ) );
                 considerVarianceVector.push_back(sigmaAlpha2*sigmaAlpha2);
+            }
+
+            if ( input_filename == "inputs_Genova2018_considerAngularMomentum.json"){
+                considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                         ("Sun", angular_momentum));
+                considerVarianceVector.push_back(sigmaSunAngularMomentum*sigmaSunAngularMomentum);
             }
 
             std::shared_ptr< estimatable_parameters::EstimatableParameterSet< double > > considerParametersToEstimate =
@@ -1404,7 +1418,7 @@ int main( )
             maxcovtype = 2;
 
             // include asteroids
-            if (testCeres == false){
+            if (testCeres == false && input_filename != "inputs_Genova2018_considerAngularMomentum.json"){
                 considerCovarianceMatrixIncludingAsteroids =
                         considerCovarianceMatrix + calculateConsiderCovarianceOfAsteroids(
                             initialCovarianceMatrix, observationWeightDiagonal,

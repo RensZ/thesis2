@@ -231,5 +231,13 @@ target_link_libraries(application_AsteroidConsiderCovariance_multiplemissions
    ${TUDAT_APPLICATION_ESTIMATION_LIBRARIES}
    ${Boost_LIBRARIES} )
 
+# Add integrator test application
+add_executable(application_IntegratorTest "${SRCROOT}/integratorTest.cpp")
+setup_executable_target(application_IntegratorTest "${SRCROOT}")
+target_link_libraries(application_IntegratorTest
+   customLibrary
+   ${TUDAT_ESTIMATION_LIBRARIES}
+   ${TUDAT_APPLICATION_ESTIMATION_LIBRARIES}
+   ${Boost_LIBRARIES} )
 
 

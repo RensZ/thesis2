@@ -1,0 +1,81 @@
+
+{
+    "vehicle": "MESSENGER",
+
+    "initialTime": [2008, 1, 1, 0, 0, 0],
+    "finalTime": [2015, 5, 1, 0, 0, 0],
+
+    "calculateSchwarzschildCorrection": true,
+    "calculateLenseThirringCorrection": true,
+    "includeSEPViolationAcceleration": true,
+    "includeTVGPAcceleration": true,
+
+    "estimateJ2Amplitude": false,
+    "estimateJ2Period": false,
+    "estimateJ2Phase": false,
+
+    "estimateJ4Amplitude": false,
+    "estimateJ4Period": false,
+    "estimateJ4Phase": false,
+
+    "sunJ2": 2.20E-7,
+    "sunJ4": -4.34E-9,
+    "sunAngularMomentum": 190.0E39,
+    "sunGravitationalParameter": 132712440043.754E9,
+    "nordtvedtParameter": 0.0,
+    "timeVaryingGravitationalParameter": 0.0,
+
+    "useNordtvedtConstraint": true,
+    "estimateSunAngularMomentum": false,
+    "estimatePPNalphas": false,
+    "gammaIsAConsiderParameter": false,
+    "ppnAlphasAreConsiderParameters": false,
+
+    "sigma_S_Sun": 1.5E39,
+    "sigma_gamma": 2.3E-5,
+    "sigma_beta": 6.9E-5,
+    "sigma_alpha1": 6.0E-6,
+    "sigma_alpha2": 3.5E-5,
+    "sigma_Nordtvedt": 3.0E-4,
+    "sigma_mu_Sun": 0.14E9,
+    "sigma_J2_Sun": 0.03E-7,
+    "sigma_J4_Sun": 0.1E-9,
+    "sigma_TVGP": 0.29E-13,
+
+    "observationInitialTime": [2011, 3, 18, 0, 0, 0],
+    "observationFinalTime": [2015, 4, 28, 0, 0, 0],
+    "observationTimeStep": 300.0,
+    "trackingArcDuration": 21600.0,
+    "maximumNumberOfTrackingDays": 900,
+    "flybyObject": [
+        2008, 1, 14, 0, 0, 0,
+        2008, 10, 6, 0, 0, 0,
+        2009, 9, 29, 0, 0, 0
+    ],
+
+    "noiseAtMinAngle": 0.5,
+    "noiseAtMaxAngle": 3.0,
+    "maxMSEAngleDeg": 145.0,
+
+    "outputSubFolderName": "Genova2018_considerAngularMomentum",
+
+    "formalSigma_S_Sun": 1.5E39,
+    "formalSigma_beta": 1.8E-5,
+    "formalSigma_gamma": 2.3E-5,
+    "formalSigma_Nordtvedt": 7.2E-5,
+    "formalSigma_mu_Sun": 0.35E9,
+    "formalSigma_J2_Sun": 0.02E-7,
+    "formalSigma_J4_Sun": 0.1E-9,
+    "formalSigma_TVGP": 1.47E-14,
+
+    "sigma_J2_A": 1.1E-7,
+    "sigma_J2_P": 3.154E7,
+    "sigma_J2_phi": 1.0,
+    "formalSigma_J2_A": 1.1E-7,
+    "formalSigma_J2_P": 3.154E7,
+    "formalSigma_J2_phi": 1.0,
+
+    "sigma_J4_A": 0.06E-9,
+    "formalSigma_J4_A": 0.06E-9
+
+}

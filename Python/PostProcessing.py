@@ -12,6 +12,9 @@ Purpose: wrapper file for all the post-processing of thesis_v1.cpp
 
 publication_string = [#"MESSENGER_and_BepiColombo",
                       #"MESSENGER_and_BepiColombo_timevariableJ2",
+                      "Schettino2015_testCeres",
+                      "Genova2018_testCeres",
+                      "Genova2018_testGamma",
                       "Genova2018",
                       "Imperi2018_nvtrue_flybys_alphas",
                       "Imperi2018_nvtrue_flybys",
@@ -41,6 +44,11 @@ for ps in publication_string:
     else:
         no_bodies = 1
         ps_json = ps
+
+    if ps == "Genova2018_testGamma" or ps == "Genova2018_testCeres":
+        ps_json = "Genova2018"
+    if ps == "Schettino2015_testCeres":
+        ps_json = "Schettino2015"
 
     dir_cpp_output = dir_application + 'Output/' + ps + "/"
     dir_plots = '/home/rens/Documents/PostProcessing_plots/thesis_v1/' + ps + "/"
@@ -72,6 +80,17 @@ for ps in publication_string:
     # dependent_variables.append("J4_Sun")
 
     if json_input["calculateSchwarzschildCorrection"]:
+
+        if ps == "Genova2018_testGamma":
+            parameters.append("gamma")
+
+        if ps == "Genova2018_testCeres" or ps == "Schettino2015_testCeres":
+            parameters.append("mu_Ceres")
+            dependent_variables = ["Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Moon", "Ceres",
+                                   "Sun_CG",
+                                   "exclude",  # J1
+                                   "Sun_J2"]
+
         if not json_input["gammaIsAConsiderParameter"]:
             parameters.append("gamma")
         parameters.append("beta")
@@ -141,9 +160,13 @@ for ps in publication_string:
         DependentVariableHistory_Asteroids.f(dir_cpp_output[:-1] + "_asteroids/", dir_plots)
 
     # Plot dependent variable history
-    print("---- making plots of dependent variable history ----")
-    import DependentVariableHistory
-    DependentVariableHistory.f(dir_cpp_output, dir_plots, dependent_variables)
+    # print("---- making plots of dependent variable history ----")
+    # import DependentVariableHistory
+    # DependentVariableHistory.f(dir_cpp_output, dir_plots, dependent_variables)
+
+    print("---- making plots of dependent variable history, planets grouped ----")
+    import DependentVariableHistory_Grouped
+    DependentVariableHistory_Grouped.f(dir_cpp_output, dir_plots, dependent_variables)
 
     # Plot integration error
     print("---- making plots of the integration errors wrt SPICE and backwards integration ----" )

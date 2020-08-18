@@ -17,6 +17,9 @@ dir_application = '/home/rens/tudatBundle/tudatApplications/thesis/MyApplication
 dir_output = dir_application + 'Output/'
 subdirs = [f.path for f in scandir(dir_output) if f.is_dir()]
 
+# subdirs = [dir_output + "Fienga2019_reality1_estimation1_testCeres"]
+print(subdirs)
+
 # Bodies included
 bodies = ["Mercury"]
 vehicle = "vehicle"
@@ -32,9 +35,15 @@ for s in subdirs:
     print(" ")
     print(">>>> FOR INPUTS OF PUBLICATION:", s)
 
-    ps = s[len(dir_output):-21]
-    reality = int(s[-13])
-    estimation = int(s[-1])
+    if s[len(dir_output):] == "Fienga2019_reality1_estimation1_testCeres":
+        ps = "Fienga2019"
+        reality = 1
+        estimation = 1
+    else:
+        ps = s[len(dir_output):-21]
+        reality = int(s[-13])
+        estimation = int(s[-1])
+
 
     s += '/'
     json_file = dir_application + 'Input/' + 'inputs_multiplemissions_' + ps + '.json'
@@ -71,6 +80,14 @@ for s in subdirs:
     print(" json file used as input:" + json_file)
     with open(json_file) as f:
         json_input = json.load(f)
+
+    if s[len(dir_output):] == "Fienga2019_reality1_estimation1_testCeres/":
+        parameters.append("mu_Ceres")
+        dependent_variables = ["Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Moon",
+                               "Ceres",
+                               "Sun_CG",
+                               "exclude",  # J1
+                               "Sun_J2"]
 
     if json_input["calculateSchwarzschildCorrection"]:
         if not json_input["gammaIsAConsiderParameter"]:
@@ -115,6 +132,11 @@ for s in subdirs:
     #### OUTPUTS ####
     #################
 
+    # Make correlation heat map
+    print("---- making heat map of parameter correlations ----")
+    import HeatMap
+    HeatMap.f(s, dir_plots, parameters, no_arcs)
+
     # Check consistency asteroid application and main application
     from os.path import isdir
     print(dir_application + 'Input/asteroids_multiplemissions/')
@@ -128,9 +150,13 @@ for s in subdirs:
         DependentVariableHistory_Asteroids.f(dir_application + 'Input/asteroids_multiplemissions/', dir_plots)
 
     # Plot dependent variable history
-    print("---- making plots of dependent variable history ----")
-    import DependentVariableHistory
-    DependentVariableHistory.f(s, dir_plots, dependent_variables)
+    # print("---- making plots of dependent variable history ----")
+    # import DependentVariableHistory
+    # DependentVariableHistory.f(s, dir_plots, dependent_variables)
+
+    print("---- making plots of dependent variable history, planets grouped ----")
+    import DependentVariableHistory_Grouped
+    DependentVariableHistory_Grouped.f(s, dir_plots, dependent_variables)
 
     # Plot integration error
     print("---- making plots of the integration errors wrt SPICE and backwards integration ----" )
@@ -146,11 +172,6 @@ for s in subdirs:
     print("---- making plots of parameter estimation history ----")
     import ParameterHistory
     ParameterHistory.f(s, dir_plots, parameters, no_bodies, json_input, False)
-
-    # Make correlation heat map
-    print("---- making heat map of parameter correlations ----")
-    import HeatMap
-    HeatMap.f(s, dir_plots, parameters, no_arcs)
 
     # Plot residuals over time
     print("---- making plot of the observation residuals and propagated errors ----")

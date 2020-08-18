@@ -69,5 +69,9 @@
     "formalSigma_TVGP": 2.0E-14,
 
     "sigma_J4_A": 0.06E-9,
-    "formalSigma_J4_A": 0.06E-9
+    "formalSigma_J4_A": 0.06E-9,
+
+    "sigma_mu_Ceres": 152633548.081672,
+    "formalSigma_mu_Ceres": 152633548.081672
+
 }

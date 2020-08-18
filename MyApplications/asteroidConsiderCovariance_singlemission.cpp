@@ -121,7 +121,7 @@ int main( )
     filenames.push_back("inputs_Imperi2018_nvfalse_flybys.json"); // 5
     filenames.push_back("inputs_Imperi2018_nvfalse_flybys_alphas.json"); // 6
 
-    for (unsigned int f = 0; f<1; f++){
+    for (unsigned int f = 1; f<2; f++){
 //    for (unsigned int f = 0; f<filenames.size(); f++){
 
         std::string input_filename = filenames.at(f);
@@ -273,8 +273,8 @@ int main( )
         //// ENVIRONMENT ////
         /////////////////////
 
-        const unsigned int increment = 25;
-        for (unsigned int inc=0; inc<25; inc += increment){
+        const unsigned int increment = 10;
+        for (unsigned int inc=0; inc<10; inc += increment){
 
             unsigned int minIndex = inc;
             unsigned int maxIndex = inc+increment-1;
@@ -376,8 +376,11 @@ int main( )
                             = std::make_shared< CentralGravityFieldSettings >(asteroidsINPOP19a.at(asteroidNumbers(a)).first * convertAsteroidGMtoSI);
 
                     std::cout<<"asteroid "<<asteroidNumbers(a)
-                             <<" GM: "<<asteroidsINPOP19a.at(asteroidNumbers(a)).first<<" *10^18 AU3/d2, converted: "
-                             <<asteroidsINPOP19a.at(asteroidNumbers(a)).first * convertAsteroidGMtoSI<<" m3/s2"<<std::endl;
+                             <<" GM: "<<asteroidsINPOP19a.at(asteroidNumbers(a)).first<<" *10^-18 AU3/d2, converted: "
+                             <<asteroidsINPOP19a.at(asteroidNumbers(a)).first * convertAsteroidGMtoSI<<" m3/s2"
+                             <<"     "
+                             <<" sigma: "<<asteroidsINPOP19a.at(asteroidNumbers(a)).second<<" *10^-18 AU3/d2, converted: "
+                             <<asteroidsINPOP19a.at(asteroidNumbers(a)).second * convertAsteroidGMtoSI<<" m3/s2"<<std::endl;
                 }
             }
 
