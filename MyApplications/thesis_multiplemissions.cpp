@@ -85,7 +85,7 @@ int main( )
     const bool estimateJ4Phase = false;
 
     // Parameter estimation settings
-    const unsigned int maximumNumberOfIterations = 5;
+    const unsigned int maximumNumberOfIterations = 10;
     const double sigmaPosition = 1000.0; //educated guess
     const double sigmaVelocity = 1.0; //educated guess
     const bool useMultipleMercuryArcs = false;
@@ -95,16 +95,17 @@ int main( )
     const bool includeLightTimeCorrections = false;
     const double observationReductionFactor = 1.0; //decreases amount of observations by a factor n to speed up the algorithm considerably
     const bool testCeres = false; // to perform tests on the asteroid consider covariance
+    const bool testWithoutFlybys = true;
 
 
-    // ABM integrator settings (if RK4 is used instead, initialstepsize is taken)
+    // integrator settings
     const double initialTimeStep = 3600.0/2.0;
     const double minimumStepSize = 3600.0/2.0;
     const double maximumStepSize = 3600.0/2.0;
     const double relativeErrorTolerence = 1.0;
     const double absoluteErrorTolerence = 1.0;
-    const unsigned int minimumOrder = 8;
-    const unsigned int maximumOrder = 8;
+    const unsigned int minimumOrder = 12;
+    const unsigned int maximumOrder = 12;
 
     // Other planetary parameters, currently not included in json
     const double mercuryGravitationalParameter = (2.2031870798779644e+04)*(1E9); //m3/s2, from https://pgda.gsfc.nasa.gov/products/71
@@ -191,6 +192,9 @@ int main( )
             if (useMultipleMercuryArcs) {outputSubFolder = outputSubFolder + "_multiarc";}
             if (testCeres){
                 outputSubFolder += "_testCeres";
+            }
+            if (testWithoutFlybys){
+                outputSubFolder += "_testWithoutFlybys";
             }
 
             // Acceleration settings
@@ -289,10 +293,13 @@ int main( )
                     for (unsigned int c=0; c<6; c++ ){
                         currentFlyby.push_back(flybyObject.at(6*i+c));
                     }
-                    flybyList.push_back(secondsAfterJ2000(currentFlyby));
+                    if (testWithoutFlybys == false){
+                        flybyList.push_back(secondsAfterJ2000(currentFlyby));
+                    }
                     currentFlyby.clear();
                 }
                 flybyListVector.push_back(flybyList);
+
 
                 // observation Noise
                 noiseAtMinAngleVector.push_back(json_input_mission["noiseAtMinAngle"]);
@@ -397,7 +404,12 @@ int main( )
             const unsigned int totalNumberOfBodies = bodyNames.size();
 
             // load SPICE settings
-            const double initialSimulationTime = *std::min_element(initialTimeVector.begin(), initialTimeVector.end());
+            double initialSimulationTime;
+            if (testWithoutFlybys){
+                initialSimulationTime = *std::min_element(observationInitialTimeVector.begin(), observationInitialTimeVector.end());
+            } else{
+                initialSimulationTime = *std::min_element(initialTimeVector.begin(), initialTimeVector.end());
+            }
             const double finalSimulationTime = *std::max_element(finalTimeVector.begin(), finalTimeVector.end());
             const double buffer = maximumOrder*maximumStepSize; //see Tudat libraries 1.1.3.
             std::map< std::string, std::shared_ptr< BodySettings > > bodySettings;
@@ -710,51 +722,52 @@ int main( )
 
             std::cout << "defining propagation settings..." << std::endl;
 
-            Eigen::VectorXd systemInitialState;
-            std::shared_ptr< PropagatorSettings< double > > propagatorSettings;
-            std::vector< std::shared_ptr< SingleArcPropagatorSettings< double > > > propagatorSettingsList;
+            Eigen::Matrix<long double, Eigen::Dynamic, 1> systemInitialState;
+            std::shared_ptr< PropagatorSettings< long double > > propagatorSettings;
+//            std::vector< std::shared_ptr< SingleArcPropagatorSettings< double > > > propagatorSettingsList;
 
-            if (useMultipleMercuryArcs){
+//            if (useMultipleMercuryArcs){
 
-                std::vector< Eigen::VectorXd > arcInitialStates;
+//                std::vector< Eigen::VectorXd > arcInitialStates;
 
-                for (unsigned int m=0; m<numberOfMissions; m++){
+//                for (unsigned int m=0; m<numberOfMissions; m++){
 
-                    Eigen::VectorXd currentArcInitialState = getBodyCartesianStateAtEpoch(
-                                bodiesToPropagate.at(0), centralBodies.at(0),
-                                "ECLIPJ2000", "None", initialTimeVector.at(m) );
+//                    Eigen::VectorXd currentArcInitialState = getBodyCartesianStateAtEpoch(
+//                                bodiesToPropagate.at(0), centralBodies.at(0),
+//                                "ECLIPJ2000", "None", initialTimeVector.at(m) );
 
-                    std::cout<<"initial state: "<<currentArcInitialState.transpose()<<std::endl;
-                    arcInitialStates.push_back( currentArcInitialState );
+//                    std::cout<<"initial state: "<<currentArcInitialState.transpose()<<std::endl;
+//                    arcInitialStates.push_back( currentArcInitialState );
 
-                    std::shared_ptr< PropagationTimeTerminationSettings > terminationSettings =
-                          std::make_shared< propagators::PropagationTimeTerminationSettings >(
-                                finalTimeVector.at(m), true );
+//                    std::shared_ptr< PropagationTimeTerminationSettings > terminationSettings =
+//                          std::make_shared< propagators::PropagationTimeTerminationSettings >(
+//                                finalTimeVector.at(m), true );
 
-                    propagatorSettingsList.push_back(
-                                std::make_shared< TranslationalStatePropagatorSettings< double > >(
-                                    centralBodies, accelerationModelMap, bodiesToPropagate,
-                                    currentArcInitialState, terminationSettings, cowell, dependentVariablesToSave ) );
-                }
+//                    propagatorSettingsList.push_back(
+//                                std::make_shared< TranslationalStatePropagatorSettings< long double > >(
+//                                    centralBodies, accelerationModelMap, bodiesToPropagate,
+//                                    currentArcInitialState, terminationSettings, cowell, dependentVariablesToSave ) );
+//                }
 
-                // Create propagator settings
-                propagatorSettings = std::make_shared< MultiArcPropagatorSettings< double > >( propagatorSettingsList );
+//                // Create propagator settings
+//                propagatorSettings = std::make_shared< MultiArcPropagatorSettings< long double > >( propagatorSettingsList );
 
-            } else{
+//            } else{
 
                 // Get initial state of bodies to be propagated
                 systemInitialState = getInitialStatesOfBodies(
-                            bodiesToPropagate, centralBodies, bodyMap, initialSimulationTime );
+                            bodiesToPropagate, centralBodies, bodyMap, initialSimulationTime )
+                                .cast<long double>();
 
                 // Define propagator settings.
                 std::shared_ptr< PropagationTimeTerminationSettings > terminationSettings =
                       std::make_shared< propagators::PropagationTimeTerminationSettings >( finalSimulationTime, true );
 
-                propagatorSettings = std::make_shared< TranslationalStatePropagatorSettings< double > >
+                propagatorSettings = std::make_shared< TranslationalStatePropagatorSettings< long double > >
                         ( centralBodies, accelerationModelMap, bodiesToPropagate,
                           systemInitialState, terminationSettings, cowell, dependentVariablesToSave);
 
-            }
+//            }
 
 
             std::shared_ptr< AdamsBashforthMoultonSettings< double > > integratorSettings =
@@ -763,11 +776,29 @@ int main( )
                         minimumStepSize, maximumStepSize,
                         relativeErrorTolerence, absoluteErrorTolerence,
                         minimumOrder, maximumOrder);
+            std::shared_ptr< AdamsBashforthMoultonSettings< double > > backwardIntegratorSettings =
+                    std::make_shared< AdamsBashforthMoultonSettings< double > > (
+                        finalSimulationTime, -1.0*initialTimeStep,
+                        -1.0*minimumStepSize, -1.0*maximumStepSize,
+                        relativeErrorTolerence, absoluteErrorTolerence,
+                        minimumOrder, maximumOrder);
 
         //    std::shared_ptr< IntegratorSettings< > > integratorSettings =
         //            std::make_shared< IntegratorSettings< > >
         //            ( rungeKutta4, initialSimulationTime, initialTimeStep );
 
+//            std::shared_ptr< IntegratorSettings< > > integratorSettings =
+//                    std::make_shared< RungeKuttaVariableStepSizeSettingsScalarTolerances< double > >(
+//                        initialSimulationTime, initialTimeStep,
+//                        RungeKuttaCoefficients::CoefficientSets::rungeKuttaFehlberg78,
+//                        minimumStepSize, maximumStepSize,
+//                        relativeErrorTolerence, absoluteErrorTolerence);
+//            std::shared_ptr< IntegratorSettings< > > backwardIntegratorSettings =
+//                    std::make_shared< RungeKuttaVariableStepSizeSettingsScalarTolerances< double > >(
+//                        finalSimulationTime, -1.0*initialTimeStep,
+//                        RungeKuttaCoefficients::CoefficientSets::rungeKuttaFehlberg78,
+//                        -1.0*minimumStepSize, -1.0*maximumStepSize,
+//                        relativeErrorTolerence, absoluteErrorTolerence);
 
 
 
@@ -777,7 +808,7 @@ int main( )
 
             std::cout << "running dynamics simulator..." << std::endl;
 
-            std::vector< std::map< double, Eigen::VectorXd > > allBodiesPropagationHistory;
+            std::vector< std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> > > allBodiesPropagationHistory;
             std::vector< std::map< double, Eigen::VectorXd > > spiceStatesAtPropagationTimes;
             std::vector< Eigen::VectorXd > arcFinalStates;
             allBodiesPropagationHistory.resize( bodiesToPropagate.size() );
@@ -785,54 +816,54 @@ int main( )
 
             std::map< double, Eigen::VectorXd > dependentVariablesHistory;
 
-            if (useMultipleMercuryArcs){
+//            if (useMultipleMercuryArcs){
 
 
-                MultiArcDynamicsSimulator <> dynamicsSimulator (bodyMap,
-                                                                integratorSettings,
-                                                                propagatorSettings,
-                                                                initialTimeVector,
-                                                                true,false,true);
+//                MultiArcDynamicsSimulator <long double> dynamicsSimulator (bodyMap,
+//                                                                integratorSettings,
+//                                                                propagatorSettings,
+//                                                                initialTimeVector,
+//                                                                true,false,true);
 
-                std::vector< std::map< double, Eigen::VectorXd > > integrationResult = dynamicsSimulator.getEquationsOfMotionNumericalSolution( );
-                std::vector< std::map< double, Eigen::VectorXd > > dependentVariablesResult = dynamicsSimulator.getDependentVariableHistory();
+//                std::vector< std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> > > integrationResult = dynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+//                std::vector< std::map< double, Eigen::VectorXd > > dependentVariablesResult = dynamicsSimulator.getDependentVariableHistory();
 
-                for( unsigned int m = 0; m < numberOfMissions; m++ ){
+//                for( unsigned int m = 0; m < numberOfMissions; m++ ){
 
-                    std::map< double, Eigen::VectorXd > intermediateIntegrationResult = integrationResult.at( m );
+//                    std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> > intermediateIntegrationResult = integrationResult.at( m );
 
-                    // Retrieve numerically integrated state for each body.
-                    for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateIntegrationResult.begin( );
-                         stateIterator != intermediateIntegrationResult.end( ); stateIterator++ )
-                    {
-                        for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
-                        {
-                            allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
-                            spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
-                                    getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),"SSB","ECLIPJ2000","None",stateIterator->first);
+//                    // Retrieve numerically integrated state for each body.
+//                    for( std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> >::const_iterator stateIterator = intermediateIntegrationResult.begin( );
+//                         stateIterator != intermediateIntegrationResult.end( ); stateIterator++ )
+//                    {
+//                        for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
+//                        {
+//                            allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
+//                            spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
+//                                    getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),"SSB","ECLIPJ2000","None",stateIterator->first);
 
-                        }
-                    }
+//                        }
+//                    }
 
-                    arcFinalStates.push_back(allBodiesPropagationHistory[0].at(finalTimeVector.at(m)));
+//                    arcFinalStates.push_back(allBodiesPropagationHistory[0].at(finalTimeVector.at(m)));
 
-                    std::map< double, Eigen::VectorXd > intermediateDependentVariablesResult = dependentVariablesResult.at( m );
+//                    std::map< double, Eigen::VectorXd > intermediateDependentVariablesResult = dependentVariablesResult.at( m );
 
-                    for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateDependentVariablesResult.begin( );
-                         stateIterator != intermediateDependentVariablesResult.end( ); stateIterator++ )
-                    {
-                        dependentVariablesHistory[ stateIterator->first ] = stateIterator->second;
-                    }
-                }
+//                    for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateDependentVariablesResult.begin( );
+//                         stateIterator != intermediateDependentVariablesResult.end( ); stateIterator++ )
+//                    {
+//                        dependentVariablesHistory[ stateIterator->first ] = stateIterator->second;
+//                    }
+//                }
 
-            } else{
+//            } else{
 
-                SingleArcDynamicsSimulator <> dynamicsSimulator (bodyMap,integratorSettings,propagatorSettings,true,false,true);
-                std::map< double, Eigen::VectorXd > integrationResult = dynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+                SingleArcDynamicsSimulator <long double> dynamicsSimulator (bodyMap,integratorSettings,propagatorSettings,true,false,true);
+                std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> > integrationResult = dynamicsSimulator.getEquationsOfMotionNumericalSolution( );
                 dependentVariablesHistory = dynamicsSimulator.getDependentVariableHistory();
 
                 // Retrieve numerically integrated state for each body.
-                for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = integrationResult.begin( );
+                for( std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> >::const_iterator stateIterator = integrationResult.begin( );
                      stateIterator != integrationResult.end( ); stateIterator++ )
                 {
                     for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
@@ -844,7 +875,7 @@ int main( )
                     }
                 }
 
-            }
+//            }
 
             for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
             {
@@ -854,8 +885,8 @@ int main( )
                             "StatePropagationHistory" + bodiesToPropagate.at( i ) + ".dat",
                             outputSubFolder,
                             "",
-                            std::numeric_limits< double >::digits10,
-                            std::numeric_limits< double >::digits10,
+                            std::numeric_limits< long double >::digits10,
+                            std::numeric_limits< long double >::digits10,
                             "," );
 
                 input_output::writeDataMapToTextFile(
@@ -889,81 +920,83 @@ int main( )
 
             std::cout << "performing backward propagation..." << std::endl;
 
-            std::shared_ptr< AdamsBashforthMoultonSettings< double > > backwardIntegratorSettings =
-                    std::make_shared< AdamsBashforthMoultonSettings< double > > (
-                        finalSimulationTime, -1.0*initialTimeStep,
-                        -1.0*minimumStepSize, -1.0*maximumStepSize,
-                        relativeErrorTolerence, absoluteErrorTolerence,
-                        minimumOrder, maximumOrder);
+//            std::shared_ptr< AdamsBashforthMoultonSettings< double > > backwardIntegratorSettings =
+//                    std::make_shared< AdamsBashforthMoultonSettings< double > > (
+//                        finalSimulationTime, -1.0*initialTimeStep,
+//                        -1.0*minimumStepSize, -1.0*maximumStepSize,
+//                        relativeErrorTolerence, absoluteErrorTolerence,
+//                        minimumOrder, maximumOrder);
 
             std::shared_ptr< PropagationTimeTerminationSettings > backwardTerminationSettings;
-            std::shared_ptr< PropagatorSettings< double > > backwardPropagatorSettings;
+            std::shared_ptr< PropagatorSettings< long double > > backwardPropagatorSettings;
 
-            std::vector< std::map< double, Eigen::VectorXd > > allBodiesBackwardPropagationHistory;
+            std::vector< std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> > > allBodiesBackwardPropagationHistory;
             allBodiesBackwardPropagationHistory.resize( bodiesToPropagate.size() );
 
-            if (useMultipleMercuryArcs){
+//            if (useMultipleMercuryArcs){
 
-                std::vector< std::shared_ptr< SingleArcPropagatorSettings< double > > > backwardPropagatorSettingsList;
+//                std::vector< std::shared_ptr< SingleArcPropagatorSettings< double > > > backwardPropagatorSettingsList;
 
-                for (unsigned int m=0; m<numberOfMissions; m++){
+//                for (unsigned int m=0; m<numberOfMissions; m++){
 
-                    backwardTerminationSettings = std::make_shared< propagators::PropagationTimeTerminationSettings >(
-                                initialTimeVector.at(m), true );
+//                    backwardTerminationSettings = std::make_shared< propagators::PropagationTimeTerminationSettings >(
+//                                initialTimeVector.at(m), true );
 
-                    backwardPropagatorSettingsList.push_back(
-                                std::make_shared< TranslationalStatePropagatorSettings< double > >(
-                                    centralBodies, accelerationModelMap, bodiesToPropagate,
-                                    arcFinalStates.at(m), backwardTerminationSettings, cowell ) );
-                }
+//                    backwardPropagatorSettingsList.push_back(
+//                                std::make_shared< TranslationalStatePropagatorSettings< double > >(
+//                                    centralBodies, accelerationModelMap, bodiesToPropagate,
+//                                    arcFinalStates.at(m), backwardTerminationSettings, cowell ) );
+//                }
 
-                // Create propagator settings
-                backwardPropagatorSettings = std::make_shared< MultiArcPropagatorSettings< double > >( backwardPropagatorSettingsList );
+//                // Create propagator settings
+//                backwardPropagatorSettings = std::make_shared< MultiArcPropagatorSettings< double > >( backwardPropagatorSettingsList );
 
 
-                MultiArcDynamicsSimulator <> backwardDynamicsSimulator (bodyMap,
-                                                                backwardIntegratorSettings,
-                                                                backwardPropagatorSettings,
-                                                                finalTimeVector,
-                                                                true,false,true);
+//                MultiArcDynamicsSimulator <> backwardDynamicsSimulator (bodyMap,
+//                                                                backwardIntegratorSettings,
+//                                                                backwardPropagatorSettings,
+//                                                                finalTimeVector,
+//                                                                true,false,true);
 
-                std::vector< std::map< double, Eigen::VectorXd > > backwardIntegrationResult = backwardDynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+//                std::vector< std::map< double, Eigen::VectorXd > > backwardIntegrationResult = backwardDynamicsSimulator.getEquationsOfMotionNumericalSolution( );
 
-                for( unsigned int m = 0; m < numberOfMissions; m++ ){
+//                for( unsigned int m = 0; m < numberOfMissions; m++ ){
 
-                    std::map< double, Eigen::VectorXd > intermediateIntegrationResult = backwardIntegrationResult.at( m );
+//                    std::map< double, Eigen::VectorXd > intermediateIntegrationResult = backwardIntegrationResult.at( m );
 
-                    // Retrieve numerically integrated state for each body.
-                    for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateIntegrationResult.begin( );
-                         stateIterator != intermediateIntegrationResult.end( ); stateIterator++ )
-                    {
-                        for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
-                        {
-                            allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
-                            spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
-                                    getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),"SSB","ECLIPJ2000","None",stateIterator->first);
+//                    // Retrieve numerically integrated state for each body.
+//                    for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateIntegrationResult.begin( );
+//                         stateIterator != intermediateIntegrationResult.end( ); stateIterator++ )
+//                    {
+//                        for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
+//                        {
+//                            allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
+//                            spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
+//                                    getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),"SSB","ECLIPJ2000","None",stateIterator->first);
 
-                        }
-                    }
+//                        }
+//                    }
 
-                }
+//                }
 
-            } else{
+//            } else{
 
                 backwardTerminationSettings = std::make_shared< propagators::PropagationTimeTerminationSettings >( initialSimulationTime, true );
 
-                Eigen::VectorXd systemFinalState = allBodiesPropagationHistory[ 0 ].at(finalSimulationTime);
+                Eigen::Matrix<long double, Eigen::Dynamic, 1> systemFinalState = integrationResult.at(finalSimulationTime);
 
-                backwardPropagatorSettings = std::make_shared< TranslationalStatePropagatorSettings< double > >
+                backwardPropagatorSettings = std::make_shared< TranslationalStatePropagatorSettings< long double > >
                         ( centralBodies, accelerationModelMap, bodiesToPropagate,
                           systemFinalState, backwardTerminationSettings);
 
 
-                SingleArcDynamicsSimulator <> backwardDynamicsSimulator (bodyMap,backwardIntegratorSettings,backwardPropagatorSettings,true,false,true);
-                std::map< double, Eigen::VectorXd > backwardIntegrationResult = backwardDynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+                SingleArcDynamicsSimulator <long double> backwardDynamicsSimulator
+                        (bodyMap,backwardIntegratorSettings,backwardPropagatorSettings,true,false,true);
+                std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> > backwardIntegrationResult
+                        = backwardDynamicsSimulator.getEquationsOfMotionNumericalSolution( );
 
                 // Retrieve numerically integrated state for each body.
-                for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = backwardIntegrationResult.begin( );
+                for( std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> >::const_iterator stateIterator = backwardIntegrationResult.begin( );
                      stateIterator != backwardIntegrationResult.end( ); stateIterator++ )
                 {
                     for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
@@ -973,7 +1006,7 @@ int main( )
                     }
                 }
 
-            }
+//            }
 
             for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
             {
@@ -983,8 +1016,8 @@ int main( )
                             "StatePropagationHistory" + bodiesToPropagate.at( i ) + "Backwards.dat",
                             outputSubFolder,
                             "",
-                            std::numeric_limits< double >::digits10,
-                            std::numeric_limits< double >::digits10,
+                            std::numeric_limits< long double >::digits10,
+                            std::numeric_limits< long double >::digits10,
                             "," );
 
             }
@@ -1088,28 +1121,28 @@ int main( )
 
             // In order to get the partial derivatives of consider parameters wrt observations, run an estimation of the consider parameters
             std::vector< std::shared_ptr < EstimatableParameterSettings > > parameterNames;
-            std::vector<double> varianceVector;
+            std::vector< double > varianceVector;
 
             // Add bodies that will be propagated to the parameters to be estimated
-            if (useMultipleMercuryArcs){
-                Eigen::VectorXd systemInitialState = Eigen::VectorXd( 6 * initialTimeVector.size( ) );
-                for( unsigned int m = 0; m < numberOfMissions; m++ ){
-                    systemInitialState.segment( m * 6, 6 ) = propagatorSettingsList.at( m )->getInitialStates( );
-                    for( unsigned int i = 0; i < 3; i++ ){ varianceVector.push_back(sigmaPosition*sigmaPosition); }
-                    for( unsigned int i = 3; i < 6; i++ ){ varianceVector.push_back(sigmaVelocity*sigmaVelocity); }
-                }
-                parameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
-                                              "Mercury", systemInitialState, initialTimeVector, "SSB" ) );
-            }
-            else{
+//            if (useMultipleMercuryArcs){
+//                Eigen::VectorXd systemInitialState = Eigen::VectorXd( 6 * initialTimeVector.size( ) );
+//                for( unsigned int m = 0; m < numberOfMissions; m++ ){
+//                    systemInitialState.segment( m * 6, 6 ) = propagatorSettingsList.at( m )->getInitialStates( );
+//                    for( unsigned int i = 0; i < 3; i++ ){ varianceVector.push_back(sigmaPosition*sigmaPosition); }
+//                    for( unsigned int i = 3; i < 6; i++ ){ varianceVector.push_back(sigmaVelocity*sigmaVelocity); }
+//                }
+//                parameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
+//                                              "Mercury", systemInitialState, initialTimeVector, "SSB" ) );
+//            }
+//            else{
                 for( unsigned int i = 0; i < numberOfNumericalBodies; i++ ){
                     int j = 6*i;
-                    parameterNames.push_back( std::make_shared< InitialTranslationalStateEstimatableParameterSettings< double > >(
+                    parameterNames.push_back( std::make_shared< InitialTranslationalStateEstimatableParameterSettings< long double > >(
                                                   bodiesToPropagate[i], systemInitialState.segment(j,6), centralBodies[i] ) );
                     for( unsigned int i = 0; i < 3; i++ ){ varianceVector.push_back(sigmaPosition*sigmaPosition); }
                     for( unsigned int i = 3; i < 6; i++ ){ varianceVector.push_back(sigmaVelocity*sigmaVelocity); }
                 }
-            }
+//            }
 
             if (testCeres){
                 // set GM of the asteroid as estimatable parameter, get apriori sigma from INPOP19a
@@ -1117,10 +1150,9 @@ int main( )
                                          ("2000001", gravitational_parameter));
                 double asteroidSigma = 340.331 * convertAsteroidGMtoSI;
                 varianceVector.push_back(asteroidSigma*asteroidSigma);
+
+                std::cout<<"GM Ceres uncertainty [m3/s2]: "<<340.331 * convertAsteroidGMtoSI<<std::endl;
             }
-
-            std::cout<<"GM Ceres uncertainty [m3/s2]: "<<340.331 * convertAsteroidGMtoSI<<std::endl;
-
 
 
             bool gammaIsEstimated = false;
@@ -1248,8 +1280,8 @@ int main( )
 
 
             // Create parameters
-            std::shared_ptr< estimatable_parameters::EstimatableParameterSet< double > > parametersToEstimate =
-                    createParametersToEstimate( parameterNames, bodyMap );
+            std::shared_ptr< estimatable_parameters::EstimatableParameterSet< long double > > parametersToEstimate =
+                    createParametersToEstimate( parameterNames, bodyMap, propagatorSettings );
 
             // Print identifiers and indices of parameters to terminal
             printEstimatableParameterEntries( parametersToEstimate );
@@ -1272,8 +1304,8 @@ int main( )
             std::cout << "Running OD manager..." << std::endl;
 
             // Create orbit determination object (propagate orbit, create observation models)
-            OrbitDeterminationManager< double, double > orbitDeterminationManager =
-                    OrbitDeterminationManager< double, double >(
+            OrbitDeterminationManager< long double, double > orbitDeterminationManager =
+                    OrbitDeterminationManager< long double, double >(
                         bodyMap, parametersToEstimate, observationSettingsMap,
                         integratorSettings, propagatorSettings );
 
@@ -1363,13 +1395,13 @@ int main( )
 
             // Set typedefs for POD input (observation types, observation link ends, observation values, associated times with
             // reference link ends.
-            typedef Eigen::Matrix< double, Eigen::Dynamic, 1 > ObservationVectorType;
+            typedef Eigen::Matrix< long double, Eigen::Dynamic, 1 > ObservationVectorType;
             typedef std::map< LinkEnds, std::pair< ObservationVectorType, std::pair< std::vector< double >, LinkEndType > > >
                     SingleObservablePodInputType;
             typedef std::map< ObservableType, SingleObservablePodInputType > PodInputDataType;
 
             // Simulate perfect observations
-            PodInputDataType observationsAndTimes = simulateObservations< double, double >(
+            PodInputDataType observationsAndTimes = simulateObservations< long double, double >(
                         measurementSimulationInput,
                         orbitDeterminationManager.getObservationSimulators( ) );
                         //,noiseFunctions);
@@ -1438,8 +1470,8 @@ int main( )
                             ObservationVectorType allObservations = singleObservableIterator->second.first;
                             std::vector< double > allObservationTimes = singleObservableIterator->second.second.first;
 
-                            ObservationVectorType newObservations = Eigen::VectorXd(allObservations.size());
-                            ObservationVectorType observationWeights = Eigen::VectorXd(allObservations.size());
+                            ObservationVectorType newObservations = Eigen::Matrix< long double, Eigen::Dynamic, 1 >(allObservations.size());
+                            ObservationVectorType observationWeights = Eigen::Matrix< long double, Eigen::Dynamic, 1 >(allObservations.size());
 
                             // for every observation, retrieve and add the range bias that should be added
                             for (unsigned int i=0; i<allObservationTimes.size(); i++){
@@ -1453,7 +1485,7 @@ int main( )
                                             observationTime, interpolatedErrorMatrix.at(observationTime), rangeNoiseLevel);
 
                                 std::normal_distribution<double> d(0.0, totalErrorLevel);
-                                double rangeErrorSample = d(gen);
+                                long double rangeErrorSample = static_cast<long double>(d(gen));
 
                                 if (podInputIterator->first == n_way_range){rangeErrorSample *= 2.0;}
 
@@ -1490,19 +1522,19 @@ int main( )
 
             std::cout << "Estimating parameters..." << std::endl;
 
-            Eigen::Matrix< double, Eigen::Dynamic, 1 > initialParameterEstimate =
-                    parametersToEstimate->template getFullParameterValues< double >( );
-            Eigen::Matrix< double, Eigen::Dynamic, 1 > truthParameters = initialParameterEstimate;
+            Eigen::Matrix< long double, Eigen::Dynamic, 1 > initialParameterEstimate =
+                    parametersToEstimate->template getFullParameterValues< long double >( );
+            Eigen::Matrix< long double, Eigen::Dynamic, 1 > truthParameters = initialParameterEstimate;
 
             // Perturb parameter estimate
-            Eigen::Matrix< double, Eigen::Dynamic, 1 > parameterPerturbation =
-                    Eigen::Matrix< double, Eigen::Dynamic, 1 >::Zero( truthParameters.rows( ) );
+            Eigen::Matrix< long double, Eigen::Dynamic, 1 > parameterPerturbation =
+                    Eigen::Matrix< long double, Eigen::Dynamic, 1 >::Zero( truthParameters.rows( ) );
 
             for( unsigned int i = 0; i < numberOfNumericalBodies; i++ ){
                 // perturb body positions by  1 meters
-                parameterPerturbation.segment(i*6,3) = Eigen::Vector3d::Constant( 1.0 );
+                parameterPerturbation.segment(i*6,3) = Eigen::Vector3d::Constant( 1.0 ).cast<long double>();
                 // perturb body velocities by 0.001 m/s
-                parameterPerturbation.segment(i*6+3,3) = Eigen::Vector3d::Constant( 0.001 );
+                parameterPerturbation.segment(i*6+3,3) = Eigen::Vector3d::Constant( 0.001 ).cast<long double>();
             }
 
             // perturb eta slightly to prevent partials from being 0 due to which the estimation is unable to estimate eta
@@ -1541,8 +1573,8 @@ int main( )
             Eigen::MatrixXd inverseOfAprioriCovariance = aprioriCovariance.inverse();
 
             // Define estimation input
-            std::shared_ptr< PodInput< double, double > > podInput =
-                    std::make_shared< PodInput< double, double > >(
+            std::shared_ptr< PodInput< long double, double > > podInput =
+                    std::make_shared< PodInput< long double, double > >(
                         observationsAndTimes, initialParameterEstimate.rows( ),
                         inverseOfAprioriCovariance,
                         initialParameterEstimate - truthParameters );
@@ -1553,20 +1585,20 @@ int main( )
             podInput->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
 
             // Perform estimation
-            std::shared_ptr< PodOutput< double > > podOutput = orbitDeterminationManager.estimateParameters(
+            std::shared_ptr< PodOutput< long double > > podOutput = orbitDeterminationManager.estimateParameters(
                         podInput, std::make_shared< EstimationConvergenceChecker >( maximumNumberOfIterations ) );
 
             // Print true estimation error, limited mostly by numerical error
-            Eigen::VectorXd estimationError = podOutput->parameterEstimate_ - truthParameters;
-            Eigen::VectorXd formalError = podOutput->getFormalErrorVector( );
+            Eigen::VectorXd estimationError = (podOutput->parameterEstimate_ - truthParameters).cast<double>();
+            Eigen::VectorXd formalError = podOutput->getFormalErrorVector( ).cast<double>();
 
             std::cout << "True estimation error is:   " << std::endl << ( estimationError ).transpose( ) << std::endl;
             std::cout << "Formal estimation error is: " << std::endl << podOutput->getFormalErrorVector( ).transpose( ) << std::endl;
             std::cout << "True to form estimation error ratio is: " << std::endl <<
-                         ( podOutput->getFormalErrorVector( ).cwiseQuotient( estimationError ) ).transpose( ) << std::endl;
+                         ( estimationError.cwiseQuotient(  podOutput->getFormalErrorVector( ) ) ).transpose( ) << std::endl;
 
             std::cout << "improvement ratio formal w.r.t apriori error: " << std::endl <<
-                         ( podOutput->getFormalErrorVector( ).cwiseQuotient( aprioriCovariance.diagonal().cwiseSqrt() ) ).transpose( ) << std::endl;
+                         ( aprioriCovariance.diagonal().cwiseSqrt().cwiseQuotient( podOutput->getFormalErrorVector( ) ) ).transpose( ) << std::endl;
 
 
             std::cout<< "writing output to files that is not needed for the next steps..." << std::endl;
@@ -1633,25 +1665,25 @@ int main( )
                 std::vector< std::shared_ptr < EstimatableParameterSettings > > considerParameterNames;
                 std::vector<double> considerVarianceVector;
 
-                if (useMultipleMercuryArcs){
-                    Eigen::VectorXd systemInitialState = Eigen::VectorXd( 6 * initialTimeVector.size( ) );
-                    for( unsigned int m = 0; m < numberOfMissions; m++ ) {
-                        systemInitialState.segment( m * 6, 6 ) = propagatorSettingsList.at( m )->getInitialStates( );
-                        for( unsigned int i = 0; i < 3; i++ ){ considerVarianceVector.push_back(sigmaPosition*sigmaPosition); }
-                        for( unsigned int i = 3; i < 6; i++ ){ considerVarianceVector.push_back(sigmaVelocity*sigmaVelocity); }
-                    }
-                    considerParameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
-                                                  "Mercury", systemInitialState, initialTimeVector, "SSB" ) );
-                }
-                else{
+//                if (useMultipleMercuryArcs){
+//                    Eigen::VectorXd systemInitialState = Eigen::VectorXd( 6 * initialTimeVector.size( ) );
+//                    for( unsigned int m = 0; m < numberOfMissions; m++ ) {
+//                        systemInitialState.segment( m * 6, 6 ) = propagatorSettingsList.at( m )->getInitialStates( );
+//                        for( unsigned int i = 0; i < 3; i++ ){ considerVarianceVector.push_back(sigmaPosition*sigmaPosition); }
+//                        for( unsigned int i = 3; i < 6; i++ ){ considerVarianceVector.push_back(sigmaVelocity*sigmaVelocity); }
+//                    }
+//                    considerParameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
+//                                                  "Mercury", systemInitialState, initialTimeVector, "SSB" ) );
+//                }
+//                else{
                     for( unsigned int i = 0; i < numberOfNumericalBodies; i++ ) {
                         int j = 6*i;
-                        considerParameterNames.push_back( std::make_shared< InitialTranslationalStateEstimatableParameterSettings< double > >(
+                        considerParameterNames.push_back( std::make_shared< InitialTranslationalStateEstimatableParameterSettings< long double > >(
                                                       bodiesToPropagate[i], systemInitialState.segment(j,6), centralBodies[i] ) );
                         for( unsigned int i = 0; i < 3; i++ ){ considerVarianceVector.push_back(sigmaPosition*sigmaPosition); }
                         for( unsigned int i = 3; i < 6; i++ ){ considerVarianceVector.push_back(sigmaVelocity*sigmaVelocity); }
                     }
-                }
+//                }
 
                 if ( gammaIsAConsiderParameter == true ){
                     considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
@@ -1674,18 +1706,18 @@ int main( )
                                          ("global_metric", ppn_parameter_alpha2 ) );
                 considerVarianceVector.push_back(sigmaAlpha2*sigmaAlpha2);
 
-                std::shared_ptr< estimatable_parameters::EstimatableParameterSet< double > > considerParametersToEstimate =
-                        createParametersToEstimate( considerParameterNames, bodyMap );
+                std::shared_ptr< estimatable_parameters::EstimatableParameterSet< long double > > considerParametersToEstimate =
+                        createParametersToEstimate( considerParameterNames, bodyMap, propagatorSettings );
                 printEstimatableParameterEntries( considerParametersToEstimate );
 
-                OrbitDeterminationManager< double, double > orbitDeterminationManagerConsiderParameters =
-                        OrbitDeterminationManager< double, double >(
+                OrbitDeterminationManager< long double, double > orbitDeterminationManagerConsiderParameters =
+                        OrbitDeterminationManager< long double, double >(
                             bodyMap, considerParametersToEstimate, observationSettingsMap,
                             integratorSettings, propagatorSettings );
 
-                Eigen::Matrix< double, Eigen::Dynamic, 1 > initialConsiderParameterEstimate =
-                        considerParametersToEstimate->template getFullParameterValues< double >( );
-                Eigen::Matrix< double, Eigen::Dynamic, 1 > truthConsiderParameters = initialConsiderParameterEstimate;
+                Eigen::Matrix< long double, Eigen::Dynamic, 1 > initialConsiderParameterEstimate =
+                        considerParametersToEstimate->template getFullParameterValues< long double >( );
+                Eigen::Matrix< long double, Eigen::Dynamic, 1 > truthConsiderParameters = initialConsiderParameterEstimate;
 
                 Eigen::MatrixXd considerParameterAprioriCovariance = // C
                     Eigen::MatrixXd::Zero( truthConsiderParameters.rows( ), truthConsiderParameters.rows( ));
@@ -1696,15 +1728,20 @@ int main( )
                 std::cout << "consider parameter a priori covariance matrix:" << std::endl
                           << considerParameterAprioriCovariance.diagonal().transpose() << std::endl;
 
-                std::shared_ptr< PodInput< double, double > > podInputConsiderParameters =
-                        std::make_shared< PodInput< double, double > >(
+                std::cout<<"input consider parameter estimation:"<<std::endl;
+                std::cout<<initialConsiderParameterEstimate.transpose()<<std::endl;
+                std::cout<<truthConsiderParameters.transpose()<<std::endl;
+                std::cout<<(initialConsiderParameterEstimate-truthConsiderParameters).transpose()<<std::endl;
+
+                std::shared_ptr< PodInput< long double, double > > podInputConsiderParameters =
+                        std::make_shared< PodInput< long double, double > >(
                             observationsAndTimes, initialConsiderParameterEstimate.rows( ),
                             considerParameterAprioriCovariance.inverse(),
                             initialConsiderParameterEstimate - truthConsiderParameters );
                 podInputConsiderParameters->defineEstimationSettings( true, false, true, true );
                 podInputConsiderParameters->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
 
-                std::shared_ptr< PodOutput< double > > podOutputConsiderParameters = orbitDeterminationManagerConsiderParameters.estimateParameters(
+                std::shared_ptr< PodOutput< long double > > podOutputConsiderParameters = orbitDeterminationManagerConsiderParameters.estimateParameters(
                             podInputConsiderParameters, std::make_shared< EstimationConvergenceChecker >( 1 ) );
 
                 Eigen::MatrixXd partialDerivativesOfConsiderParameters = // H_c
@@ -1762,8 +1799,8 @@ int main( )
 
             // propagate according to integration history. earlier result is separated here as the times are needed on their own.
             std::vector<double> fullStateHistoryTimes;
-            std::map<double, Eigen::VectorXd> propagationHistory = allBodiesPropagationHistory.at( 0 );
-            std::map<double, Eigen::VectorXd>::iterator historyit = propagationHistory.begin();
+            std::map<double, Eigen::Matrix<long double, Eigen::Dynamic, 1>> propagationHistory = allBodiesPropagationHistory.at( 0 );
+            std::map<double, Eigen::Matrix<long double, Eigen::Dynamic, 1>>::iterator historyit = propagationHistory.begin();
 
             while (historyit != propagationHistory.end()){
                 fullStateHistoryTimes.push_back(historyit->first);
@@ -1771,7 +1808,7 @@ int main( )
             }
 
             // Propagate covariance matrix (twice, both with and without the consider parameters included in the covariance)
-            std::map< double, Eigen::MatrixXd > propagatedCovariance;
+            std::map<double, Eigen::MatrixXd > propagatedCovariance;
             std::map<double, Eigen::Vector6d> propagatedErrorUsingCovMatrix;
             std::map<double, Eigen::Vector6d> propagatedRSWErrorUsingCovMatrix;
 
@@ -1806,7 +1843,7 @@ int main( )
 
                 while (it != propagatedCovariance.end()){
 
-                    Eigen::Vector6d currentCartesianState = propagationHistory.at(it->first);
+                    Eigen::Vector6d currentCartesianState = propagationHistory.at(it->first).cast<double>();
 
                     // save true anomaly of MESSENGER around Mercury at this time step
                     Eigen::Vector6d currentKeplerianState = convertCartesianToKeplerianElements(
@@ -1869,15 +1906,15 @@ int main( )
 
             // observations
             input_output::writeDataMapToTextFile( interpolatedErrorMatrix, "interpolatedErrorMatrix.dat", outputSubFolder );
-            input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ), "ObservationMeasurements.dat", 16, outputSubFolder );
-            input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector( getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
-                                             "ObservationTimes.dat", 16, outputSubFolder );
-            input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector( getConcatenatedGroundStationIndex( podInput->getObservationsAndTimes( ) ).first ),
-                                             "ObservationLinkEnds.dat", 16, outputSubFolder );
-            input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector( getConcatenatedObservableTypes( podInput->getObservationsAndTimes( ) ) ),
-                                             "ObservationObservableTypes.dat", 16, outputSubFolder );
-            input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
-                                             "ObservationMeasurements.dat", 16, outputSubFolder );
+//            input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ), "ObservationMeasurements.dat", 16, outputSubFolder );
+//            input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector( getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
+//                                             "ObservationTimes.dat", 16, outputSubFolder );
+//            input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector( getConcatenatedGroundStationIndex( podInput->getObservationsAndTimes( ) ).first ),
+//                                             "ObservationLinkEnds.dat", 16, outputSubFolder );
+//            input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector( getConcatenatedObservableTypes( podInput->getObservationsAndTimes( ) ) ),
+//                                             "ObservationObservableTypes.dat", 16, outputSubFolder );
+//            input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ),
+//                                             "ObservationMeasurements.dat", 16, outputSubFolder );
 
 
 

@@ -110,6 +110,10 @@ std::map< double, Eigen::VectorXd > onlyEveryXthValueFromDataMap(
         std::map< double, Eigen::VectorXd > inputMap,
         const int reductionFactor);
 
+std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> > onlyEveryXthValueFromDataMap(
+        std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> > inputMap,
+        const int reductionFactor);
+
 std::string printScenario(const int scenario);
 
 double combinedRangeAndSatelliteErrorLevel( const double observationTime,

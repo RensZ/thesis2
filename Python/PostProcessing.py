@@ -12,15 +12,15 @@ Purpose: wrapper file for all the post-processing of thesis_v1.cpp
 
 publication_string = [#"MESSENGER_and_BepiColombo",
                       #"MESSENGER_and_BepiColombo_timevariableJ2",
-                      "Schettino2015_testCeres",
-                      "Genova2018_testCeres",
-                      "Genova2018_testGamma",
+                      # "Schettino2015_testCeres",
+                      # "Genova2018_testCeres",
+                      # "Genova2018_testGamma",
                       "Genova2018",
-                      "Imperi2018_nvtrue_flybys_alphas",
+                      "Imperi2018_nvtrue",
                       "Imperi2018_nvtrue_flybys",
-                      "Imperi2018_nvfalse_flybys_alphas",
+                      "Imperi2018_nvfalse",
                       "Imperi2018_nvfalse_flybys",
-                      "Schettino2015_alphas",
+                      # "Schettino2015_alphas",
                       "Schettino2015"]
 
 
@@ -102,9 +102,10 @@ for ps in publication_string:
         #     dependent_variables.append("Sun_DS")
 
     if json_input["includeSEPViolationAcceleration"]:
-        # if not json_input["useNordtvedtConstraint"]:
-        parameters.append("Nordtvedt")
         dependent_variables.append("Sun_SEP")
+        #if not json_input["useNordtvedtConstraint"]: #comment this line if nordtvedt is enforced in the estimation
+        parameters.append("Nordtvedt")
+
 
     if json_input["estimatePPNalphas"]:
         parameters.append("alpha1")
@@ -148,25 +149,30 @@ for ps in publication_string:
     #### OUTPUTS ####
     #################
 
-    # Check consistency asteroid application and main application
-    from os.path import isdir
-    if isdir(dir_cpp_output[:-1]+"_asteroids/"):
-        print("---- comparing orbits asteroid application and main application----")
-        import CheckAsteroidApplication
-        CheckAsteroidApplication.f(dir_cpp_output, dir_cpp_output[:-1] + "_asteroids/", dir_plots)
-
-        print("---- making plots of dependent variables of asteroids ----")
-        import DependentVariableHistory_Asteroids
-        DependentVariableHistory_Asteroids.f(dir_cpp_output[:-1] + "_asteroids/", dir_plots)
+    # # Check consistency asteroid application and main application
+    # from os.path import isdir
+    # if isdir(dir_cpp_output[:-1]+"_asteroids/"):
+    #     print("---- comparing orbits asteroid application and main application----")
+    #     import CheckAsteroidApplication
+    #     CheckAsteroidApplication.f(dir_cpp_output, dir_cpp_output[:-1] + "_asteroids/", dir_plots)
+    #
+    #     print("---- making plots of dependent variables of asteroids ----")
+    #     import DependentVariableHistory_Asteroids
+    #     DependentVariableHistory_Asteroids.f(dir_cpp_output[:-1] + "_asteroids/", dir_plots)
 
     # Plot dependent variable history
-    # print("---- making plots of dependent variable history ----")
-    # import DependentVariableHistory
-    # DependentVariableHistory.f(dir_cpp_output, dir_plots, dependent_variables)
+    print("---- making plots of dependent variable history ----")
+    import DependentVariableHistory
+    DependentVariableHistory.f(dir_cpp_output, dir_plots, dependent_variables)
 
     print("---- making plots of dependent variable history, planets grouped ----")
     import DependentVariableHistory_Grouped
     DependentVariableHistory_Grouped.f(dir_cpp_output, dir_plots, dependent_variables)
+
+    # Check observation weights
+    print("---- checking observation weights ----")
+    import CheckWeights
+    CheckWeights.f(dir_cpp_output, dir_plots)
 
     # Plot integration error
     print("---- making plots of the integration errors wrt SPICE and backwards integration ----" )

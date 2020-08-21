@@ -39,6 +39,11 @@ for s in subdirs:
         ps = "Fienga2019"
         reality = 1
         estimation = 1
+        continue
+    elif s[len(dir_output):] == "Fienga2019_reality1_estimation1_testWithoutFlybys":
+        ps = "Fienga2019"
+        reality = 1
+        estimation = 1
     else:
         ps = s[len(dir_output):-21]
         reality = int(s[-13])
@@ -99,9 +104,9 @@ for s in subdirs:
             dependent_variables.append("Sun_LT")
 
     if json_input["includeSEPViolationAcceleration"]:
-        # if not json_input["useNordtvedtConstraint"]:
-        parameters.append("Nordtvedt")
         dependent_variables.append("Sun_SEP")
+        #if not json_input["useNordtvedtConstraint"]: #comment this line if nordtvedt is enforced in the estimation
+        parameters.append("Nordtvedt")
 
     if json_input["estimatePPNalphas"]:
         parameters.append("alpha1")
@@ -137,6 +142,11 @@ for s in subdirs:
     import HeatMap
     HeatMap.f(s, dir_plots, parameters, no_arcs)
 
+    # Check observation weights
+    print("---- checking observation weights ----")
+    import CheckWeights
+    CheckWeights.f(s, dir_plots)
+
     # Check consistency asteroid application and main application
     from os.path import isdir
     print(dir_application + 'Input/asteroids_multiplemissions/')
@@ -145,9 +155,10 @@ for s in subdirs:
         import CheckAsteroidApplication
         CheckAsteroidApplication.f(s, dir_application + 'Input/asteroids_multiplemissions/', dir_plots)
 
-        print("---- making plots of dependent variables of asteroids ----")
-        import DependentVariableHistory_Asteroids
-        DependentVariableHistory_Asteroids.f(dir_application + 'Input/asteroids_multiplemissions/', dir_plots)
+        if s[len(dir_output):] == "Fienga2019_reality1_estimation1_testCeres":
+            print("---- making plots of dependent variables of asteroids ----")
+            import DependentVariableHistory_Asteroids
+            DependentVariableHistory_Asteroids.f(dir_application + 'Input/asteroids_multiplemissions/', dir_plots)
 
     # Plot dependent variable history
     # print("---- making plots of dependent variable history ----")

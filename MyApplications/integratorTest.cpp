@@ -103,8 +103,8 @@ int main( )
 //    const double maximumStepSize = 3600.0/2.0;
     const double relativeErrorTolerence = 1.0;
     const double absoluteErrorTolerence = 1.0;
-    const unsigned int minimumOrder = 8;
-    const unsigned int maximumOrder = 8;
+    unsigned int minimumOrder = 8;
+    unsigned int maximumOrder = 8;
 
     // Other planetary parameters, currently not included in json
     const double mercuryGravitationalParameter = (2.2031870798779644e+04)*(1E9); //m3/s2, from https://pgda.gsfc.nasa.gov/products/71
@@ -198,6 +198,7 @@ int main( )
     integratorStrings.push_back("RK4");
     integratorStrings.push_back("RK7");
     integratorStrings.push_back("ABM");
+    integratorStrings.push_back("A12");
 
     for (unsigned int s = 0; s<stepSizes.size(); s++){
         for (unsigned int in = 0; in<integratorStrings.size(); in++){
@@ -431,7 +432,12 @@ int main( )
             std::shared_ptr< IntegratorSettings < double > > integratorSettings;
             std::shared_ptr< IntegratorSettings < double > > backwardIntegratorSettings;
 
-            if (integratorStrings.at(in) == "ABM"){
+            if (integratorStrings.at(in) == "ABM" || integratorStrings.at(in) == "A12" ){
+                if (integratorStrings.at(in) == "A12"){
+                    minimumOrder = 12;
+                    maximumOrder = 12;
+                }
+
                 integratorSettings =
                         std::make_shared< AdamsBashforthMoultonSettings< double > > (
                             initialSimulationTime, initialTimeStep,
@@ -830,33 +836,33 @@ int main( )
             std::shared_ptr< PropagatorSettings< double > > propagatorSettings;
             std::vector< std::shared_ptr< SingleArcPropagatorSettings< double > > > propagatorSettingsList;
 
-            if (useMultipleMercuryArcs){
+//            if (useMultipleMercuryArcs){
 
-                std::vector< Eigen::VectorXd > arcInitialStates;
+//                std::vector< Eigen::VectorXd > arcInitialStates;
 
-                for (unsigned int m=0; m<numberOfMissions; m++){
+//                for (unsigned int m=0; m<numberOfMissions; m++){
 
-                    Eigen::VectorXd currentArcInitialState = getBodyCartesianStateAtEpoch(
-                                bodiesToPropagate.at(0), centralBodies.at(0),
-                                "ECLIPJ2000", "None", initialTimeVector.at(m) );
+//                    Eigen::VectorXd currentArcInitialState = getBodyCartesianStateAtEpoch(
+//                                bodiesToPropagate.at(0), centralBodies.at(0),
+//                                "ECLIPJ2000", "None", initialTimeVector.at(m) );
 
-                    std::cout<<"initial state: "<<currentArcInitialState.transpose()<<std::endl;
-                    arcInitialStates.push_back( currentArcInitialState );
+//                    std::cout<<"initial state: "<<currentArcInitialState.transpose()<<std::endl;
+//                    arcInitialStates.push_back( currentArcInitialState );
 
-                    std::shared_ptr< PropagationTimeTerminationSettings > terminationSettings =
-                          std::make_shared< propagators::PropagationTimeTerminationSettings >(
-                                finalTimeVector.at(m), true );
+//                    std::shared_ptr< PropagationTimeTerminationSettings > terminationSettings =
+//                          std::make_shared< propagators::PropagationTimeTerminationSettings >(
+//                                finalTimeVector.at(m), true );
 
-                    propagatorSettingsList.push_back(
-                                std::make_shared< TranslationalStatePropagatorSettings< double > >(
-                                    centralBodies, accelerationModelMap, bodiesToPropagate,
-                                    currentArcInitialState, terminationSettings, cowell) ); //, dependentVariablesToSave ) );
-                }
+//                    propagatorSettingsList.push_back(
+//                                std::make_shared< TranslationalStatePropagatorSettings< double > >(
+//                                    centralBodies, accelerationModelMap, bodiesToPropagate,
+//                                    currentArcInitialState, terminationSettings, cowell) ); //, dependentVariablesToSave ) );
+//                }
 
-                // Create propagator settings
-                propagatorSettings = std::make_shared< MultiArcPropagatorSettings< double > >( propagatorSettingsList );
+//                // Create propagator settings
+//                propagatorSettings = std::make_shared< MultiArcPropagatorSettings< double > >( propagatorSettingsList );
 
-            } else{
+//            } else{
 
                 // Get initial state of bodies to be propagated
                 systemInitialState = getInitialStatesOfBodies(
@@ -870,7 +876,7 @@ int main( )
                         ( centralBodies, accelerationModelMap, bodiesToPropagate,
                           systemInitialState, terminationSettings, cowell); //, dependentVariablesToSave);
 
-            }
+//            }
 
 
 

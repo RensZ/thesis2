@@ -74,6 +74,7 @@ def f(dir_output, dir_plots, body, no_arcs):
             plt.ylabel("absolute position integration error [m]")
             plt.legend(["x", "y", "z"], loc='upper left')
             plt.yscale("log")
+            plt.grid()
             plt.ylim(y_min_pos, y_max_pos)
 
 
@@ -84,6 +85,7 @@ def f(dir_output, dir_plots, body, no_arcs):
             plt.ylabel("absolute velocity integration error [m]")
             plt.legend(["x", "y", "z"], loc='upper left')
             plt.yscale("log")
+            plt.grid()
             plt.ylim(y_min_vel, y_max_vel)
 
             plt.tight_layout()
@@ -107,6 +109,7 @@ def f(dir_output, dir_plots, body, no_arcs):
             plt.ylabel("norm of absolute position integration error [m]")
             plt.legend(["x", "y", "z"], loc='upper left')
             plt.yscale("log")
+            plt.grid()
             plt.ylim(y_min_pos, y_max_pos)
 
             plt.subplot(2,1,2)
@@ -115,6 +118,7 @@ def f(dir_output, dir_plots, body, no_arcs):
             plt.ylabel("norm of absolute velocity integration error [m]")
             plt.legend(["x", "y", "z"], loc='upper left')
             plt.yscale("log")
+            plt.grid()
             plt.ylim(y_min_vel, y_max_vel)
 
             plt.tight_layout()

@@ -35,7 +35,7 @@ def f(dir_output, dir_plots, body, no_arcs, useRSW):
             savestring = "_considerIncludingAsteroids"
 
         #residual history
-        t = np.genfromtxt(dir_output+"ObservationTimes.dat")
+        t = np.genfromtxt(dir_output+"interpolatedErrorMatrix.dat")[:,0]
         r = np.genfromtxt(dir_output + "ResidualHistory.dat")
 
         r_rms = np.sqrt( np.sum(r**2, axis=0) / len(r) )

@@ -107,6 +107,8 @@ int main( )
     double maxMSEAngle;
     int numberOfSimulationDays;
 
+    double observationImprovementFactor = 10.0;
+
     if (vehicle == "BepiColombo"){
         initialEphemerisTime = 828273600.0; //April 1st 2026, 16 days after final orbit insertion
         finalEphemerisTime = 891432000.0; //April 1st 2028, 1 month before end of extended misson
@@ -116,7 +118,7 @@ int main( )
         vehicleName = "BEPICOLOMBO MPO";
         trackingPeriod = 8.0*60.0*60.0;
         observationInterval = 60.0;
-        dopplerNoiseUnnormalised = 12.25E-6; //Ka tracking only
+        dopplerNoiseUnnormalised = 12.25E-6/observationImprovementFactor; //Ka tracking only
         maxMSEAngle = 180.0;
         numberOfSimulationDays = 24;
     }
@@ -129,7 +131,7 @@ int main( )
         vehicleName = "MESSENGER";
         trackingPeriod = 6.0*60.0*60.0;
         observationInterval = 60.0;
-        dopplerNoiseUnnormalised = 0.1E-3;
+        dopplerNoiseUnnormalised = 0.1E-3/observationImprovementFactor;
         maxMSEAngle = 145.0;
         numberOfSimulationDays = 30;
     }

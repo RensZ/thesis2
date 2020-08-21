@@ -739,6 +739,29 @@ std::map< double, Eigen::VectorXd > onlyEveryXthValueFromDataMap(
 }
 
 
+std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> > onlyEveryXthValueFromDataMap(
+        std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> > inputMap,
+        const int reductionFactor){
+
+    std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1>> outputMap;
+    std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> >::iterator it = inputMap.begin();
+    int counter = 0;
+
+    while (it != inputMap.end()){
+
+        if (counter == reductionFactor){ counter = 0; }
+        if (counter == 0){
+            outputMap.insert(std::make_pair(it->first,inputMap.at(it->first)));
+        }
+
+        counter++;
+        it++;
+    }
+
+    return outputMap;
+}
+
+
 std::string printScenario(const int scenario){
 
     std::string output;
