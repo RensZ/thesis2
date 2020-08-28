@@ -6,7 +6,9 @@ def f(dir_output, dir_plots):
 
     #get data
     weightDiagonal = np.genfromtxt(dir_output+"ObservationWeightDiagonal.dat")
-    observationTime = np.genfromtxt(dir_output+"interpolatedErrorMatrix.dat")[:,0]
+    interpolatedErrorMatrix = np.genfromtxt(dir_output+"interpolatedErrorMatrix.dat")
+    observationTime = interpolatedErrorMatrix[:,0]
+    actualError = np.linalg.norm(interpolatedErrorMatrix[:,1:], axis=1)
     finalResiduals = np.genfromtxt(dir_output+"ResidualHistory.dat")[:,-1]
 
     #plot weights vs residuals
@@ -39,3 +41,26 @@ def f(dir_output, dir_plots):
 
     plt.tight_layout()
     plt.savefig(dir_plots + "weights_and_residuals_vs_time.png")
+
+
+    #plot weights and residuals vs actual error
+    fig3 = plt.figure(figsize=(16,10))
+
+    plt.subplot(1,2,1)
+    plt.plot(actualError, abs(finalResiduals), "ro", markersize=1)
+    plt.xscale("log")
+    plt.xlabel("actual error norm [m]")
+    plt.yscale("log")
+    plt.ylabel("absolute residuals [m]")
+    plt.grid()
+
+    plt.subplot(1,2,2)
+    plt.plot(actualError, weightDiagonal, "bo", markersize=1)
+    plt.xscale("log")
+    plt.xlabel("actual error norm [m]")
+    plt.yscale("log")
+    plt.ylabel("weight")
+    plt.grid()
+
+    plt.tight_layout()
+    plt.savefig(dir_plots + "weights_and_residuals_vs_actual_error.png")

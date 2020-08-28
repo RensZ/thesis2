@@ -52,7 +52,11 @@ public:
         return sepRelativeAcceleration_;
     }
 
-
+    //! Function to return the current acceleration
+    Eigen::Vector3d getSEPPositionCorrection( )
+    {
+        return sepPositionCorrection_.cast<double>();
+    }
 
     //! Update member variables used by the relativistic correction acceleration model.
     /*!

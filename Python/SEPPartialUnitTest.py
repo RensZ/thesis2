@@ -131,34 +131,33 @@ getcontext().prec = 33
 mu_test = 1.32712440041939e+20
 mu_S = Decimal(1.32712440041939e+20)
 
-
 r_S = np.asarray(([Decimal(-1058202435.85883), Decimal(-407616171.803058) , Decimal(-143292503.024126) ]))
 r_M = np.asarray([Decimal(17776989161.8444), Decimal(-56861189168.2378), Decimal(-32252099174.0247) ])
 
-dr_SEP_nvfalse = np.asarray([Decimal(-0.00798818010026126), Decimal(-0.00599488190615325), Decimal(-0.00233500042187135) ])
-dr_SEP_nvtrue = np.asarray([Decimal(-0.00106509068003599), Decimal(-0.000799317587487969), Decimal(-0.000311333389583185) ])
+dr_SEP_nvfalse = np.asarray([Decimal(2.92724249666266), Decimal(2.33826700072565), Decimal(0.898587531648646) ])
+dr_SEP_nvtrue = np.asarray([Decimal(0.390298999555446), Decimal(0.311768933430425), Decimal(0.119811670886616) ])
 
 dr_SEP = dr_SEP_nvfalse
 
 da = SEPcorrection(mu_S, r_S, r_M, dr_SEP)
 
-# p_pos = Decimal(1000.0)
-# cd_pos = CentralDifferenceWrtPos(p_pos, mu_S, r_S, r_M, dr_SEP)
+p_pos = Decimal(1000.0)
+cd_pos = CentralDifferenceWrtPos(p_pos, mu_S, r_S, r_M, dr_SEP)
+
+partial_pos = PartialWrtPosition(mu_S, r_S, r_M, dr_SEP)
+
+print("central difference wrt position: \n", cd_pos)
+print("partial wrt position: \n", partial_pos)
+print("partial - central difference wrt position: \n", partial_pos-cd_pos)
+
+
+# p_mu = Decimal(1E19)
+# cd_mu = CentralDifferenceWrtMu(p_mu, mu_S, r_S, r_M, dr_SEP)
+# partial_mu = PartialWrtMu(mu_S, r_S, r_M, dr_SEP, da)
 #
-# partial_pos = PartialWrtPosition(mu_S, r_S, r_M, dr_SEP)
-#
-# print("central difference wrt position: \n", cd_pos)
-# print("partial wrt position: \n", partial_pos)
-# print("partial - central difference wrt position: \n", partial_pos-cd_pos)
-
-
-p_mu = Decimal(1E19)
-cd_mu = CentralDifferenceWrtMu(p_mu, mu_S, r_S, r_M, dr_SEP)
-partial_mu = PartialWrtMu(mu_S, r_S, r_M, dr_SEP, da)
-
-print("central difference wrt mu: \n", cd_mu)
-print("partial wrt mu: \n", partial_mu)
-print("partial - central difference wrt mu: \n", partial_mu-cd_mu)
+# print("central difference wrt mu: \n", cd_mu)
+# print("partial wrt mu: \n", partial_mu)
+# print("partial - central difference wrt mu: \n", partial_mu-cd_mu)
 
 
 # p_eta = Decimal(1.0E-4)

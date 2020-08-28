@@ -1,7 +1,7 @@
 {
     "vehicle": "MESSENGER",
 
-    "initialTime": [2008, 1, 1, 0, 0, 0],
+    "initialTime": [2007, 10, 31, 18, 0, 0],
     "finalTime": [2015, 5, 1, 0, 0, 0],
 
     "observationInitialTime": [2011, 3, 18, 0, 0, 0],

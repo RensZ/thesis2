@@ -408,7 +408,19 @@ std::map< double, Eigen::Vector3d > interpolatePositionErrorsBasedOnTrueAnomaly(
             Eigen::VectorXd arcDataTADif = (arcDataTA - vehicleTrueAnomaly*Eigen::VectorXd::Ones(arcDataTA.size())).cwiseAbs();
             std::ptrdiff_t ind; arcDataTADif.minCoeff(&ind);
 
-            currentInterpolatedError = arcDataPosition.block(ind,0,1,3);
+            currentInterpolatedError(0) = arcDataPosition(ind,0);
+            currentInterpolatedError(1) = arcDataPosition(ind,1);
+            currentInterpolatedError(2) = arcDataPosition(ind,2);
+
+//            std::cout<<currentTime<<"|"
+//                     <<minKernelTime<<"|"
+//                     <<arcStart<<"|"
+//                     <<arcFinish<<"|"
+//                     <<vehicleTrueAnomaly<<"|"
+//                     <<arcDataTA.row(0)<<"|"
+//                     <<arcDataPosition.row(0)<<"|"
+//                     <<ind<<"|"
+//                     <<currentInterpolatedError.transpose()<<std::endl;
 
         }
 
@@ -797,6 +809,26 @@ double combinedRangeAndSatelliteErrorLevel( const double observationTime,
     // get root mean square of total error
 //    std::cout<<satellitePositionRangingVariance<<" / "<<rangeNoiseLevel<<" / "<<sqrt(rangeNoiseLevel*rangeNoiseLevel + satellitePositionRangingVariance)<<std::endl;
     return sqrt(rangeNoiseLevel*rangeNoiseLevel + satellitePositionRangingVariance);
+}
+
+
+double satelliteErrorLevel( const double observationTime,
+                            const Eigen::Vector3d satellitePositionErrorLevel)
+{
+
+    // get x,y,z variance of satellite position
+    Eigen::Vector3d satellitePositionVariance = satellitePositionErrorLevel.cwiseProduct(satellitePositionErrorLevel);
+//    std::cout<<observationTime<<" | "<<satellitePositionErrorLevel.transpose()<<" | "<<satellitePositionVariance.transpose()<<std::endl;
+
+    // project variance along ranging direction
+    using namespace tudat::spice_interface;
+    Eigen::Vector3d mercuryPositionWrtEarth = -getBodyCartesianStateAtEpoch("Earth","Mercury","IAU_Mercury","None",observationTime).segment(0,3);
+    Eigen::Vector3d rangeUnitVector = mercuryPositionWrtEarth / mercuryPositionWrtEarth.norm( );
+    double satellitePositionRangingVariance = abs(satellitePositionVariance.dot(rangeUnitVector));
+
+    // get root mean square of total error
+//    std::cout<<satellitePositionRangingVariance<<" / "<<rangeNoiseLevel<<" / "<<sqrt(rangeNoiseLevel*rangeNoiseLevel + satellitePositionRangingVariance)<<std::endl;
+    return sqrt(satellitePositionRangingVariance);
 }
 
 std::map< unsigned int, std::pair< double, double > > readAsteroidsFile (

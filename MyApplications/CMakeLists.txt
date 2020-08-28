@@ -248,5 +248,13 @@ target_link_libraries(application_IntegratorTest_long
    ${TUDAT_APPLICATION_ESTIMATION_LIBRARIES}
    ${Boost_LIBRARIES} )
 
+add_executable(application_PropagatorTest_long "${SRCROOT}/propagatorTest_long.cpp")
+setup_executable_target(application_PropagatorTest_long "${SRCROOT}")
+target_link_libraries(application_PropagatorTest_long
+   customLibrary
+   ${TUDAT_ESTIMATION_LIBRARIES}
+   ${TUDAT_APPLICATION_ESTIMATION_LIBRARIES}
+   ${Boost_LIBRARIES} )
+
 
 

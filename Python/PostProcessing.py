@@ -103,8 +103,8 @@ for ps in publication_string:
 
     if json_input["includeSEPViolationAcceleration"]:
         dependent_variables.append("Sun_SEP")
-        #if not json_input["useNordtvedtConstraint"]: #comment this line if nordtvedt is enforced in the estimation
-        parameters.append("Nordtvedt")
+        if not json_input["useNordtvedtConstraint"]: #comment this line if nordtvedt is enforced in the estimation
+            parameters.append("Nordtvedt")
 
 
     if json_input["estimatePPNalphas"]:

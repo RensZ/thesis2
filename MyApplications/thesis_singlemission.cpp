@@ -70,10 +70,10 @@ int main( )
     unsigned int maximumDegreeSunGravitationalMomentVariation = 2;
 
     // Parameter estimation settings
-    const unsigned int maximumNumberOfIterations = 5;
+    const unsigned int maximumNumberOfIterations = 10;
     const double sigmaPosition = 1000.0; //educated guess
     const double sigmaVelocity = 1.0; //educated guess
-    const bool ignoreNordtvedtConstraintInEstimation = false;
+    const bool ignoreNordtvedtConstraintInEstimation = true;
     const bool includeSpacecraftPositionError = true;
     const bool includeLightTimeCorrections = false;
     const bool testCeres = false; // to perform tests on the asteroid consider covariance
@@ -118,11 +118,11 @@ int main( )
     // Load json input
     std::vector< std::string > filenames;
     filenames.push_back("inputs_Genova2018.json"); // 0
-    filenames.push_back("inputs_Schettino2015.json"); // 1
-    filenames.push_back("inputs_Imperi2018_nvtrue_flybys.json"); // 2
-    filenames.push_back("inputs_Imperi2018_nvfalse_flybys.json"); // 3
-    filenames.push_back("inputs_Imperi2018_nvtrue.json"); // 4
-    filenames.push_back("inputs_Imperi2018_nvfalse.json"); // 5
+//    filenames.push_back("inputs_Schettino2015.json"); // 1
+//    filenames.push_back("inputs_Imperi2018_nvtrue_flybys.json"); // 2
+//    filenames.push_back("inputs_Imperi2018_nvfalse_flybys.json"); // 3
+//    filenames.push_back("inputs_Imperi2018_nvtrue.json"); // 4
+//    filenames.push_back("inputs_Imperi2018_nvfalse.json"); // 5
 
 //    filenames.push_back("inputs_Schettino2015_alphas.json"); // 2
 //    filenames.push_back("inputs_Imperi2018_nvtrue_flybys_alphas.json"); // 4
@@ -588,6 +588,13 @@ int main( )
         dependentVariablesList.push_back(
                   std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
                         time_varying_gravitational_parameter_acceleration, "Mercury" , "Sun" ) );
+        }
+
+        // sep position correction
+        if (includeSEPViolationAcceleration){
+        dependentVariablesList.push_back(
+                  std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                        sep_violation_acceleration, "Mercury" , "Sun", 0, -1, 1 ) );
         }
 
         // Create object with list of dependent variables

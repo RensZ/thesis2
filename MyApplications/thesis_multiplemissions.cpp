@@ -85,20 +85,19 @@ int main( )
     const bool estimateJ4Phase = false;
 
     // Parameter estimation settings
-    const unsigned int maximumNumberOfIterations = 10;
+    const unsigned int maximumNumberOfIterations = 5;
     const double sigmaPosition = 1000.0; //educated guess
     const double sigmaVelocity = 1.0; //educated guess
     const bool useMultipleMercuryArcs = false;
     const bool reintegrateVariationalEquations = true; //warning: when setting this false and estimating eta with a true value of 0, eta won't improve as the partials are not calculated after perturbing the initial state
-    const bool ignoreNordtvedtConstraintInEstimation = false;
+    const bool ignoreNordtvedtConstraintInEstimation = true;
     const bool includeSpacecraftPositionError = true;
     const bool includeLightTimeCorrections = false;
     const double observationReductionFactor = 1.0; //decreases amount of observations by a factor n to speed up the algorithm considerably
     const bool testCeres = false; // to perform tests on the asteroid consider covariance
-    const bool testWithoutFlybys = true;
+    const bool testWithoutFlybys = false;
 
-
-    // integrator settings
+    // integrator & propagator settings
     const double initialTimeStep = 3600.0/2.0;
     const double minimumStepSize = 3600.0/2.0;
     const double maximumStepSize = 3600.0/2.0;
@@ -106,6 +105,12 @@ int main( )
     const double absoluteErrorTolerence = 1.0;
     const unsigned int minimumOrder = 12;
     const unsigned int maximumOrder = 12;
+
+    TranslationalPropagatorType propagator = gauss_modified_equinoctial;
+    std::string centreOfPropagation = "SSB";
+    if (propagator != cowell ){
+        centreOfPropagation = "Sun";
+    }
 
     // Other planetary parameters, currently not included in json
     const double mercuryGravitationalParameter = (2.2031870798779644e+04)*(1E9); //m3/s2, from https://pgda.gsfc.nasa.gov/products/71
@@ -135,9 +140,10 @@ int main( )
 
     // parameter inputs
     std::vector< std::string > filenames;
+//    filenames.push_back("inputs_multiplemissions_bareminimum.json");
     filenames.push_back("inputs_multiplemissions_Fienga2019.json");
-//    filenames.push_back("inputs_multiplemissions_Park2017.json");
-//    filenames.push_back("inputs_multiplemissions_Antia2008.json");
+    filenames.push_back("inputs_multiplemissions_Park2017.json");
+    filenames.push_back("inputs_multiplemissions_Antia2008.json");
 
     // scenario pairs
     std::vector< std::pair<int,int> > scenarioPairs;
@@ -147,7 +153,6 @@ int main( )
 //    scenarioPairs.push_back(std::make_pair(4,4));
 //    scenarioPairs.push_back(std::make_pair(3,1));
 //    scenarioPairs.push_back(std::make_pair(1,3));
-
 
     for (unsigned int f = 0; f<filenames.size(); f++){
         for (unsigned int s = 0; s<scenarioPairs.size(); s++){
@@ -213,13 +218,13 @@ int main( )
             const double sigmaAlpha1 = json_input["sigma_alpha1"];
             const double sigmaAlpha2 = json_input["sigma_alpha2"];
             const double sigmaNordtvedt = json_input["sigma_Nordtvedt"];
-            const double sigmaSunGM = json_input["sigma_mu_Sun"];
+            const double sigmaSunGM = 3json_input["sigma_mu_Sun"]; //1.0E9;  // High numerical errors with more accurate apriori values?! (e.g. INPOP19a)
             const double sigmaTVGP = json_input["sigma_TVGP"];
 
             const double unnormalisedSunJ2 = json_input["sunJ2"];
             const double sunJ2 = unnormalisedSunJ2 / calculateLegendreGeodesyNormalizationFactor(2,0);
             const double sigmaUnnormalisedSunJ2 = json_input["sigma_J2_Sun"];
-            const double sigmaSunJ2 = sigmaUnnormalisedSunJ2 / calculateLegendreGeodesyNormalizationFactor(2,0);
+            const double sigmaSunJ2 = sunJ2; // sigmaUnnormalisedSunJ2 / calculateLegendreGeodesyNormalizationFactor(2,0); // High numerical errors with more accurate apriori values?!
             const double unnormalisedSunJ4 = json_input["sunJ4"];
             const double sunJ4 = unnormalisedSunJ4 / calculateLegendreGeodesyNormalizationFactor(4,0);
             const double unnormalisedSigmaSunJ4 = json_input["sigma_J4_Sun"];
@@ -422,19 +427,19 @@ int main( )
 
 //            // Simplification, for outer solar sytem bodies, take tabulated values
             bodySettings["Jupiter"]->ephemerisSettings = std::make_shared< InterpolatedSpiceEphemerisSettings >(
-                        initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, "SSB", "ECLIPJ2000" );
+                        initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, centreOfPropagation, "ECLIPJ2000" );
             bodySettings["Saturn"]->ephemerisSettings = std::make_shared< InterpolatedSpiceEphemerisSettings >(
-                        initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, "SSB", "ECLIPJ2000" );
+                        initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, centreOfPropagation, "ECLIPJ2000" );
             bodySettings["Uranus"]->ephemerisSettings = std::make_shared< InterpolatedSpiceEphemerisSettings >(
-                        initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, "SSB", "ECLIPJ2000" );
+                        initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, centreOfPropagation, "ECLIPJ2000" );
             bodySettings["Neptune"]->ephemerisSettings = std::make_shared< InterpolatedSpiceEphemerisSettings >(
-                        initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, "SSB", "ECLIPJ2000" );
+                        initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, centreOfPropagation, "ECLIPJ2000" );
 
             if (testCeres){
                 // set ephemeris settings to tabulated with 1 hour time step
                 bodySettings[ "2000001" ]->ephemerisSettings
                         = std::make_shared< InterpolatedSpiceEphemerisSettings >(
-                            initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, "SSB", "ECLIPJ2000" );
+                            initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, centreOfPropagation, "ECLIPJ2000" );
 
                 // set gravitational parameter as given in INPOP19a
                 bodySettings[ "2000001" ]->gravityFieldSettings
@@ -566,10 +571,10 @@ int main( )
 
             if (useMultipleMercuryArcs){
                 bodyMap[ "Mercury" ]->setEphemeris( std::make_shared< MultiArcEphemeris >(
-                                                        std::map< double, std::shared_ptr< Ephemeris > >( ), "SSB", "ECLIPJ2000" ) );
+                                                        std::map< double, std::shared_ptr< Ephemeris > >( ), centreOfPropagation, "ECLIPJ2000" ) );
             }
 
-            setGlobalFrameBodyEphemerides( bodyMap, "SSB", "ECLIPJ2000" );
+            setGlobalFrameBodyEphemerides( bodyMap, centreOfPropagation, "ECLIPJ2000" );
 
             ///////////////////////
             //// ACCELERATIONS ////
@@ -593,7 +598,7 @@ int main( )
                 if (bodiesToPropagate[i] == "Moon"){
                     centralBodies[i] = "Earth";
                 } else{
-                    centralBodies[i] = "SSB";
+                    centralBodies[i] = centreOfPropagation;
                 }
             }
 
@@ -711,6 +716,13 @@ int main( )
                             time_varying_gravitational_parameter_acceleration, "Mercury" , "Sun" ) );
             }
 
+            // sep position correction
+            if (includeSEPViolationAcceleration){
+            dependentVariablesList.push_back(
+                      std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                            sep_violation_acceleration, "Mercury" , "Sun", 0, -1, 1 ) );
+            }
+
             // Create object with list of dependent variables
             std::shared_ptr< DependentVariableSaveSettings > dependentVariablesToSave =
             std::make_shared< DependentVariableSaveSettings >( dependentVariablesList );
@@ -746,7 +758,7 @@ int main( )
 //                    propagatorSettingsList.push_back(
 //                                std::make_shared< TranslationalStatePropagatorSettings< long double > >(
 //                                    centralBodies, accelerationModelMap, bodiesToPropagate,
-//                                    currentArcInitialState, terminationSettings, cowell, dependentVariablesToSave ) );
+//                                    currentArcInitialState, terminationSettings, propagator, dependentVariablesToSave ) );
 //                }
 
 //                // Create propagator settings
@@ -765,7 +777,7 @@ int main( )
 
                 propagatorSettings = std::make_shared< TranslationalStatePropagatorSettings< long double > >
                         ( centralBodies, accelerationModelMap, bodiesToPropagate,
-                          systemInitialState, terminationSettings, cowell, dependentVariablesToSave);
+                          systemInitialState, terminationSettings, propagator, dependentVariablesToSave);
 
 //            }
 
@@ -840,7 +852,7 @@ int main( )
 //                        {
 //                            allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
 //                            spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
-//                                    getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),"SSB","ECLIPJ2000","None",stateIterator->first);
+//                                    getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),centreOfPropagation,"ECLIPJ2000","None",stateIterator->first);
 
 //                        }
 //                    }
@@ -870,7 +882,7 @@ int main( )
                     {
                         allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
                         spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
-                                getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),"SSB","ECLIPJ2000","None",stateIterator->first);
+                                getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),centreOfPropagation,"ECLIPJ2000","None",stateIterator->first);
 
                     }
                 }
@@ -945,7 +957,7 @@ int main( )
 //                    backwardPropagatorSettingsList.push_back(
 //                                std::make_shared< TranslationalStatePropagatorSettings< double > >(
 //                                    centralBodies, accelerationModelMap, bodiesToPropagate,
-//                                    arcFinalStates.at(m), backwardTerminationSettings, cowell ) );
+//                                    arcFinalStates.at(m), backwardTerminationSettings, propagator ) );
 //                }
 
 //                // Create propagator settings
@@ -972,7 +984,7 @@ int main( )
 //                        {
 //                            allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
 //                            spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
-//                                    getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),"SSB","ECLIPJ2000","None",stateIterator->first);
+//                                    getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),centreOfPropagation,"ECLIPJ2000","None",stateIterator->first);
 
 //                        }
 //                    }
@@ -987,7 +999,7 @@ int main( )
 
                 backwardPropagatorSettings = std::make_shared< TranslationalStatePropagatorSettings< long double > >
                         ( centralBodies, accelerationModelMap, bodiesToPropagate,
-                          systemFinalState, backwardTerminationSettings);
+                          systemFinalState, backwardTerminationSettings, propagator);
 
 
                 SingleArcDynamicsSimulator <long double> backwardDynamicsSimulator
@@ -1132,7 +1144,7 @@ int main( )
 //                    for( unsigned int i = 3; i < 6; i++ ){ varianceVector.push_back(sigmaVelocity*sigmaVelocity); }
 //                }
 //                parameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
-//                                              "Mercury", systemInitialState, initialTimeVector, "SSB" ) );
+//                                              "Mercury", systemInitialState, initialTimeVector, centreOfPropagation ) );
 //            }
 //            else{
                 for( unsigned int i = 0; i < numberOfNumericalBodies; i++ ){
@@ -1411,6 +1423,7 @@ int main( )
 
             // add spacecraft initial position error to the observations
             std::map< double, Eigen::Vector3d > interpolatedErrorMatrix;
+            std::map< double, Eigen::Vector4d > saveErrorSamples;
             if (includeSpacecraftPositionError == true){
 
                 std::cout << "Adding satellite estimation initial position error..." << std::endl;
@@ -1480,9 +1493,9 @@ int main( )
 
                                 double rangeNoiseLevel = noiseLevelBasedOnMSEangleForMultipleMissions(
                                             observationTime, noiseAtMinAngleVector, noiseAtMaxAngleVector, maxMSEAngleDegVector, seperateBaseTimeLists);
+                                double satErrorLevel = satelliteErrorLevel(observationTime, interpolatedErrorMatrix.at(observationTime));
 
-                                double totalErrorLevel = combinedRangeAndSatelliteErrorLevel(
-                                            observationTime, interpolatedErrorMatrix.at(observationTime), rangeNoiseLevel);
+                                double totalErrorLevel = sqrt(rangeNoiseLevel*rangeNoiseLevel + satErrorLevel*satErrorLevel);
 
                                 std::normal_distribution<double> d(0.0, totalErrorLevel);
                                 long double rangeErrorSample = static_cast<long double>(d(gen));
@@ -1497,12 +1510,10 @@ int main( )
 
                                 newObservations(i) = allObservations(i) + rangeErrorSample;
                                 observationWeights(i) = 1.0/(totalErrorLevel*totalErrorLevel);
+                                //observationWeights(i) = 1.0/(rangeErrorSample*rangeErrorSample);
 
-        //                        std::cout<<observationTime<<" // "<<
-        //                                   currentSatelliteError.transpose()<<" // "<<
-        //                                   randomErrorSample.transpose()<<" // "<<
-        //                                   rangeCorrection<<" // "<<
-        //                                   noiseLevel<<std::endl;
+                                Eigen::Vector4d saveCurrentSample = {satErrorLevel, rangeNoiseLevel, totalErrorLevel, rangeErrorSample};
+                                saveErrorSamples.insert(std::make_pair(observationTime, saveCurrentSample));
                             }
 
                             singleObservableIterator->second.first = newObservations;
@@ -1514,7 +1525,10 @@ int main( )
                 }
             }
 
-
+            input_output::writeDataMapToTextFile(
+                        saveErrorSamples, "saveErrorSamples.dat", outputSubFolder, "",
+                        std::numeric_limits< double >::digits10, std::numeric_limits< double >::digits10, "," );
+            saveErrorSamples.clear();
 
             /////////////////////////////
             //// ESTIMATE PARAMETERS ////
@@ -1582,7 +1596,9 @@ int main( )
                                                 reintegrateVariationalEquations,
                                                 true, true, true, true,
                                                 enforceNordtvedtConstraintInEstimation );
-            podInput->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
+            if (includeSpacecraftPositionError == true){
+                podInput->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
+            }
 
             // Perform estimation
             std::shared_ptr< PodOutput< long double > > podOutput = orbitDeterminationManager.estimateParameters(
@@ -1673,7 +1689,7 @@ int main( )
 //                        for( unsigned int i = 3; i < 6; i++ ){ considerVarianceVector.push_back(sigmaVelocity*sigmaVelocity); }
 //                    }
 //                    considerParameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
-//                                                  "Mercury", systemInitialState, initialTimeVector, "SSB" ) );
+//                                                  "Mercury", systemInitialState, initialTimeVector, centreOfPropagation ) );
 //                }
 //                else{
                     for( unsigned int i = 0; i < numberOfNumericalBodies; i++ ) {
@@ -1739,7 +1755,9 @@ int main( )
                             considerParameterAprioriCovariance.inverse(),
                             initialConsiderParameterEstimate - truthConsiderParameters );
                 podInputConsiderParameters->defineEstimationSettings( true, false, true, true );
-                podInputConsiderParameters->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
+                if (includeSpacecraftPositionError == true){
+                    podInputConsiderParameters->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
+                }
 
                 std::shared_ptr< PodOutput< long double > > podOutputConsiderParameters = orbitDeterminationManagerConsiderParameters.estimateParameters(
                             podInputConsiderParameters, std::make_shared< EstimationConvergenceChecker >( 1 ) );

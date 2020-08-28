@@ -123,3 +123,70 @@ def f(dir_output, dir_plots, body, no_arcs):
 
             plt.tight_layout()
             plt.savefig(dir_plots + body + '_state_history_integration_error_norm'+output_string+'.png')
+
+
+            # plot SEP violation correction
+            if output_string == "_wrt_backwards_integration":
+                DVdata = np.genfromtxt(dir_output + "DependentVariablesHistoryFinalIteration.dat", delimiter=',')
+                if not np.array_equal(t, DVdata[:,0]):
+                    print("time arrays not equal, moving on")
+                    continue
+                else:
+                    SEPPositionCorrection = DVdata[:,-3:]
+                    SEPPositionCorrectionNorm = np.linalg.norm(SEPPositionCorrection, axis=1)
+
+                    fig3 = plt.figure(figsize=(16, 10))
+                    plt.plot(t - t[0], allerrors_pos_norm, linewidth=0.75)
+                    plt.plot(t - t[0], SEPPositionCorrectionNorm, linewidth=0.75)
+                    plt.xlabel("t [s]")
+                    plt.ylabel("value [m]")
+                    plt.yscale("log")
+                    plt.legend(["FW-BW integration","SEP position correction"])
+                    plt.grid()
+                    plt.tight_layout()
+                    plt.savefig(dir_plots + body + '_sep_position_correction_norm' + output_string + '.png')
+
+                    fig4 = plt.figure(figsize=(18, 10))
+                    coordinates = ["x","y","z"]
+                    for k in range(0,3):
+                        plt.subplot(1,3,k+1)
+                        plt.plot(t - t[0], abs(allerrors_pos[:,k]), linewidth=0.75)
+                        plt.plot(t - t[0], abs(SEPPositionCorrection[:,k]), linewidth=0.75)
+                        plt.xlabel("t [s]")
+                        plt.ylabel(coordinates[k] + " [m]")
+                        plt.yscale("log")
+                        plt.grid()
+                        plt.legend(["FW-BW integration","SEP position correction"])
+
+                    plt.tight_layout()
+                    plt.savefig(dir_plots + body + '_sep_position_correction' + output_string + '.png')
+
+
+
+                    # fig5 = plt.figure(figsize=(16, 10))
+                    # plt.plot(t - t[0], allerrors_pos_norm, linewidth=0.75)
+                    # plt.plot(t - t[0], np.linalg.norm(SEPPositionCorrection/100.0, axis=1), linewidth=0.75)
+                    # plt.xlabel("t [s]")
+                    # plt.ylabel("value [m]")
+                    # plt.yscale("log")
+                    # plt.legend(["FW-BW integration","SEP position correction"])
+                    # plt.grid()
+                    # plt.tight_layout()
+                    # plt.savefig(dir_plots + body + '_sep_position_correction_norm_dividedby100' + output_string + '.png')
+                    #
+                    # fig5 = plt.figure(figsize=(18, 10))
+                    # coordinates = ["x", "y", "z"]
+                    # for k in range(0, 3):
+                    #     plt.subplot(1, 3, k + 1)
+                    #     plt.plot(t - t[0], abs(allerrors_pos[:, k]), linewidth=0.75)
+                    #     plt.plot(t - t[0], abs(SEPPositionCorrection[:, k]/100.0), linewidth=0.75)
+                    #     plt.xlabel("t [s]")
+                    #     plt.ylabel(coordinates[k] + " [m]")
+                    #     plt.yscale("log")
+                    #     plt.grid()
+                    #     plt.legend(["FW-BW integration", "SEP position correction"])
+                    #
+                    # plt.tight_layout()
+                    # plt.savefig(dir_plots + body + '_sep_position_correction_dividedby100' + output_string + '.png')
+
+

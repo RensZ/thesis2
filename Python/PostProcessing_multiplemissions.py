@@ -44,6 +44,7 @@ for s in subdirs:
         ps = "Fienga2019"
         reality = 1
         estimation = 1
+        continue
     else:
         ps = s[len(dir_output):-21]
         reality = int(s[-13])
@@ -105,8 +106,8 @@ for s in subdirs:
 
     if json_input["includeSEPViolationAcceleration"]:
         dependent_variables.append("Sun_SEP")
-        #if not json_input["useNordtvedtConstraint"]: #comment this line if nordtvedt is enforced in the estimation
-        parameters.append("Nordtvedt")
+        if not json_input["useNordtvedtConstraint"]: #comment this line if nordtvedt is enforced in the estimation
+            parameters.append("Nordtvedt")
 
     if json_input["estimatePPNalphas"]:
         parameters.append("alpha1")

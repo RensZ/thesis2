@@ -117,8 +117,11 @@ std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> > onlyEveryXthVa
 std::string printScenario(const int scenario);
 
 double combinedRangeAndSatelliteErrorLevel( const double observationTime,
-                                                const Eigen::Vector3d satellitePositionErrorLevel,
-                                                const double rangeNoiseLevel);
+                                            const Eigen::Vector3d satellitePositionErrorLevel,
+                                            const double rangeNoiseLevel);
+
+double satelliteErrorLevel( const double observationTime,
+                            const Eigen::Vector3d satellitePositionErrorLevel);
 
 std::map< unsigned int, std::pair< double, double > > readAsteroidsFile (
         std::string filename, std::string delimiter);
