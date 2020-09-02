@@ -617,14 +617,23 @@ Eigen::MatrixXd calculateConsiderCovarianceOfAsteroids(
         const Eigen::MatrixXd Hx,
         std::string inputFolderAsteroids,
         std::string inputFolderPartials,
-        std::string outputSubFolder)
+        std::string outputSubFolder,
+        const bool onlyUseFirst4Asteroids)
 {
     using namespace tudat::input_output;
     using namespace tudat::physical_constants;
 
     // get asteroid numbers
-    Eigen::VectorXd asteroidNumbersDouble = readMatrixFromFile(inputFolderAsteroids + "mu.txt", " ").col(0);
+
+    Eigen::VectorXd asteroidNumbersDouble;
+    if (onlyUseFirst4Asteroids){
+        asteroidNumbersDouble = readMatrixFromFile(inputFolderAsteroids + "mu2.txt", " ").col(0);
+    } else{
+        asteroidNumbersDouble = readMatrixFromFile(inputFolderAsteroids + "mu.txt", " ").col(0);
+    }
+
     Eigen::VectorXi asteroidNumbers = asteroidNumbersDouble.cast<int>();
+//    std::cout<<asteroidNumbers.transpose()<<std::endl;
 
     // get asteroid GM uncertainties
     std::map< unsigned int, std::pair< double, double > > asteroidsINPOP19a

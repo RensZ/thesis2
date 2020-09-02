@@ -99,14 +99,20 @@ int main( )
     const bool includeLightTimeCorrections = false;
     const double observationReductionFactor = 1.0; //decreases amount of observations by a factor n to speed up the algorithm considerably
 
-    // ABM integrator settings (if RK4 is used instead, initialstepsize is taken)
-    const double initialTimeStep = 3600.0/2.0;
-    const double minimumStepSize = 3600.0/2.0;
-    const double maximumStepSize = 3600.0/2.0;
+    // integrator & propagator settings
+    const double initialTimeStep = 3000.0;
+    const double minimumStepSize = 3000.0;
+    const double maximumStepSize = 3000.0;
     const double relativeErrorTolerence = 1.0;
     const double absoluteErrorTolerence = 1.0;
     const unsigned int minimumOrder = 8;
     const unsigned int maximumOrder = 8;
+
+    TranslationalPropagatorType propagator = gauss_modified_equinoctial;
+    std::string centreOfPropagation = "SSB";
+    if (propagator != cowell ){
+        centreOfPropagation = "Sun";
+    }
 
     // Other planetary parameters, currently not included in json
     const double mercuryGravitationalParameter = (2.2031870798779644e+04)*(1E9); //m3/s2, from https://pgda.gsfc.nasa.gov/products/71
@@ -373,8 +379,8 @@ int main( )
             /////////////////////
 
 
-            const unsigned int increment = 25;
-            for (unsigned int inc=0; inc<25; inc += increment){
+            const unsigned int increment = 20;
+            for (unsigned int inc=120; inc<300; inc += increment){
 
                 unsigned int minIndex = inc;
                 unsigned int maxIndex = inc+increment-1;
@@ -433,13 +439,13 @@ int main( )
 
     //            // Simplification, for outer solar sytem bodies, take tabulated values
                 bodySettings["Jupiter"]->ephemerisSettings = std::make_shared< InterpolatedSpiceEphemerisSettings >(
-                            initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, "SSB", "ECLIPJ2000" );
+                            initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, centreOfPropagation, "ECLIPJ2000" );
                 bodySettings["Saturn"]->ephemerisSettings = std::make_shared< InterpolatedSpiceEphemerisSettings >(
-                            initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, "SSB", "ECLIPJ2000" );
+                            initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, centreOfPropagation, "ECLIPJ2000" );
                 bodySettings["Uranus"]->ephemerisSettings = std::make_shared< InterpolatedSpiceEphemerisSettings >(
-                            initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, "SSB", "ECLIPJ2000" );
+                            initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, centreOfPropagation, "ECLIPJ2000" );
                 bodySettings["Neptune"]->ephemerisSettings = std::make_shared< InterpolatedSpiceEphemerisSettings >(
-                            initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, "SSB", "ECLIPJ2000" );
+                            initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, centreOfPropagation, "ECLIPJ2000" );
 
 
                 // asteroid settings
@@ -452,7 +458,7 @@ int main( )
                         // set ephemeris settings to tabulated with 1 hour time step
                         bodySettings[ std::to_string(2000000 + asteroidNumbers(a)) ]->ephemerisSettings
                                 = std::make_shared< InterpolatedSpiceEphemerisSettings >(
-                                    initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, "SSB", "ECLIPJ2000" );
+                                    initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, centreOfPropagation, "ECLIPJ2000" );
 
                         // set gravitational parameter as given in INPOP19a
                         bodySettings[ std::to_string(2000000 + asteroidNumbers(a)) ]->gravityFieldSettings
@@ -590,10 +596,10 @@ int main( )
 
                 if (useMultipleMercuryArcs){
                     bodyMap[ "Mercury" ]->setEphemeris( std::make_shared< MultiArcEphemeris >(
-                                                            std::map< double, std::shared_ptr< Ephemeris > >( ), "SSB", "ECLIPJ2000" ) );
+                                                            std::map< double, std::shared_ptr< Ephemeris > >( ), centreOfPropagation, "ECLIPJ2000" ) );
                 }
 
-                setGlobalFrameBodyEphemerides( bodyMap, "SSB", "ECLIPJ2000" );
+                setGlobalFrameBodyEphemerides( bodyMap, centreOfPropagation, "ECLIPJ2000" );
 
                 ///////////////////////
                 //// ACCELERATIONS ////
@@ -617,7 +623,7 @@ int main( )
                     if (bodiesToPropagate[i] == "Moon"){
                         centralBodies[i] = "Earth";
                     } else{
-                        centralBodies[i] = "SSB";
+                        centralBodies[i] = centreOfPropagation;
                     }
                 }
 
@@ -768,7 +774,7 @@ int main( )
                         propagatorSettingsList.push_back(
                                     std::make_shared< TranslationalStatePropagatorSettings< double > >(
                                         centralBodies, accelerationModelMap, bodiesToPropagate,
-                                        currentArcInitialState, terminationSettings, cowell, dependentVariablesToSave ) );
+                                        currentArcInitialState, terminationSettings, propagator, dependentVariablesToSave ) );
                     }
 
                     // Create propagator settings
@@ -786,17 +792,24 @@ int main( )
 
                     propagatorSettings = std::make_shared< TranslationalStatePropagatorSettings< double > >
                             ( centralBodies, accelerationModelMap, bodiesToPropagate,
-                              systemInitialState, terminationSettings, cowell, dependentVariablesToSave);
+                              systemInitialState, terminationSettings, propagator, dependentVariablesToSave);
 
                 }
 
 
-                std::shared_ptr< AdamsBashforthMoultonSettings< double > > integratorSettings =
-                        std::make_shared< AdamsBashforthMoultonSettings< double > > (
+                std::shared_ptr< IntegratorSettings< double> > integratorSettings =
+                        std::make_shared< RungeKuttaVariableStepSizeSettingsScalarTolerances< double > >(
                             initialSimulationTime, initialTimeStep,
+                            RungeKuttaCoefficients::CoefficientSets::rungeKuttaFehlberg78,
                             minimumStepSize, maximumStepSize,
-                            relativeErrorTolerence, absoluteErrorTolerence,
-                            minimumOrder, maximumOrder);
+                            relativeErrorTolerence, absoluteErrorTolerence);
+
+                std::shared_ptr< IntegratorSettings< double> > backwardIntegratorSettings =
+                        std::make_shared< RungeKuttaVariableStepSizeSettingsScalarTolerances< double > >(
+                            finalSimulationTime, -1.0*initialTimeStep,
+                            RungeKuttaCoefficients::CoefficientSets::rungeKuttaFehlberg78,
+                            -1.0*minimumStepSize, -1.0*maximumStepSize,
+                            relativeErrorTolerence, absoluteErrorTolerence);
 
             //    std::shared_ptr< IntegratorSettings< > > integratorSettings =
             //            std::make_shared< IntegratorSettings< > >
@@ -805,116 +818,116 @@ int main( )
 
 
 
-                ////////////////////////////
-                //// DYNAMICS SIMULATOR ////
-                ////////////////////////////
+//                ////////////////////////////
+//                //// DYNAMICS SIMULATOR ////
+//                ////////////////////////////
 
-                std::cout << "running dynamics simulator..." << std::endl;
+//                std::cout << "running dynamics simulator..." << std::endl;
 
-                std::vector< std::map< double, Eigen::VectorXd > > allBodiesPropagationHistory;
-                std::vector< std::map< double, Eigen::VectorXd > > spiceStatesAtPropagationTimes;
-                std::vector< Eigen::VectorXd > arcFinalStates;
-                allBodiesPropagationHistory.resize( bodiesToPropagate.size() );
-//                spiceStatesAtPropagationTimes.resize( bodiesToPropagate.size() );
+//                std::vector< std::map< double, Eigen::VectorXd > > allBodiesPropagationHistory;
+//                std::vector< std::map< double, Eigen::VectorXd > > spiceStatesAtPropagationTimes;
+//                std::vector< Eigen::VectorXd > arcFinalStates;
+//                allBodiesPropagationHistory.resize( bodiesToPropagate.size() );
+////                spiceStatesAtPropagationTimes.resize( bodiesToPropagate.size() );
 
-                std::map< double, Eigen::VectorXd > dependentVariablesHistory;
+//                std::map< double, Eigen::VectorXd > dependentVariablesHistory;
 
-                if (useMultipleMercuryArcs){
+//                if (useMultipleMercuryArcs){
 
 
-                    MultiArcDynamicsSimulator <> dynamicsSimulator (bodyMap,
-                                                                    integratorSettings,
-                                                                    propagatorSettings,
-                                                                    initialTimeVector,
-                                                                    true,false,true);
+//                    MultiArcDynamicsSimulator <> dynamicsSimulator (bodyMap,
+//                                                                    integratorSettings,
+//                                                                    propagatorSettings,
+//                                                                    initialTimeVector,
+//                                                                    true,false,true);
 
-                    std::vector< std::map< double, Eigen::VectorXd > > integrationResult = dynamicsSimulator.getEquationsOfMotionNumericalSolution( );
-                    std::vector< std::map< double, Eigen::VectorXd > > dependentVariablesResult = dynamicsSimulator.getDependentVariableHistory();
+//                    std::vector< std::map< double, Eigen::VectorXd > > integrationResult = dynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+//                    std::vector< std::map< double, Eigen::VectorXd > > dependentVariablesResult = dynamicsSimulator.getDependentVariableHistory();
 
-                    for( unsigned int m = 0; m < numberOfMissions; m++ ){
+//                    for( unsigned int m = 0; m < numberOfMissions; m++ ){
 
-                        std::map< double, Eigen::VectorXd > intermediateIntegrationResult = integrationResult.at( m );
+//                        std::map< double, Eigen::VectorXd > intermediateIntegrationResult = integrationResult.at( m );
 
-                        // Retrieve numerically integrated state for each body.
-                        for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateIntegrationResult.begin( );
-                             stateIterator != intermediateIntegrationResult.end( ); stateIterator++ )
-                        {
-                            for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
-                            {
-                                allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
-//                                spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
-//                                        getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),"SSB","ECLIPJ2000","None",stateIterator->first);
+//                        // Retrieve numerically integrated state for each body.
+//                        for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateIntegrationResult.begin( );
+//                             stateIterator != intermediateIntegrationResult.end( ); stateIterator++ )
+//                        {
+//                            for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
+//                            {
+//                                allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
+////                                spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
+////                                        getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),centreOfPropagation,"ECLIPJ2000","None",stateIterator->first);
 
-                            }
-                        }
+//                            }
+//                        }
 
-                        arcFinalStates.push_back(allBodiesPropagationHistory[0].at(finalTimeVector.at(m)));
+//                        arcFinalStates.push_back(allBodiesPropagationHistory[0].at(finalTimeVector.at(m)));
 
-                        std::map< double, Eigen::VectorXd > intermediateDependentVariablesResult = dependentVariablesResult.at( m );
+//                        std::map< double, Eigen::VectorXd > intermediateDependentVariablesResult = dependentVariablesResult.at( m );
 
-                        for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateDependentVariablesResult.begin( );
-                             stateIterator != intermediateDependentVariablesResult.end( ); stateIterator++ )
-                        {
-                            dependentVariablesHistory[ stateIterator->first ] = stateIterator->second;
-                        }
-                    }
+//                        for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateDependentVariablesResult.begin( );
+//                             stateIterator != intermediateDependentVariablesResult.end( ); stateIterator++ )
+//                        {
+//                            dependentVariablesHistory[ stateIterator->first ] = stateIterator->second;
+//                        }
+//                    }
 
-                } else{
+//                } else{
 
-                    SingleArcDynamicsSimulator <> dynamicsSimulator (bodyMap,integratorSettings,propagatorSettings,true,false,true);
-                    std::map< double, Eigen::VectorXd > integrationResult = dynamicsSimulator.getEquationsOfMotionNumericalSolution( );
-                    dependentVariablesHistory = dynamicsSimulator.getDependentVariableHistory();
+//                    SingleArcDynamicsSimulator <> dynamicsSimulator (bodyMap,integratorSettings,propagatorSettings,true,false,true);
+//                    std::map< double, Eigen::VectorXd > integrationResult = dynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+//                    dependentVariablesHistory = dynamicsSimulator.getDependentVariableHistory();
 
-                    // Retrieve numerically integrated state for each body.
-                    for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = integrationResult.begin( );
-                         stateIterator != integrationResult.end( ); stateIterator++ )
-                    {
-                        for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
-                        {
-                            allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
-//                            spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
-//                                    getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),"SSB","ECLIPJ2000","None",stateIterator->first);
+//                    // Retrieve numerically integrated state for each body.
+//                    for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = integrationResult.begin( );
+//                         stateIterator != integrationResult.end( ); stateIterator++ )
+//                    {
+//                        for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
+//                        {
+//                            allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
+////                            spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
+////                                    getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),centreOfPropagation,"ECLIPJ2000","None",stateIterator->first);
 
-                        }
-                    }
+//                        }
+//                    }
 
-                }
+//                }
 
-                for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
-                {
-                    // Write propagation history to file.
-                    input_output::writeDataMapToTextFile(
-                                onlyEveryXthValueFromDataMap( allBodiesPropagationHistory[ i ], onlyEveryXthValue),
-                                "StatePropagationHistory" + bodiesToPropagate.at( i ) + ".dat",
-                                outputSubFolder,
-                                "",
-                                std::numeric_limits< double >::digits10,
-                                std::numeric_limits< double >::digits10,
-                                "," );
-
+//                for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
+//                {
+//                    // Write propagation history to file.
 //                    input_output::writeDataMapToTextFile(
-//                                onlyEveryXthValueFromDataMap( spiceStatesAtPropagationTimes[ i ], onlyEveryXthValue),
-//                                "spiceStatesAtPropagationTimes" + bodiesToPropagate.at( i ) + ".dat",
+//                                onlyEveryXthValueFromDataMap( allBodiesPropagationHistory[ i ], onlyEveryXthValue),
+//                                "StatePropagationHistory" + bodiesToPropagate.at( i ) + ".dat",
 //                                outputSubFolder,
 //                                "",
 //                                std::numeric_limits< double >::digits10,
 //                                std::numeric_limits< double >::digits10,
 //                                "," );
-                }
 
-                // Write dependent variables history to file.
-                input_output::writeDataMapToTextFile(
-                            onlyEveryXthValueFromDataMap(dependentVariablesHistory, onlyEveryXthValue),
-                            "DependentVariablesHistoryReality.dat",
-                            outputSubFolder,
-                            "",
-                            std::numeric_limits< double >::digits10,
-                            std::numeric_limits< double >::digits10,
-                            "," );
+////                    input_output::writeDataMapToTextFile(
+////                                onlyEveryXthValueFromDataMap( spiceStatesAtPropagationTimes[ i ], onlyEveryXthValue),
+////                                "spiceStatesAtPropagationTimes" + bodiesToPropagate.at( i ) + ".dat",
+////                                outputSubFolder,
+////                                "",
+////                                std::numeric_limits< double >::digits10,
+////                                std::numeric_limits< double >::digits10,
+////                                "," );
+//                }
 
-                // clear memory
-        //        allBodiesPropagationHistory.clear();
-                dependentVariablesHistory.clear();
+//                // Write dependent variables history to file.
+//                input_output::writeDataMapToTextFile(
+//                            onlyEveryXthValueFromDataMap(dependentVariablesHistory, onlyEveryXthValue),
+//                            "DependentVariablesHistoryReality.dat",
+//                            outputSubFolder,
+//                            "",
+//                            std::numeric_limits< double >::digits10,
+//                            std::numeric_limits< double >::digits10,
+//                            "," );
+
+//                // clear memory
+//        //        allBodiesPropagationHistory.clear();
+//                dependentVariablesHistory.clear();
 
 
 //                ////////////////////////////
@@ -975,7 +988,7 @@ int main( )
 //                            {
 //                                allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
 //                                spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
-//                                        getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),"SSB","ECLIPJ2000","None",stateIterator->first);
+//                                        getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),centreOfPropagation,"ECLIPJ2000","None",stateIterator->first);
 
 //                            }
 //                        }
@@ -1133,7 +1146,7 @@ int main( )
                         for( unsigned int i = 3; i < 6; i++ ){ varianceVector.push_back(sigmaVelocity*sigmaVelocity); }
                     }
                     parameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
-                                                  "Mercury", systemInitialState, initialTimeVector, "SSB" ) );
+                                                  "Mercury", systemInitialState, initialTimeVector, centreOfPropagation ) );
                 }
                 else{
                     for( unsigned int i = 0; i < numberOfNumericalBodies; i++ ){
@@ -1699,7 +1712,7 @@ int main( )
 //                            for( unsigned int i = 3; i < 6; i++ ){ considerVarianceVector.push_back(sigmaVelocity*sigmaVelocity); }
 //                        }
 //                        considerParameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
-//                                                      "Mercury", systemInitialState, initialTimeVector, "SSB" ) );
+//                                                      "Mercury", systemInitialState, initialTimeVector, centreOfPropagation ) );
 //                    }
 //                    else{
 //                        for( unsigned int i = 0; i < numberOfNumericalBodies; i++ ) {

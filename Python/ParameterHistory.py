@@ -24,6 +24,8 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
     else:
         c = 1
 
+    originalFormalError = np.zeros(len(parameters))
+
     for consider in range(c):
 
         if consider == 0:
@@ -51,7 +53,6 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
 
         data = np.genfromtxt(dir_output + "ParameterHistory.dat")
         truth = np.genfromtxt(dir_output + "TruthParameters.dat")
-
 
         fig = plt.figure(figsize=(16,10))
         plt.title("True error vs iterations")
@@ -158,8 +159,6 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
         for i in range(6 * no_bodies, len(parameters)):
             p = parameters[i]
             parameters2.append(p)
-            estimatedValues.append(data[i,-1])
-            trueErrors.append(data[i,-1] - truth[i])
 
             if p == "J2_Sun":
                 K = Knm(2,0)
@@ -168,8 +167,10 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
             else:
                 K = 1.0
 
-            aps = json_input["sigma_" + p]
+            estimatedValues.append(K*(data[i,-1]))
+            trueErrors.append(K*(data[i,-1] - truth[i]))
 
+            aps = json_input["sigma_" + p]
             outputFormalSigmas.append(K*parameterFormalSigmas[i])
             aPrioriSigmas.append(aps)
             factorOfImprovement.append(aps/(K*parameterFormalSigmas[i]))
@@ -179,9 +180,9 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
                 paperFormalSigmas.append(fs)
                 ratioFormalSigmas.append(K*parameterFormalSigmas[i]/fs)
 
-        if (("gamma" in parameters) or (json_input["useNordtvedtConstraint"])) and ("beta" in parameters) and json_input["useNordtvedtConstraint"]:
+        if (("gamma" in parameters) or (json_input["gammaIsAConsiderParameter"])) and ("beta" in parameters) and json_input["useNordtvedtConstraint"]:
 
-            if json_input["useNordtvedtConstraint"]:
+            if "gamma" not in parameters:
                 gammaFormalError = json_input["sigma_gamma"]
                 gammaBetaCovariance = 0.0
             else:
@@ -190,8 +191,8 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
             #variance according to: https://stats.stackexchange.com/questions/160230/variance-of-linear-combinations-of-correlated-random-variables
 
             if ("alpha1" in parameters) and ("alpha2" in parameters):
-
-                if json_input["useNordtvedtConstraint"]:
+                print("   alphas are estimated parameters")
+                if "gamma" not in parameters:
                     gammaAlpha1Covariance = 0.0
                     gammaAlpha2Covariance = 0.0
                 else:
@@ -212,7 +213,16 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
                                             +2.0*gammaAlpha1Covariance \
                                             +2.0*(2.0/3.0)*gammaAlpha2Covariance \
                                             +2.0*(2.0/3.0)*alpha1Alpha2Covariance
+            # elif json_input["ppnAlphasAreConsiderParameters"]:
+            #     print("   alphas are considered parameters")
+            #     nordtvedtFormalVariance = (4.0*betaFormalError)**2 \
+            #                               +gammaFormalError**2 \
+            #                               -2.0*4.0*gammaBetaCovariance
+            #     print("   nordtvedt formal error without alpha:", np.sqrt(nordtvedtFormalVariance))
+            #     nordtvedtFormalVariance += json_input["sigma_alpha1"]**2 + (2.0/3.0)*json_input["sigma_alpha2"]**2 #covariance between alpha's and others ignored.
+            #     print("   nordtvedt formal error with alpha:", np.sqrt(nordtvedtFormalVariance))
             else:
+                print("   alphas are neglected")
                 nordtvedtFormalVariance = (4.0*betaFormalError)**2 \
                                           +gammaFormalError**2 \
                                           -2.0*4.0*gammaBetaCovariance
@@ -255,6 +265,12 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
                                     "t/f ratio":trueToFormalRatio,
                                     "f/a improvement":factorOfImprovement})
 
+        if consider>0:
+            percentageIncreaseFormalErrors = 100.0*(np.asarray(outputFormalSigmas)-originalFormalError)/originalFormalError
+            df["incr. due to C.C."] = percentageIncreaseFormalErrors
+            df["incr. due to C.C."].map(lambda x: '{0:.2f}'.format(x))
+        else:
+            originalFormalError = np.asarray(outputFormalSigmas)
 
         df['f/a improvement'] = df['f/a improvement'].map(lambda x: '{0:.2f}'.format(x))
         df['t/f ratio'] = df['t/f ratio'].map(lambda x: '{0:.2f}'.format(x))
@@ -264,5 +280,8 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
                                'display.max_columns', None,
                                'precision', 2):
             print(df)
+
+
+
 
     return

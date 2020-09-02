@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 integrators = ["RK4","RK7","ABM","A12"]
-plotsteps = [300, 600, 900, 1800, 3600, 7200, 14400]
+plotsteps = [300, 600, 900, 1800, 3000, 3600, 7200, 14400]
 # outputSubFolders = ["integratorTest/", "integratorTest_long/"]
 outputSubFolders = ["integratorTest_long/"]
 dir_application = '/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/'
@@ -205,18 +205,18 @@ for o in outputSubFolders:
 
     fig2 = plt.figure(figsize=(10,5))
 
+    # plt.subplot(1,2,1)
+    # for e in range(len(entries1_errors_vs_timestep)):
+    #     plt.plot(entries1_timesteps[e], entries1_errors_vs_timestep[e], linewidth=0.5, marker='o', markersize=5)
+    #
+    # plt.xlabel('time step [s]')
+    # plt.ylabel('maximum error norm w.r.t. benchmark [m]')
+    # plt.xlim(np.min(timesteps)-100.0, np.max(timesteps)+10000.0)
+    # plt.xscale('log')
+    # plt.yscale('log')
+    # plt.legend(legend_entries1_errors_vs_timestep)
+
     plt.subplot(1,2,1)
-    for e in range(len(entries1_errors_vs_timestep)):
-        plt.plot(entries1_timesteps[e], entries1_errors_vs_timestep[e], linewidth=0.5, marker='o', markersize=5)
-
-    plt.xlabel('time step [s]')
-    plt.ylabel('maximum error norm w.r.t. benchmark [m]')
-    plt.xlim(np.min(timesteps)-100.0, np.max(timesteps)+10000.0)
-    plt.xscale('log')
-    plt.yscale('log')
-    plt.legend(legend_entries1_errors_vs_timestep)
-
-    plt.subplot(1,2,2)
     for e in range(len(entries2_errors_vs_timestep)):
         plt.plot(entries2_timesteps[e], entries2_errors_vs_timestep[e], linewidth=0.5, marker='o', markersize=5)
 
@@ -228,8 +228,8 @@ for o in outputSubFolders:
     plt.legend(legend_entries2_errors_vs_timestep)
 
 
-    plt.tight_layout()
-    plt.savefig(dir_plots + "maxerror_vs_timestep.png")
+    # plt.tight_layout()
+    # plt.savefig(dir_plots + "maxerror_vs_timestep.png")
 
 
 
@@ -237,16 +237,16 @@ for o in outputSubFolders:
     # plotting error vs timestep
     print("plotting max errors vs function evaluations")
 
-    fig3 = plt.figure(figsize=(10,5))
+    # fig3 = plt.figure(figsize=(10,5))
 
-    plt.subplot(1,2,1)
+    # plt.subplot(1,2,1)
     for e in range(len(entries1_errors_vs_timestep)):
         if legend_entries1_errors_vs_timestep[e] == "RK78":
             funceval = 13
         else:
             funceval = 4
         numberOfEvaluations = entries1_lengths[e] * funceval
-        plt.plot(numberOfEvaluations, entries1_errors_vs_timestep[e], linewidth=0.5, marker='o', markersize=5)
+        # plt.plot(numberOfEvaluations, entries1_errors_vs_timestep[e], linewidth=0.5, marker='o', markersize=5)
 
         print("From backward integration, the 10 options with the lowest error for integrator " + legend_entries1_errors_vs_timestep[e])
         sorted_indices1 = np.argsort(entries2_errors_vs_timestep[e])[0:10]
@@ -256,14 +256,14 @@ for o in outputSubFolders:
         print(t_sorted)
         print(n_sorted)
         print(e_sorted)
-
-
-    plt.xlabel('function evaluations')
-    plt.ylabel('maximum error norm w.r.t. benchmark [m]')
-    plt.xlim(np.min(numberOfEvaluations)*0.95, np.max(numberOfEvaluations)+1.05)
-    plt.xscale('log')
-    plt.yscale('log')
-    plt.legend(legend_entries1_errors_vs_timestep)
+    #
+    #
+    # plt.xlabel('function evaluations')
+    # plt.ylabel('maximum error norm w.r.t. benchmark [m]')
+    # plt.xlim(np.min(numberOfEvaluations)*0.95, np.max(numberOfEvaluations)+1.05)
+    # plt.xscale('log')
+    # plt.yscale('log')
+    # plt.legend(legend_entries1_errors_vs_timestep)
 
     print(" ---- ")
     plt.subplot(1,2,2)
@@ -294,6 +294,6 @@ for o in outputSubFolders:
     plt.legend(legend_entries2_errors_vs_timestep)
 
     plt.tight_layout()
-    plt.savefig(dir_plots + "maxerror_vs_functionevaluations.png")
+    plt.savefig(dir_plots + "maxerror_forward_minus_backward.png")
 
     plt.close('all')

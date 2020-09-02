@@ -38,7 +38,10 @@ def f(dir_output, dir_plots, body, no_arcs):
             t_spice = spice[:,0]
 
             if not np.array_equal(t, t_spice):
-                print("  ERROR: timestamps not equal of integration and spice data! ")
+                print("  ERROR: timestamps not equal of integration and secondary data! ")
+                print(len(t), len(t_spice))
+                print(t)
+                print(t_spice)
                 return
 
 
@@ -136,8 +139,8 @@ def f(dir_output, dir_plots, body, no_arcs):
                     SEPPositionCorrectionNorm = np.linalg.norm(SEPPositionCorrection, axis=1)
 
                     fig3 = plt.figure(figsize=(16, 10))
-                    plt.plot(t - t[0], allerrors_pos_norm, linewidth=0.75)
-                    plt.plot(t - t[0], SEPPositionCorrectionNorm, linewidth=0.75)
+                    plt.plot(t - t[0], allerrors_pos_norm)
+                    plt.plot(t - t[0], SEPPositionCorrectionNorm)
                     plt.xlabel("t [s]")
                     plt.ylabel("value [m]")
                     plt.yscale("log")
@@ -146,12 +149,16 @@ def f(dir_output, dir_plots, body, no_arcs):
                     plt.tight_layout()
                     plt.savefig(dir_plots + body + '_sep_position_correction_norm' + output_string + '.png')
 
-                    fig4 = plt.figure(figsize=(18, 10))
+                    print("minimum SEP correction: ", min(SEPPositionCorrectionNorm),
+                          " maximum error: ", max(allerrors_pos_norm),
+                          " ratio: ", min(SEPPositionCorrectionNorm)/max(allerrors_pos_norm))
+
+                    fig4 = plt.figure(figsize=(12, 8))
                     coordinates = ["x","y","z"]
                     for k in range(0,3):
                         plt.subplot(1,3,k+1)
-                        plt.plot(t - t[0], abs(allerrors_pos[:,k]), linewidth=0.75)
-                        plt.plot(t - t[0], abs(SEPPositionCorrection[:,k]), linewidth=0.75)
+                        plt.plot(t - t[0], abs(allerrors_pos[:,k]))
+                        plt.plot(t - t[0], abs(SEPPositionCorrection[:,k]))
                         plt.xlabel("t [s]")
                         plt.ylabel(coordinates[k] + " [m]")
                         plt.yscale("log")

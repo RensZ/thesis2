@@ -45,6 +45,11 @@ for s in subdirs:
         reality = 1
         estimation = 1
         continue
+    elif s[len(dir_output):] == "Fienga2019_reality1_estimation1_onlyUseFirst4Asteroids":
+        ps = "Fienga2019"
+        reality = 1
+        estimation = 1
+        continue
     else:
         ps = s[len(dir_output):-21]
         reality = int(s[-13])
@@ -120,7 +125,7 @@ for s in subdirs:
         parameters.append("TVGP")
         dependent_variables.append("Sun_TVGP")
 
-    parameters.append("mu_Sun")
+    # parameters.append("mu_Sun")
 
     if estimation > 2:
         parameters.append("J2_A")
@@ -137,6 +142,11 @@ for s in subdirs:
     #################
     #### OUTPUTS ####
     #################
+
+    # Analyse consider covariance due to asteroids
+    print("---- analysing consider covariance due to asteroids ----")
+    import addedFormalErrorDueToAsteroids
+    addedFormalErrorDueToAsteroids.f(s, dir_plots, dir_application, parameters)
 
     # Make correlation heat map
     print("---- making heat map of parameter correlations ----")
@@ -174,6 +184,8 @@ for s in subdirs:
     print("---- making plots of the integration errors wrt SPICE and backwards integration ----" )
     import IntegrationErrorWrtSPICE
     IntegrationErrorWrtSPICE.f(s, dir_plots, bodies[0], no_arcs)
+
+    close('all')
 
     # Plot propagated bodies
     print("---- making plots of propagated bodies ----")

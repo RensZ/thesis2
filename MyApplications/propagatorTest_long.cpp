@@ -198,7 +198,7 @@ int main( )
             if (estimationScenario == 4 || estimationScenario == 6){maximumDegreeSunGravitationalMomentVariationInEstimation = 4;}
 
             // Location of simulation output
-            std::string outputSubFolder = getOutputPath( ) + "propagatorTest_long";
+            std::string outputSubFolder = getOutputPath( ) + "propagatorTest_long2";
 
 
             // Acceleration settings
@@ -377,7 +377,7 @@ int main( )
 
             // define integrator settings, and check whether we can't skip this one as the file is already there
 
-            double initialTimeStep = 3600.0;
+            double initialTimeStep = 3000.0;
             double minimumStepSize = initialTimeStep;
             double maximumStepSize = initialTimeStep;
 
@@ -833,7 +833,7 @@ int main( )
 
                 // Get initial state of bodies to be propagated
                 systemInitialState = getInitialStatesOfBodies(
-                            bodiesToPropagate, centralBodies, bodyMap, initialSimulationTime ).cast<long double>();
+                            bodiesToPropagate, centralBodies, bodyMap, initialSimulationTime+1.0 ).cast<long double>();
 
                 // Define propagator settings.
                 std::shared_ptr< PropagationTimeTerminationSettings > terminationSettings =

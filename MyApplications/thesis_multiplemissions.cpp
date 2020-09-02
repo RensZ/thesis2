@@ -18,7 +18,7 @@
 
 #include "json.hpp"
 
-// custom functions written for the main application are placed here to save space:
+// custom functions wr itten for the main application are placed here to save space:
 #include "tudatApplications/thesis/MyApplications/customFunctions.h"
 
 
@@ -83,9 +83,10 @@ int main( )
     const bool estimateJ4Amplitude = true;
     const bool estimateJ4Period = false;
     const bool estimateJ4Phase = false;
+    const bool SunGMIsAConsiderParameter = true;
 
     // Parameter estimation settings
-    const unsigned int maximumNumberOfIterations = 5;
+    const unsigned int maximumNumberOfIterations = 4;
     const double sigmaPosition = 1000.0; //educated guess
     const double sigmaVelocity = 1.0; //educated guess
     const bool useMultipleMercuryArcs = false;
@@ -94,17 +95,18 @@ int main( )
     const bool includeSpacecraftPositionError = true;
     const bool includeLightTimeCorrections = false;
     const double observationReductionFactor = 1.0; //decreases amount of observations by a factor n to speed up the algorithm considerably
-    const bool testCeres = false; // to perform tests on the asteroid consider covariance
+    const bool testCeres = false; // to include the gravitational parameters first 4 asteroids in the estimation
+    const bool onlyUseFirst4Asteroids = false; // counterpart of testCeres, includes only the first 4 asteroids in the consider covariance analysis
     const bool testWithoutFlybys = false;
 
     // integrator & propagator settings
-    const double initialTimeStep = 3600.0/2.0;
-    const double minimumStepSize = 3600.0/2.0;
-    const double maximumStepSize = 3600.0/2.0;
+    const double initialTimeStep = 3000.0;
+    const double minimumStepSize = 3000.0;
+    const double maximumStepSize = 3000.0;
     const double relativeErrorTolerence = 1.0;
     const double absoluteErrorTolerence = 1.0;
-    const unsigned int minimumOrder = 12;
-    const unsigned int maximumOrder = 12;
+    const unsigned int minimumOrder = 8;
+    const unsigned int maximumOrder = 8;
 
     TranslationalPropagatorType propagator = gauss_modified_equinoctial;
     std::string centreOfPropagation = "SSB";
@@ -141,21 +143,21 @@ int main( )
     // parameter inputs
     std::vector< std::string > filenames;
 //    filenames.push_back("inputs_multiplemissions_bareminimum.json");
-    filenames.push_back("inputs_multiplemissions_Fienga2019.json");
+//    filenames.push_back("inputs_multiplemissions_Fienga2019.json");
     filenames.push_back("inputs_multiplemissions_Park2017.json");
-    filenames.push_back("inputs_multiplemissions_Antia2008.json");
+//    filenames.push_back("inputs_multiplemissions_Antia2008.json");
 
     // scenario pairs
     std::vector< std::pair<int,int> > scenarioPairs;
     scenarioPairs.push_back(std::make_pair(1,1));
-//    scenarioPairs.push_back(std::make_pair(2,2));
-//    scenarioPairs.push_back(std::make_pair(3,3));
+    scenarioPairs.push_back(std::make_pair(2,2));
+    scenarioPairs.push_back(std::make_pair(3,3));
 //    scenarioPairs.push_back(std::make_pair(4,4));
-//    scenarioPairs.push_back(std::make_pair(3,1));
-//    scenarioPairs.push_back(std::make_pair(1,3));
+    scenarioPairs.push_back(std::make_pair(3,1));
+    scenarioPairs.push_back(std::make_pair(1,3));
 
-    for (unsigned int f = 0; f<filenames.size(); f++){
-        for (unsigned int s = 0; s<scenarioPairs.size(); s++){
+    for (unsigned int s = 0; s<scenarioPairs.size(); s++){
+        for (unsigned int f = 0; f<filenames.size(); f++){
 
             std::string input_filename = filenames.at(f);
             std::cout<<"---- RUNNING SIMULATION FOR INPUTS WITH FILENAME: "<<input_filename<<" ----"<<std::endl;
@@ -198,6 +200,9 @@ int main( )
             if (testCeres){
                 outputSubFolder += "_testCeres";
             }
+            if (onlyUseFirst4Asteroids){
+                outputSubFolder += "_onlyUseFirst4Asteroids";
+            }
             if (testWithoutFlybys){
                 outputSubFolder += "_testWithoutFlybys";
             }
@@ -218,13 +223,13 @@ int main( )
             const double sigmaAlpha1 = json_input["sigma_alpha1"];
             const double sigmaAlpha2 = json_input["sigma_alpha2"];
             const double sigmaNordtvedt = json_input["sigma_Nordtvedt"];
-            const double sigmaSunGM = 3json_input["sigma_mu_Sun"]; //1.0E9;  // High numerical errors with more accurate apriori values?! (e.g. INPOP19a)
+            const double sigmaSunGM = json_input["sigma_mu_Sun"]; // High numerical errors with more accurate apriori values?! (e.g. INPOP19a)
             const double sigmaTVGP = json_input["sigma_TVGP"];
 
             const double unnormalisedSunJ2 = json_input["sunJ2"];
             const double sunJ2 = unnormalisedSunJ2 / calculateLegendreGeodesyNormalizationFactor(2,0);
             const double sigmaUnnormalisedSunJ2 = json_input["sigma_J2_Sun"];
-            const double sigmaSunJ2 = sunJ2; // sigmaUnnormalisedSunJ2 / calculateLegendreGeodesyNormalizationFactor(2,0); // High numerical errors with more accurate apriori values?!
+            const double sigmaSunJ2 = sigmaUnnormalisedSunJ2 / calculateLegendreGeodesyNormalizationFactor(2,0); // High numerical errors with more accurate apriori values?!
             const double unnormalisedSunJ4 = json_input["sunJ4"];
             const double sunJ4 = unnormalisedSunJ4 / calculateLegendreGeodesyNormalizationFactor(4,0);
             const double unnormalisedSigmaSunJ4 = json_input["sigma_J4_Sun"];
@@ -404,6 +409,9 @@ int main( )
                 spice_interface::loadSpiceKernelInTudat( kernelsPath + "codes_300ast_20100725.tf" );
                 spice_interface::loadSpiceKernelInTudat( kernelsPath + "codes_300ast_20100725.bsp" );
                 bodyNames.push_back("2000001");
+                bodyNames.push_back("2000002");
+                bodyNames.push_back("2000004");
+                bodyNames.push_back("2000010");
             }
 
             const unsigned int totalNumberOfBodies = bodyNames.size();
@@ -415,7 +423,14 @@ int main( )
             } else{
                 initialSimulationTime = *std::min_element(initialTimeVector.begin(), initialTimeVector.end());
             }
-            const double finalSimulationTime = *std::max_element(finalTimeVector.begin(), finalTimeVector.end());
+            double finalSimulationTime = *std::max_element(finalTimeVector.begin(), finalTimeVector.end());
+            
+            std::cout<<"slightly adjusting final time to make sure an integer amount of time steps can be taken to it. before:";
+            std::cout<<initialSimulationTime<<" "<<fmod(finalSimulationTime-initialSimulationTime,initialTimeStep)<<" after:";
+            finalSimulationTime -= fmod(finalSimulationTime-initialSimulationTime,initialTimeStep);
+            finalSimulationTime += initialTimeStep;
+            std::cout<<initialSimulationTime<<" "<<fmod(finalSimulationTime-initialSimulationTime,initialTimeStep)<<std::endl;
+            
             const double buffer = maximumOrder*maximumStepSize; //see Tudat libraries 1.1.3.
             std::map< std::string, std::shared_ptr< BodySettings > > bodySettings;
 
@@ -440,10 +455,29 @@ int main( )
                 bodySettings[ "2000001" ]->ephemerisSettings
                         = std::make_shared< InterpolatedSpiceEphemerisSettings >(
                             initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, centreOfPropagation, "ECLIPJ2000" );
+                bodySettings[ "2000002" ]->ephemerisSettings
+                        = std::make_shared< InterpolatedSpiceEphemerisSettings >(
+                            initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, centreOfPropagation, "ECLIPJ2000" );
+                bodySettings[ "2000004" ]->ephemerisSettings
+                        = std::make_shared< InterpolatedSpiceEphemerisSettings >(
+                            initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, centreOfPropagation, "ECLIPJ2000" );
+                bodySettings[ "2000010" ]->ephemerisSettings
+                        = std::make_shared< InterpolatedSpiceEphemerisSettings >(
+                            initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, centreOfPropagation, "ECLIPJ2000" );
 
                 // set gravitational parameter as given in INPOP19a
                 bodySettings[ "2000001" ]->gravityFieldSettings
                         = std::make_shared< CentralGravityFieldSettings >(139643.532 * convertAsteroidGMtoSI);
+                // set gravitational parameter as given in INPOP19a
+                bodySettings[ "2000002" ]->gravityFieldSettings
+                        = std::make_shared< CentralGravityFieldSettings >(32613.272 * convertAsteroidGMtoSI);
+                // set gravitational parameter as given in INPOP19a
+                bodySettings[ "2000004" ]->gravityFieldSettings
+                        = std::make_shared< CentralGravityFieldSettings >(38547.977 * convertAsteroidGMtoSI);
+                // set gravitational parameter as given in INPOP19a
+                bodySettings[ "2000010" ]->gravityFieldSettings
+                        = std::make_shared< CentralGravityFieldSettings >(11954.671 * convertAsteroidGMtoSI);
+
             }
 
 
@@ -782,18 +816,19 @@ int main( )
 //            }
 
 
-            std::shared_ptr< AdamsBashforthMoultonSettings< double > > integratorSettings =
-                    std::make_shared< AdamsBashforthMoultonSettings< double > > (
+            std::shared_ptr< IntegratorSettings< double> > integratorSettings =
+                    std::make_shared< RungeKuttaVariableStepSizeSettingsScalarTolerances< double > >(
                         initialSimulationTime, initialTimeStep,
+                        RungeKuttaCoefficients::CoefficientSets::rungeKuttaFehlberg78,
                         minimumStepSize, maximumStepSize,
-                        relativeErrorTolerence, absoluteErrorTolerence,
-                        minimumOrder, maximumOrder);
-            std::shared_ptr< AdamsBashforthMoultonSettings< double > > backwardIntegratorSettings =
-                    std::make_shared< AdamsBashforthMoultonSettings< double > > (
+                        relativeErrorTolerence, absoluteErrorTolerence);
+
+            std::shared_ptr< IntegratorSettings< double> > backwardIntegratorSettings =
+                    std::make_shared< RungeKuttaVariableStepSizeSettingsScalarTolerances< double > >(
                         finalSimulationTime, -1.0*initialTimeStep,
+                        RungeKuttaCoefficients::CoefficientSets::rungeKuttaFehlberg78,
                         -1.0*minimumStepSize, -1.0*maximumStepSize,
-                        relativeErrorTolerence, absoluteErrorTolerence,
-                        minimumOrder, maximumOrder);
+                        relativeErrorTolerence, absoluteErrorTolerence);
 
         //    std::shared_ptr< IntegratorSettings< > > integratorSettings =
         //            std::make_shared< IntegratorSettings< > >
@@ -1160,10 +1195,25 @@ int main( )
                 // set GM of the asteroid as estimatable parameter, get apriori sigma from INPOP19a
                 parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                          ("2000001", gravitational_parameter));
-                double asteroidSigma = 340.331 * convertAsteroidGMtoSI;
-                varianceVector.push_back(asteroidSigma*asteroidSigma);
+                double asteroidSigma1 = 340.331 * convertAsteroidGMtoSI;
+                varianceVector.push_back(asteroidSigma1*asteroidSigma1);
 
                 std::cout<<"GM Ceres uncertainty [m3/s2]: "<<340.331 * convertAsteroidGMtoSI<<std::endl;
+
+                parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                         ("2000002", gravitational_parameter));
+                double asteroidSigma2 = 183.269 * convertAsteroidGMtoSI;
+                varianceVector.push_back(asteroidSigma2*asteroidSigma2);
+
+                parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                         ("2000004", gravitational_parameter));
+                double asteroidSigma3 = 93.970 * convertAsteroidGMtoSI;
+                varianceVector.push_back(asteroidSigma3*asteroidSigma3);
+
+                parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                         ("2000010", gravitational_parameter));
+                double asteroidSigma4 = 449.263 * convertAsteroidGMtoSI;
+                varianceVector.push_back(asteroidSigma4*asteroidSigma4);
             }
 
 
@@ -1227,10 +1277,13 @@ int main( )
             }
 
             // gravitational parameter Sun
-            parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                                     ("Sun", gravitational_parameter));
-            varianceVector.push_back(sigmaSunGM*sigmaSunGM);
+            if (SunGMIsAConsiderParameter == false){
+                parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                         ("Sun", gravitational_parameter));
+                varianceVector.push_back(sigmaSunGM*sigmaSunGM);
+            }
 
+            // spherical harmonics
             if (includeTimeVaryingGravitationalMomentsSunInEstimation){
 
                 // time varying J2 Sun
@@ -1512,7 +1565,7 @@ int main( )
                                 observationWeights(i) = 1.0/(totalErrorLevel*totalErrorLevel);
                                 //observationWeights(i) = 1.0/(rangeErrorSample*rangeErrorSample);
 
-                                Eigen::Vector4d saveCurrentSample = {satErrorLevel, rangeNoiseLevel, totalErrorLevel, rangeErrorSample};
+                                Eigen::Vector4d saveCurrentSample = {satErrorLevel, rangeNoiseLevel, totalErrorLevel, static_cast<double>(rangeErrorSample)};
                                 saveErrorSamples.insert(std::make_pair(observationTime, saveCurrentSample));
                             }
 
@@ -1672,8 +1725,8 @@ int main( )
             // clear memory
             podOutput = nullptr;
 
-            // start consider covariance analysis
-            if (gammaIsAConsiderParameter || considerPPNalphas || considerSunAngularMomentum){
+            // start consider covariance analysis if at least one consider parameter is used
+            if (gammaIsAConsiderParameter || considerPPNalphas || considerSunAngularMomentum || SunGMIsAConsiderParameter){
 
                 std::cout<< "calculating covariance due to consider parameters..."<< std::endl;
 
@@ -1721,6 +1774,12 @@ int main( )
                 considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                          ("global_metric", ppn_parameter_alpha2 ) );
                 considerVarianceVector.push_back(sigmaAlpha2*sigmaAlpha2);
+
+                if (SunGMIsAConsiderParameter){
+                    considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                             ("Sun", gravitational_parameter));
+                    considerVarianceVector.push_back(sigmaSunGM*sigmaSunGM);
+                }
 
                 std::shared_ptr< estimatable_parameters::EstimatableParameterSet< long double > > considerParametersToEstimate =
                         createParametersToEstimate( considerParameterNames, bodyMap, propagatorSettings );
@@ -1792,7 +1851,8 @@ int main( )
                                 unnormalizedPartialDerivatives,
                                 json_directory,
                                 json_directory + "/asteroids_multiplemissions",
-                                outputSubFolder);
+                                outputSubFolder,
+                                onlyUseFirst4Asteroids);
 
                     Eigen::VectorXd formalErrorWithConsiderParametersIncludingAsteroids = considerCovarianceMatrixIncludingAsteroids.diagonal( ).cwiseSqrt( );
                     Eigen::MatrixXd considerCorrelationMatrixIncludingAsteroids = considerCovarianceMatrixIncludingAsteroids.cwiseQuotient(

@@ -5,25 +5,27 @@ Purpose: wrapper file for all the post-processing of thesis_v1.cpp
 
 """
 
+from os import mkdir, path
 
 ################
 #### INPUTS ####
 ################
 
-publication_string = [#"MESSENGER_and_BepiColombo",
-                      #"MESSENGER_and_BepiColombo_timevariableJ2",
-                      # "Schettino2015_testCeres",
-                      # "Genova2018_testCeres",
-                      # "Genova2018_testGamma",
+publication_string = ["Genova2018_testGMSunAsConsiderParameter",
                       "Genova2018",
-                      "Imperi2018_nvtrue",
-                      "Imperi2018_nvtrue_flybys",
-                      "Imperi2018_nvfalse",
-                      "Imperi2018_nvfalse_flybys",
-                      # "Schettino2015_alphas",
+                      # "Imperi2018_nvtrue",
+                      # "Imperi2018_nvfalse",
+                      "Schettino2015_testGMSunAsConsiderParameter",
                       "Schettino2015"]
 
-
+#"MESSENGER_and_BepiColombo",
+#"MESSENGER_and_BepiColombo_timevariableJ2",
+# "Schettino2015_testCeres",
+# "Genova2018_testCeres",
+# "Genova2018_testGamma",
+# "Imperi2018_nvtrue_flybys",
+# "Imperi2018_nvfalse_flybys",
+# "Schettino2015_alphas",
 
 # Directories
 dir_application = '/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/'
@@ -31,6 +33,7 @@ dir_application = '/home/rens/tudatBundle/tudatApplications/thesis/MyApplication
 # Bodies included
 bodies = ["Mercury"]
 no_arcs = 1
+
 
 
 for ps in publication_string:
@@ -45,14 +48,17 @@ for ps in publication_string:
         no_bodies = 1
         ps_json = ps
 
-    if ps == "Genova2018_testGamma" or ps == "Genova2018_testCeres":
+    if ps == "Genova2018_testGamma" or ps == "Genova2018_testCeres" or ps == "Genova2018_testGMSunAsConsiderParameter":
         ps_json = "Genova2018"
-    if ps == "Schettino2015_testCeres":
+    if ps == "Schettino2015_testCeres" or ps == "Schettino2015_testGMSunAsConsiderParameter":
         ps_json = "Schettino2015"
 
     dir_cpp_output = dir_application + 'Output/' + ps + "/"
-    dir_plots = '/home/rens/Documents/PostProcessing_plots/thesis_v1/' + ps + "/"
     json_file = dir_application + 'Input/' + 'inputs_' + ps_json + '.json'
+    dir_plots = '/home/rens/Documents/PostProcessing_plots/thesis_v1/' + ps + "/"
+    if not path.exists(dir_plots):
+        mkdir(dir_plots)
+
 
     # from input file, get which additional things were estimated and add to lists above
     parameters = ["X_Mer", "Y_Mer", "Z_Mer",
@@ -118,7 +124,8 @@ for ps in publication_string:
         parameters.append("TVGP")
         dependent_variables.append("Sun_TVGP")
 
-    parameters.append("mu_Sun")
+    if ps != "Genova2018_testGMSunAsConsiderParameter" and ps != "Schettino2015_testGMSunAsConsiderParameter":
+        parameters.append("mu_Sun")
 
     if json_input["estimateJ2Amplitude"]:
         parameters.append("J2_A")

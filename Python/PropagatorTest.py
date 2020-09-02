@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 dir_application = '/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/'
-dir_output = dir_application + 'Output/propagatorTest_long/'
+dir_output = dir_application + 'Output/propagatorTest_long2/'
 dir_plots = '/home/rens/Documents/PostProcessing_plots/propagatorTest_long/'
 
 integrators = ["RK4","RK7","ABM","A12"]
@@ -46,7 +46,7 @@ for i in integrators:
     plt.yscale("log")
     plt.legend(legend_entries)
     plt.tight_layout()
-    plt.savefig(dir_plots + "forward_minus_backwards_"+i+r".png")
+    plt.savefig(dir_plots + "forward_minus_backwards2_"+i+".png")
 
 #
 #     #plot differences, assuming the integration with minimum timestep is the truth

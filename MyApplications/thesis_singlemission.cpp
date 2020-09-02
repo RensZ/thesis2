@@ -70,7 +70,7 @@ int main( )
     unsigned int maximumDegreeSunGravitationalMomentVariation = 2;
 
     // Parameter estimation settings
-    const unsigned int maximumNumberOfIterations = 10;
+    const unsigned int maximumNumberOfIterations = 6;
     const double sigmaPosition = 1000.0; //educated guess
     const double sigmaVelocity = 1.0; //educated guess
     const bool ignoreNordtvedtConstraintInEstimation = true;
@@ -78,17 +78,24 @@ int main( )
     const bool includeLightTimeCorrections = false;
     const bool testCeres = false; // to perform tests on the asteroid consider covariance
     const bool testGamma = false; // to perform tests on the consider covariance calculation, only works for Genova et al 2018
+    const bool testGMSunAsConsiderParameter = true; // to test whether implementing mu as a consider parameter works
     const double observationReductionFactor = 1.0; //decreases amount of observations by a factor n to speed up the algorithm considerably
 
 
-    // ABM integrator settings (if RK4 is used instead, initialstepsize is taken)
-    const double initialTimeStep = 3600.0/2.0;
-    const double minimumStepSize = 3600.0/2.0;
-    const double maximumStepSize = 3600.0/2.0;
+    // integrator & propagator settings
+    const double initialTimeStep = 3000.0;
+    const double minimumStepSize = 3000.0;
+    const double maximumStepSize = 3000.0;
     const double relativeErrorTolerence = 1.0;
     const double absoluteErrorTolerence = 1.0;
-    const unsigned int minimumOrder = 12;
-    const unsigned int maximumOrder = 12;
+    const unsigned int minimumOrder = 8;
+    const unsigned int maximumOrder = 8;
+
+    TranslationalPropagatorType propagator = encke;
+    std::string centreOfPropagation = "SSB";
+    if (propagator != cowell ){
+        centreOfPropagation = "Sun";
+    }
 
     // Other planetary parameters, currently not included in json
     const double mercuryGravitationalParameter = (2.2031870798779644e+04)*(1E9); //m3/s2, from https://pgda.gsfc.nasa.gov/products/71
@@ -118,7 +125,7 @@ int main( )
     // Load json input
     std::vector< std::string > filenames;
     filenames.push_back("inputs_Genova2018.json"); // 0
-//    filenames.push_back("inputs_Schettino2015.json"); // 1
+    filenames.push_back("inputs_Schettino2015.json"); // 1
 //    filenames.push_back("inputs_Imperi2018_nvtrue_flybys.json"); // 2
 //    filenames.push_back("inputs_Imperi2018_nvfalse_flybys.json"); // 3
 //    filenames.push_back("inputs_Imperi2018_nvtrue.json"); // 4
@@ -232,6 +239,9 @@ int main( )
             gammaIsAConsiderParameter = false;
             outputSubFolder += "_testGamma";
         }
+        if (testGMSunAsConsiderParameter){
+            outputSubFolder += "_testGMSunAsConsiderParameter";
+        }
 
         // settings time variable gravitational moments
         double J2amplitude = sunJ2/2.0;
@@ -294,6 +304,13 @@ int main( )
         double initialSimulationTime = secondsAfterJ2000(initialTime);
         double finalSimulationTime = secondsAfterJ2000(finalTime);
 
+        std::cout<<"slightly adjusting final time to make sure an integer amount of time steps can be taken to it. before:";
+        std::cout<<initialSimulationTime<<" "<<fmod(finalSimulationTime-initialSimulationTime,initialTimeStep)<<" after:";
+        finalSimulationTime -= fmod(finalSimulationTime-initialSimulationTime,initialTimeStep);
+        finalSimulationTime += initialTimeStep;
+        std::cout<<initialSimulationTime<<" "<<fmod(finalSimulationTime-initialSimulationTime,initialTimeStep)<<std::endl;
+
+
         // Load spice kernels.
         std::string kernelsPath = input_output::getSpiceKernelPath( );
 
@@ -331,7 +348,7 @@ int main( )
             // set ephemeris settings to tabulated with 1 hour time step
             bodySettings[ "2000001" ]->ephemerisSettings
                     = std::make_shared< InterpolatedSpiceEphemerisSettings >(
-                        initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, "SSB", "ECLIPJ2000" );
+                        initialSimulationTime - buffer, finalSimulationTime + buffer, 3600.0, centreOfPropagation, "ECLIPJ2000" );
 
             // set gravitational parameter as given in INPOP19a
             bodySettings[ "2000001" ]->gravityFieldSettings
@@ -451,7 +468,7 @@ int main( )
 
         // Create body map
         NamedBodyMap bodyMap = createBodies( bodySettings );
-        setGlobalFrameBodyEphemerides( bodyMap, "SSB", "ECLIPJ2000" );
+        setGlobalFrameBodyEphemerides( bodyMap, centreOfPropagation, "ECLIPJ2000" );
 
 
         ///////////////////////
@@ -476,7 +493,7 @@ int main( )
             if (bodiesToPropagate[i] == "Moon"){
                 centralBodies[i] = "Earth";
             } else{
-                centralBodies[i] = "SSB";
+                centralBodies[i] = centreOfPropagation;
             }
         }
 
@@ -620,15 +637,22 @@ int main( )
         std::shared_ptr< PropagatorSettings< long double > > propagatorSettings =
                 std::make_shared< TranslationalStatePropagatorSettings< long double > >
                 ( centralBodies, accelerationModelMap, bodiesToPropagate,
-                  systemInitialState, terminationSettings, cowell, dependentVariablesToSave);
+                  systemInitialState, terminationSettings, propagator, dependentVariablesToSave);
 
-
-        std::shared_ptr< AdamsBashforthMoultonSettings< double > > integratorSettings =
-                std::make_shared< AdamsBashforthMoultonSettings< double > > (
+        std::shared_ptr< IntegratorSettings< double> > integratorSettings =
+                std::make_shared< RungeKuttaVariableStepSizeSettingsScalarTolerances< double > >(
                     initialSimulationTime, initialTimeStep,
+                    RungeKuttaCoefficients::CoefficientSets::rungeKuttaFehlberg78,
                     minimumStepSize, maximumStepSize,
-                    relativeErrorTolerence, absoluteErrorTolerence,
-                    minimumOrder, maximumOrder);
+                    relativeErrorTolerence, absoluteErrorTolerence);
+
+
+//        std::shared_ptr< AdamsBashforthMoultonSettings< double > > integratorSettings =
+//                std::make_shared< AdamsBashforthMoultonSettings< double > > (
+//                    initialSimulationTime, initialTimeStep,
+//                    minimumStepSize, maximumStepSize,
+//                    relativeErrorTolerence, absoluteErrorTolerence,
+//                    minimumOrder, maximumOrder);
 
     //    std::shared_ptr< IntegratorSettings< > > integratorSettings =
     //            std::make_shared< IntegratorSettings< > >
@@ -662,7 +686,7 @@ int main( )
             {
                 allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
                 spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
-                        getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),"SSB","ECLIPJ2000","None",stateIterator->first);
+                        getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),centreOfPropagation,"ECLIPJ2000","None",stateIterator->first);
             }
         }
 
@@ -716,14 +740,21 @@ int main( )
         std::shared_ptr< TranslationalStatePropagatorSettings< long double > > backwardPropagatorSettings =
                 std::make_shared< TranslationalStatePropagatorSettings< long double > >
                 ( centralBodies, accelerationModelMap, bodiesToPropagate,
-                  systemFinalState, backwardTerminationSettings);
+                  systemFinalState, backwardTerminationSettings, propagator);
 
-        std::shared_ptr< AdamsBashforthMoultonSettings< double > > backwardIntegratorSettings =
-                std::make_shared< AdamsBashforthMoultonSettings< double > > (
+        std::shared_ptr< IntegratorSettings< double> > backwardIntegratorSettings =
+                std::make_shared< RungeKuttaVariableStepSizeSettingsScalarTolerances< double > >(
                     finalSimulationTime, -1.0*initialTimeStep,
+                    RungeKuttaCoefficients::CoefficientSets::rungeKuttaFehlberg78,
                     -1.0*minimumStepSize, -1.0*maximumStepSize,
-                    relativeErrorTolerence, absoluteErrorTolerence,
-                    minimumOrder, maximumOrder);
+                    relativeErrorTolerence, absoluteErrorTolerence);
+
+//        std::shared_ptr< AdamsBashforthMoultonSettings< double > > backwardIntegratorSettings =
+//                std::make_shared< AdamsBashforthMoultonSettings< double > > (
+//                    finalSimulationTime, -1.0*initialTimeStep,
+//                    -1.0*minimumStepSize, -1.0*maximumStepSize,
+//                    relativeErrorTolerence, absoluteErrorTolerence,
+//                    minimumOrder, maximumOrder);
 
         std::cout << "running dynamics simulator..." << std::endl;
 
@@ -935,9 +966,11 @@ int main( )
         }
 
         // gravity field Sun (mu and spherical harmonics)
-        parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                                 ("Sun", gravitational_parameter));
-        varianceVector.push_back(sigmaSunGM*sigmaSunGM);
+        if (testGMSunAsConsiderParameter == false){
+            parameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                     ("Sun", gravitational_parameter));
+            varianceVector.push_back(sigmaSunGM*sigmaSunGM);
+        }
 
         // time varying J2 Sun
         double variableJ2parametersVariance = 1.0; //sigma taken as a percentage of the mean
@@ -1290,7 +1323,10 @@ int main( )
         Eigen::MatrixXd considerCovarianceMatrixIncludingAsteroids;
         unsigned int maxcovtype = 1;
 
-        if (gammaIsAConsiderParameter || ppnAlphasAreConsiderParameters || input_filename == "inputs_Genova2018_considerAngularMomentum.json"){
+        if (gammaIsAConsiderParameter
+                || ppnAlphasAreConsiderParameters
+                || testGMSunAsConsiderParameter
+                || input_filename == "inputs_Genova2018_considerAngularMomentum.json"){
 
             std::cout<< "calculating covariance due to consider parameters..."<< std::endl;
 
@@ -1340,6 +1376,12 @@ int main( )
                 considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                          ("Sun", angular_momentum));
                 considerVarianceVector.push_back(sigmaSunAngularMomentum*sigmaSunAngularMomentum);
+            }
+
+            if (testGMSunAsConsiderParameter){
+                considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                         ("Sun", gravitational_parameter));
+                considerVarianceVector.push_back(sigmaSunGM*sigmaSunGM);
             }
 
             std::shared_ptr< estimatable_parameters::EstimatableParameterSet< long double > > considerParametersToEstimate =
