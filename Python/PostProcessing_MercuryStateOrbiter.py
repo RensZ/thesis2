@@ -49,6 +49,12 @@ for i in range(len(vehicles)):
     import PropagatedBodies
     PropagatedBodies.f(dir_cpp_output, dir_plots, v, no_arcs)
 
+    # Plot residuals over time for the plot in appendix B
+    print("---- making plot of the observation residuals and propagated errors for appendix B ----")
+    import ResidualsPlotAppendixB
+    ResidualsPlotAppendixB.f(dir_cpp_output, dir_plots, v, no_arcs, False)
+    ResidualsPlotAppendixB.f(dir_cpp_output, dir_plots, v, no_arcs, True)
+
     # Plot residuals over time
     print("---- making plots of the observation residuals and propagated errors ----")
     import Residuals

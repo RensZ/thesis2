@@ -155,11 +155,16 @@ def f(dir_output, dir_plots, body, no_arcs):
 
                     fig4 = plt.figure(figsize=(12, 8))
                     coordinates = ["x","y","z"]
+
+                    import datetime
+                    date = []
+                    for time in t:
+                        date.append(datetime.datetime(2000, 1, 1, 12, 0) + datetime.timedelta(seconds=time))
+
                     for k in range(0,3):
-                        plt.subplot(1,3,k+1)
-                        plt.plot(t - t[0], abs(allerrors_pos[:,k]))
-                        plt.plot(t - t[0], abs(SEPPositionCorrection[:,k]))
-                        plt.xlabel("t [s]")
+                        plt.subplot(3,1,k+1)
+                        plt.plot(date, abs(allerrors_pos[:,k]))
+                        plt.plot(date, abs(SEPPositionCorrection[:,k]))
                         plt.ylabel(coordinates[k] + " [m]")
                         plt.yscale("log")
                         plt.grid()

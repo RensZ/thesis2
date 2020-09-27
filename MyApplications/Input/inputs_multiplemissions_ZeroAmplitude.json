@@ -1,0 +1,43 @@
+
+{
+
+    "outputSubFolderName": "ZeroAmplitude",
+
+    "missionJSONFiles": ["MESSENGER.json", "BepiColombo.json"],
+
+    "calculateSchwarzschildCorrection": true,
+    "calculateLenseThirringCorrection": true,
+    "includeSEPViolationAcceleration": true,
+    "includeTVGPAcceleration": true,
+
+    "sunJ2": 2.25E-1,
+    "sunJ4": 0.0,
+    "sunJ2_A": 0.0,
+    "sunJ4_A": 6.4E-11,
+
+    "sunAngularMomentum": 190.0E39,
+    "sunGravitationalParameter": 1.32712440040042E20,
+    "nordtvedtParameter": 0.0,
+    "timeVaryingGravitationalParameter": 0.0,
+
+    "useNordtvedtConstraint": true,
+    "estimateSunAngularMomentum": false,
+    "estimatePPNalphas": false,
+    "gammaIsAConsiderParameter": false,
+    "ppnAlphasAreConsiderParameters": true,
+
+    "sigma_S_Sun": 1.5E39,
+    "sigma_gamma": 2.3E-5,
+    "sigma_beta": 1.1E-4,
+    "sigma_alpha1": 4.0E-5,
+    "sigma_alpha2": 1.6E-9,
+    "sigma_Nordtvedt": 3.0E-4,
+    "sigma_mu_Sun": 0.01E9,
+    "sigma_J2_Sun": 9.0E-9,
+    "sigma_J4_Sun": 1.0E-8,
+    "sigma_TVGP": 0.29E-13,
+
+    "sigma_J2_A": 1.0E-7,
+    "sigma_J4_A": 1.0E-7
+
+}

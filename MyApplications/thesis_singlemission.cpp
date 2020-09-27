@@ -78,9 +78,8 @@ int main( )
     const bool includeLightTimeCorrections = false;
     const bool testCeres = false; // to perform tests on the asteroid consider covariance
     const bool testGamma = false; // to perform tests on the consider covariance calculation, only works for Genova et al 2018
-    const bool testGMSunAsConsiderParameter = true; // to test whether implementing mu as a consider parameter works
+    const bool testGMSunAsConsiderParameter = false; // to test whether implementing mu as a consider parameter works
     const double observationReductionFactor = 1.0; //decreases amount of observations by a factor n to speed up the algorithm considerably
-
 
     // integrator & propagator settings
     const double initialTimeStep = 3000.0;
@@ -91,7 +90,7 @@ int main( )
     const unsigned int minimumOrder = 8;
     const unsigned int maximumOrder = 8;
 
-    TranslationalPropagatorType propagator = encke;
+    TranslationalPropagatorType propagator = gauss_modified_equinoctial;
     std::string centreOfPropagation = "SSB";
     if (propagator != cowell ){
         centreOfPropagation = "Sun";
@@ -124,16 +123,17 @@ int main( )
 
     // Load json input
     std::vector< std::string > filenames;
+    filenames.push_back("inputs_Schettino2015_alphas.json"); // 2
+    filenames.push_back("inputs_Imperi2018_nvtrue_flybys_alphas.json"); // 4
+    filenames.push_back("inputs_Imperi2018_nvfalse_flybys_alphas.json"); // 6
     filenames.push_back("inputs_Genova2018.json"); // 0
     filenames.push_back("inputs_Schettino2015.json"); // 1
 //    filenames.push_back("inputs_Imperi2018_nvtrue_flybys.json"); // 2
 //    filenames.push_back("inputs_Imperi2018_nvfalse_flybys.json"); // 3
-//    filenames.push_back("inputs_Imperi2018_nvtrue.json"); // 4
-//    filenames.push_back("inputs_Imperi2018_nvfalse.json"); // 5
+    filenames.push_back("inputs_Imperi2018_nvtrue.json"); // 4
+    filenames.push_back("inputs_Imperi2018_nvfalse.json"); // 5
 
-//    filenames.push_back("inputs_Schettino2015_alphas.json"); // 2
-//    filenames.push_back("inputs_Imperi2018_nvtrue_flybys_alphas.json"); // 4
-//    filenames.push_back("inputs_Imperi2018_nvfalse_flybys_alphas.json"); // 6
+
 //    filenames.push_back("inputs_Genova2018_estimateAngularMomentum.json"); // 7
 //    filenames.push_back("inputs_Genova2018_considerAngularMomentum.json"); // 8
 

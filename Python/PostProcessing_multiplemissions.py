@@ -35,6 +35,9 @@ for s in subdirs:
     print(" ")
     print(">>>> FOR INPUTS OF PUBLICATION:", s)
 
+    if s[len(dir_output):] != "Xu2017onlyBepi_reality3_estimation1":
+        continue
+
     if s[len(dir_output):] == "Fienga2019_reality1_estimation1_testCeres":
         ps = "Fienga2019"
         reality = 1
@@ -50,6 +53,14 @@ for s in subdirs:
         reality = 1
         estimation = 1
         continue
+    elif s[len(dir_output):] == "VeryLargeAmplitude_reality3_estimation3_testWithoutEstimatingJ2":
+        ps = "VeryLargeAmplitude"
+        reality = 3
+        estimation = 3
+    elif s[len(dir_output):] == "Xu2017_reality3_estimation3_testWithoutEstimatingJ2":
+        ps = "Xu2017"
+        reality = 3
+        estimation = 3
     else:
         ps = s[len(dir_output):-21]
         reality = int(s[-13])
@@ -125,7 +136,8 @@ for s in subdirs:
         parameters.append("TVGP")
         dependent_variables.append("Sun_TVGP")
 
-    # parameters.append("mu_Sun")
+    if ps == "AttemptWithMu":
+        parameters.append("mu_Sun")
 
     if estimation > 2:
         parameters.append("J2_A")
@@ -133,8 +145,13 @@ for s in subdirs:
             parameters.append("J4_A")
 
     parameters.append("J2_Sun")
+
     if reality % 2 == 0:
         parameters.append("J4_Sun")
+
+    if s[len(dir_output):] == "VeryLargeAmplitude_reality3_estimation3_testWithoutEstimatingJ2/" or \
+            s[len(dir_output):] == "Xu2017_reality3_estimation3_testWithoutEstimatingJ2/":
+        parameters = ["X_Mer", "Y_Mer", "Z_Mer", "Vx_Mer", "Vy_Mer", "Vz_Mer", "J2_A"]
 
     print(" ", parameters)
 

@@ -37,7 +37,7 @@
     "sigma_J4_Sun": 1.0E-8,
     "sigma_TVGP": 0.29E-13,
 
-    "sigma_J2_A": 0.975E-11,
-    "sigma_J4_A": 6.4E-11 
+    "sigma_J2_A": 1.0E-7,
+    "sigma_J4_A": 1.0E-7
 
 }

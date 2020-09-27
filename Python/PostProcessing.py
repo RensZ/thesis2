@@ -11,12 +11,16 @@ from os import mkdir, path
 #### INPUTS ####
 ################
 
-publication_string = ["Genova2018_testGMSunAsConsiderParameter",
+publication_string = [# "Genova2018_testGMSunAsConsiderParameter",
                       "Genova2018",
-                      # "Imperi2018_nvtrue",
-                      # "Imperi2018_nvfalse",
-                      "Schettino2015_testGMSunAsConsiderParameter",
-                      "Schettino2015"]
+                      "Imperi2018_nvtrue",
+                      "Imperi2018_nvfalse",
+                      # "Schettino2015_testGMSunAsConsiderParameter",
+                      "Schettino2015",
+                      "Schettino2015_alphas",
+                      "Imperi2018_nvtrue_flybys_alphas",
+                      "Imperi2018_nvfalse_flybys_alphas",
+]
 
 #"MESSENGER_and_BepiColombo",
 #"MESSENGER_and_BepiColombo_timevariableJ2",

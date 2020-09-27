@@ -97,6 +97,7 @@ Eigen::MatrixXd calculateConsiderCovarianceOfAsteroids(
         std::string inputFolderAsteroids,
         std::string inputFolderPartials,
         std::string outputSubFolder,
+        std::vector< double > baseTimeList,
         const bool onlyUseFirst4Asteroids);
 
 std::map< double, Eigen::MatrixXd > onlyEveryXthValueFromDataMap(

@@ -243,14 +243,11 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
                 paperFormalSigmas.append(fs)
                 ratioFormalSigmas.append(nordtvedtFormalError / fs)
 
-        trueToFormalRatio = np.abs(np.asarray(trueErrors)/np.asarray(outputFormalSigmas))
         if useformalsigmas:
             df = pd.DataFrame(data={"parameter":parameters2,
                                     "apriori er.":aPrioriSigmas,
                                     # "est. value:":estimatedValues,
-                                    "true er.":trueErrors,
                                     "formal er.":outputFormalSigmas,
-                                    "t/f ratio":trueToFormalRatio,
                                     "f/a improvement":factorOfImprovement,
                                     "paper formal er.":paperFormalSigmas,
                                     "f/p ratio":ratioFormalSigmas})
@@ -262,15 +259,19 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
                                     # "est. value:": estimatedValues,
                                     "true er.":trueErrors,
                                     "formal er.":outputFormalSigmas,
-                                    "t/f ratio":trueToFormalRatio,
                                     "f/a improvement":factorOfImprovement})
 
         if consider>0:
             percentageIncreaseFormalErrors = 100.0*(np.asarray(outputFormalSigmas)-originalFormalError)/originalFormalError
             df["incr. due to C.C."] = percentageIncreaseFormalErrors
             df["incr. due to C.C."].map(lambda x: '{0:.2f}'.format(x))
+            df["t/f ratio"] = originalTrueToFormalRatio
         else:
             originalFormalError = np.asarray(outputFormalSigmas)
+            trueToFormalRatio = np.abs(np.asarray(trueErrors) / np.asarray(outputFormalSigmas))
+            df["true er."] = trueErrors
+            df["t/f ratio"] = trueToFormalRatio
+            originalTrueToFormalRatio = np.asarray(trueToFormalRatio)
 
         df['f/a improvement'] = df['f/a improvement'].map(lambda x: '{0:.2f}'.format(x))
         df['t/f ratio'] = df['t/f ratio'].map(lambda x: '{0:.2f}'.format(x))

@@ -500,7 +500,11 @@ double phaseAccordingToSolarMinimum(
         const double period)
 {
     using namespace tudat::mathematical_constants;
-    return (2.0*PI/period)*(solarMinimumEpoch+period/4.0);
+//    return (2.0*PI/period)*(solarMinimumEpoch+period/4.0);
+
+    // derived from: sin(2*pi*solarMinimumEpoch/period + phase) = -1
+    return PI*( -0.5 - 2.0*solarMinimumEpoch/period );
+
 }
 
 double simpleSine(
@@ -524,10 +528,12 @@ std::map< double, Eigen::MatrixXd > tabulatedSphericalHarmonicsCoefficientCorrec
     const double period = periodFunction();
     const double phase = phaseFunction();
 
-    std::cout<<"Making table of Spherical Harmonics corrections with "
+    std::cout<<std::setprecision(15)
+             <<"Making table of Spherical Harmonics corrections with "
              <<"amplitude: "<<amplitude<<" / "
              <<"period: "<<period<<" / "
-             <<"phase: "<<phase<<std::endl;
+             <<"phase: "<<phase
+             <<std::setprecision(5)<<std::endl;
 
     std::map< double, Eigen::MatrixXd > coefficientCorrections;
 
@@ -618,13 +624,13 @@ Eigen::MatrixXd calculateConsiderCovarianceOfAsteroids(
         std::string inputFolderAsteroids,
         std::string inputFolderPartials,
         std::string outputSubFolder,
+        const std::vector< double > baseTimeList,
         const bool onlyUseFirst4Asteroids)
 {
     using namespace tudat::input_output;
     using namespace tudat::physical_constants;
 
     // get asteroid numbers
-
     Eigen::VectorXd asteroidNumbersDouble;
     if (onlyUseFirst4Asteroids){
         asteroidNumbersDouble = readMatrixFromFile(inputFolderAsteroids + "mu2.txt", " ").col(0);
@@ -632,8 +638,10 @@ Eigen::MatrixXd calculateConsiderCovarianceOfAsteroids(
         asteroidNumbersDouble = readMatrixFromFile(inputFolderAsteroids + "mu.txt", " ").col(0);
     }
 
+
+
     Eigen::VectorXi asteroidNumbers = asteroidNumbersDouble.cast<int>();
-//    std::cout<<asteroidNumbers.transpose()<<std::endl;
+    std::cout<<"calculating consider covariance for asteroids: "<<asteroidNumbers.transpose()<<std::endl;
 
     // get asteroid GM uncertainties
     std::map< unsigned int, std::pair< double, double > > asteroidsINPOP19a
@@ -648,15 +656,68 @@ Eigen::MatrixXd calculateConsiderCovarianceOfAsteroids(
         term1.col(i) *= W_diagonal(i);
     }
 
-    Eigen::MatrixXd output = Eigen::MatrixXd::Zero(P.rows(),P.cols());
-
     // for each asteroid, get Hc and calculate consider covariance
+
+    Eigen::VectorXd observationTimesOfPartials = readMatrixFromFile(
+                inputFolderPartials + "/observationTimes.dat").col(0);
+    Eigen::MatrixXd output = Eigen::MatrixXd::Zero(P.rows(),P.cols());
     for (unsigned int j = 0; j < asteroidNumbers.size(); j++){
 
-        std::cout<<"    calculating consider covariance for asteroid "<<asteroidNumbers(j)<<std::endl;
+//        std::cout<<"    calculating consider covariance for asteroid "<<asteroidNumbers(j)<<std::endl;
 
-        Eigen::MatrixXd Hc_j = readMatrixFromFile(
+        Eigen::MatrixXd Hc_j_raw = readMatrixFromFile(
                     inputFolderPartials + "/partialDerivativesWrtAsteroid"+std::to_string(asteroidNumbers(j))+".dat");
+
+        // make sure Hc and asteroids are matched
+        Eigen::MatrixXd Hc_j = Eigen::MatrixXd::Zero(baseTimeList.size(),1);
+        if (static_cast<long>(baseTimeList.size()) != observationTimesOfPartials.size()){
+            if (asteroidNumbers(j) == 1){std::cout<<"Hj and Hc are not of equal length: "<<baseTimeList.size()<<" "<<observationTimesOfPartials.rows()<<std::endl;}
+
+            if (baseTimeList.size() == 65703){
+                if (asteroidNumbers(j) == 1){std::cout<<"scenario of only using MESSENGER observations is identified"<<std::endl;}
+                Hc_j = Hc_j_raw.block(0,0,65703,1);
+            }
+            else if(baseTimeList.size() == 35508){
+                if (asteroidNumbers(j) == 1){std::cout<<"scenario of only using BepiColombo observations is identified"<<std::endl;}
+                Hc_j = Hc_j_raw.block(65703,0,35508,1);
+            }
+            else{
+                if (asteroidNumbers(j) == 1){std::cout<<"unknown what observations are used, manually searching em all"<<std::endl;}
+                for(unsigned int i=0; i<baseTimeList.size(); i++){
+                    bool loop = true;
+                    unsigned int k = 0;
+                    while(loop){
+                        if (observationTimesOfPartials(k) == baseTimeList.at(i)){
+                            Hc_j(i,0) = Hc_j_raw(k,0);
+                            loop = false;
+                        }
+                        else{
+                            if (k>baseTimeList.size()){
+                                loop = false;
+                            }
+                            k++;
+                        }
+                    }
+                }
+            }
+        } else{
+            if (asteroidNumbers(j) == 1){std::cout<<"Hj and Hc are of equal length"<<std::endl;}
+            Hc_j = Hc_j_raw;
+        }
+
+        // final check
+        if (asteroidNumbers(j) == 1){
+            std::cout<<"basetimelist: "<<baseTimeList.size()
+                     <<" Hx rows: "<<Hx.rows()
+                     <<" Hc rows: "<<Hc_j.rows()
+                     <<std::endl;
+            if (static_cast<long>(Hx.rows()) == Hc_j.rows()){
+                std::cout<<"lists confirmed equal"<<std::endl;
+            } else{
+                throw std::runtime_error("lists unequal!");
+            }
+        }
+
         double sigma_j = asteroidsINPOP19a.at(asteroidNumbers(j)).second*convertAsteroidGMtoSI;
         double C_j = sigma_j*sigma_j;
 

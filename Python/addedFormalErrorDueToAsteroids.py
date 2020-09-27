@@ -9,82 +9,92 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def f(dir_output, dir_plots, dir_application, parameters):
+def f(dir_output, dir_plots, dir_application, parameterlist):
 
     formalErrorBeforeAsteroids = np.genfromtxt(dir_output + "ObservationFormalEstimationErrorWithConsiderParameters.dat", delimiter=',')
     formalErrorAfterAsteroids = np.genfromtxt(dir_output + "ObservationFormalEstimationErrorWithConsiderIncludingAsteroidsParameters.dat", delimiter=',')
-
-    J2index = len(formalErrorAfterAsteroids)-1
-    J2beforeAsteroids = formalErrorBeforeAsteroids[J2index]**2
-    J2afterAsteroids = formalErrorAfterAsteroids[J2index]**2
-
-    asteroidNumbers = np.genfromtxt(dir_application + "Input/mu.txt", dtype=int)[:,0]
+    asteroidNumbers = np.genfromtxt(dir_application + "Input/mu.txt", dtype=int)[:, 0]
     InpopData = np.genfromtxt(dir_application + "Input/AsteroidsINPOP19a.csv", delimiter=',')
-    InpopNumbers = InpopData[:,0]
-    InpopUncertainties = InpopData[:,2]
-    InpopUncertaintiesMatched = np.zeros(len(asteroidNumbers))
 
-    asteroidFolder = dir_output + "considerCovarianceAsteroids/"
+    for p in ["gamma", "beta", "J2_Sun"]:
 
-    J2formalErrorIncrease = []
-    J2formalErrorIncreasePercentage = []
-    sumConsiderCovariance = 0
+        print("checking consider covariance increase due to asteroids for parameter: ", p)
 
-    for a in asteroidNumbers:
+        if p not in parameterlist:
+            continue
+        J2index = np.where(np.asarray(parameterlist) == p)[0][0]
 
-        i = np.where(asteroidNumbers == a)[0][0]
-        InpopUncertaintiesMatched[i] = InpopUncertainties[np.where(InpopNumbers == a)[0][0]]
+        J2beforeAsteroids = formalErrorBeforeAsteroids[J2index]**2
+        J2afterAsteroids = formalErrorAfterAsteroids[J2index]**2
 
-        covarianceCurrentAsteroid = np.genfromtxt(asteroidFolder + "asteroid" + str(a) + ".dat")
-        considerCovarianceJ2currentAsteroid = covarianceCurrentAsteroid[J2index, J2index]
-        sumConsiderCovariance += considerCovarianceJ2currentAsteroid
+        InpopNumbers = InpopData[:,0]
+        InpopUncertainties = InpopData[:,2]
+        InpopUncertaintiesMatched = np.zeros(len(asteroidNumbers))
 
-        J2formalErrorIncrease.append(considerCovarianceJ2currentAsteroid)
-        J2formalErrorIncreasePercentage.append(100.0*considerCovarianceJ2currentAsteroid/J2beforeAsteroids)
+        asteroidFolder = dir_output + "considerCovarianceAsteroids/"
 
-    indicesSorted = np.argsort(J2formalErrorIncrease)[::-1]
-    asteroidNumbersSorted = asteroidNumbers[indicesSorted]
-    J2formalErrorIncreaseSorted = np.asarray(J2formalErrorIncrease)[indicesSorted]
-    J2formalErrorIncreasePercentageSorted = np.asarray(J2formalErrorIncreasePercentage)[indicesSorted]
-    InpopUncertaintiesSorted = InpopUncertaintiesMatched[indicesSorted]
+        J2formalErrorIncrease = []
+        J2formalErrorIncreasePercentage = []
+        sumConsiderCovariance = 0
 
-    df = pd.DataFrame(data={"asteroid": asteroidNumbersSorted,
-                            "increase": J2formalErrorIncreaseSorted,
-                            "p increase": J2formalErrorIncreasePercentageSorted,
-                            "apriori unc.": InpopUncertaintiesSorted})
-    print(df)
-    df.to_latex(dir_plots + 'asteroid_consider_covariance_contributions.txt', header=True, index=True, float_format="%.2e")
+        for a in asteroidNumbers:
 
-    print("before:", J2beforeAsteroids)
-    print("after:", J2afterAsteroids)
-    print("total increase covariance: ", J2afterAsteroids-J2beforeAsteroids, ",",
-          100*(J2afterAsteroids-J2beforeAsteroids)/J2beforeAsteroids, "%")
-    print("check: ", sumConsiderCovariance, ",",
-          100 * sumConsiderCovariance / J2beforeAsteroids, "%")
+            i = np.where(asteroidNumbers == a)[0][0]
+            InpopUncertaintiesMatched[i] = InpopUncertainties[np.where(InpopNumbers == a)[0][0]]
 
-    fig = plt.figure(figsize=(12,8))
+            covarianceCurrentAsteroid = np.genfromtxt(asteroidFolder + "asteroid" + str(a) + ".dat")
+            considerCovarianceJ2currentAsteroid = covarianceCurrentAsteroid[J2index, J2index]
+            sumConsiderCovariance += considerCovarianceJ2currentAsteroid
 
-    plt.plot(InpopUncertaintiesSorted, J2formalErrorIncreaseSorted, "bo", markersize=3)
+            J2formalErrorIncrease.append(considerCovarianceJ2currentAsteroid)
+            J2formalErrorIncreasePercentage.append(100.0*considerCovarianceJ2currentAsteroid/J2beforeAsteroids)
 
-    ceresIndex = np.where(asteroidNumbersSorted == 1)[0][0]
-    plt.plot(InpopUncertaintiesSorted[ceresIndex], J2formalErrorIncreaseSorted[ceresIndex], "ro", markersize=5)
+        indicesSorted = np.argsort(J2formalErrorIncrease)[::-1]
+        asteroidNumbersSorted = asteroidNumbers[indicesSorted]
+        J2formalErrorIncreaseSorted = np.asarray(J2formalErrorIncrease)[indicesSorted]
+        J2formalErrorIncreasePercentageSorted = np.asarray(J2formalErrorIncreasePercentage)[indicesSorted]
+        InpopUncertaintiesSorted = InpopUncertaintiesMatched[indicesSorted]
 
-    pallasIndex = np.where(asteroidNumbersSorted == 2)[0][0]
-    plt.plot(InpopUncertaintiesSorted[pallasIndex], J2formalErrorIncreaseSorted[pallasIndex], "go", markersize=5)
+        df = pd.DataFrame(data={"asteroid": asteroidNumbersSorted,
+                                "increase": J2formalErrorIncreaseSorted,
+                                "p increase": J2formalErrorIncreasePercentageSorted,
+                                "apriori unc.": InpopUncertaintiesSorted})
+        print(df)
+        df.to_latex(dir_plots + 'asteroid_consider_covariance_contributions_'+p+'.txt', header=True, index=True, float_format="%.2e")
 
-    vestaIndex = np.where(asteroidNumbersSorted == 4)[0][0]
-    plt.plot(InpopUncertaintiesSorted[vestaIndex], J2formalErrorIncreaseSorted[vestaIndex], "co", markersize=5)
+        print("before:", J2beforeAsteroids)
+        print("after:", J2afterAsteroids)
+        totalIncrease = J2afterAsteroids-J2beforeAsteroids
+        print("total increase covariance: ", totalIncrease, ",",
+              100*(J2afterAsteroids-J2beforeAsteroids)/J2beforeAsteroids, "%")
+        print("check: ", sumConsiderCovariance, ",",
+              100 * sumConsiderCovariance / J2beforeAsteroids, "%")
 
-    hygieaIndex = np.where(asteroidNumbersSorted == 10)[0][0]
-    plt.plot(InpopUncertaintiesSorted[hygieaIndex], J2formalErrorIncreaseSorted[hygieaIndex], "mo", markersize=5)
-    
-    plt.legend(["Other asteroids","Ceres","Pallas","Vesta","Hygiea"])
+        fig = plt.figure(figsize=(12,8))
 
-    plt.xlabel("apriori uncertainty asteroid mass [1E-18 AU3/d2]")
-    plt.ylabel("added formal variance J2")
-    #plt.xscale("log")
-    plt.yscale("log")
+        plt.plot(InpopUncertaintiesSorted, J2formalErrorIncreaseSorted, "bo", markersize=3)
 
-    plt.savefig(dir_plots + "asteroid_added_covariance.png")
+        ceresIndex = np.where(asteroidNumbersSorted == 1)[0][0]
+        plt.plot(InpopUncertaintiesSorted[ceresIndex], J2formalErrorIncreaseSorted[ceresIndex], "ro", markersize=5)
+
+        pallasIndex = np.where(asteroidNumbersSorted == 2)[0][0]
+        plt.plot(InpopUncertaintiesSorted[pallasIndex], J2formalErrorIncreaseSorted[pallasIndex], "go", markersize=5)
+
+        vestaIndex = np.where(asteroidNumbersSorted == 4)[0][0]
+        plt.plot(InpopUncertaintiesSorted[vestaIndex], J2formalErrorIncreaseSorted[vestaIndex], "co", markersize=5)
+
+        hygieaIndex = np.where(asteroidNumbersSorted == 10)[0][0]
+        plt.plot(InpopUncertaintiesSorted[hygieaIndex], J2formalErrorIncreaseSorted[hygieaIndex], "mo", markersize=5)
+
+        plt.hlines(totalIncrease, np.min(InpopUncertaintiesSorted), np.max(InpopUncertaintiesSorted))
+
+        plt.legend(["Other asteroids","Ceres","Pallas","Vesta","Hygiea","Total increase due to asteroids"])
+
+        plt.xlabel("apriori uncertainty asteroid mass [1E-18 AU3/d2]")
+        plt.ylabel("added formal variance J2")
+        #plt.xscale("log")
+        plt.yscale("log")
+
+        plt.savefig(dir_plots + "asteroid_added_covariance_"+p+".png")
 
     return

@@ -35,7 +35,14 @@ def f(dir_output, dir_plots, body, no_arcs, useRSW):
             savestring = "_considerIncludingAsteroids"
 
         #residual history
-        t = np.genfromtxt(dir_output+"interpolatedErrorMatrix.dat")[:,0]
+        if path.isfile(dir_output+"interpolatedErrorMatrix.dat"):
+            t = np.genfromtxt(dir_output+"interpolatedErrorMatrix.dat")[:,0]
+        elif path.isfile(dir_output+"ObservationTimes.dat"):
+            t = np.genfromtxt(dir_output + "ObservationTimes.dat")
+        else:
+            t = np.nan
+            print("Error: both files interpolatedErrorMatrix and ObservationTimes could not be found")
+
         r = np.genfromtxt(dir_output + "ResidualHistory.dat")
 
         r_rms = np.sqrt( np.sum(r**2, axis=0) / len(r) )

@@ -82,8 +82,8 @@ int main( )
 //    double maximumStepSize = 2.0;
 //    double tolerance = 1.0;
 
-    const unsigned int maxMercuryDegree = 8;
-    const unsigned int maxMercuryOrder = 8;
+    const unsigned int maxMercuryDegree = 6;
+    const unsigned int maxMercuryOrder = 6;
 
     const unsigned int minMercuryDegree = 2; //only for estimatable parameters, SH field starts at d/o 0/0
 
@@ -107,7 +107,7 @@ int main( )
     double maxMSEAngle;
     int numberOfSimulationDays;
 
-    double observationImprovementFactor = 10.0;
+    double observationImprovementFactor = 1.0;
 
     if (vehicle == "BepiColombo"){
         initialEphemerisTime = 828273600.0; //April 1st 2026, 16 days after final orbit insertion
@@ -118,7 +118,7 @@ int main( )
         vehicleName = "BEPICOLOMBO MPO";
         trackingPeriod = 8.0*60.0*60.0;
         observationInterval = 60.0;
-        dopplerNoiseUnnormalised = 12.25E-6/observationImprovementFactor; //Ka tracking only
+        dopplerNoiseUnnormalised = 0.01E-3/observationImprovementFactor; //Ka tracking only https://ieeexplore.ieee.org/document/9138679
         maxMSEAngle = 180.0;
         numberOfSimulationDays = 24;
     }
@@ -594,7 +594,8 @@ int main( )
     parameterNames.push_back( std::make_shared< ArcWiseInitialTranslationalStateEstimatableParameterSettings< double > >(
                                   vehicle, systemInitialState, arcStartTimes, "Mercury" ) );
 
-
+    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( vehicle, radiation_pressure_coefficient ) );
+    varianceVector.push_back( sigmaRadiation*sigmaRadiation );
 
     if (maxMercuryDegree >= minMercuryDegree){
         parameterNames.push_back( std::make_shared< SphericalHarmonicEstimatableParameterSettings >(
@@ -622,8 +623,7 @@ int main( )
         }
     }
 
-    parameterNames.push_back( std::make_shared< EstimatableParameterSettings >( vehicle, radiation_pressure_coefficient ) );
-    varianceVector.push_back( sigmaRadiation*sigmaRadiation );
+
 
     // Create parameters
     std::shared_ptr< estimatable_parameters::EstimatableParameterSet< double > > parametersToEstimate =
@@ -734,7 +734,7 @@ int main( )
     double twoWayDopplerNoise = (dopplerNoiseUnnormalised)/physical_constants::SPEED_OF_LIGHT; // Mazarico et al. 2014: 0.1mm/s at 60s integration time
     double oneWayDopplerNoise = twoWayDopplerNoise/sqrt(2.0);
     std::cout << "one way doppler noise: " << oneWayDopplerNoise << std::endl;
-    std::cout << "one way doppler noise: " << twoWayDopplerNoise << std::endl;
+    std::cout << "two way doppler noise: " << twoWayDopplerNoise << std::endl;
 
 
     // Create noise functions per observable
@@ -835,7 +835,7 @@ int main( )
     weightPerObservable[ one_way_differenced_range ] = 1.0 / ( twoWayDopplerNoise * twoWayDopplerNoise );
     podInput->setConstantPerObservableWeightsMatrix( weightPerObservable );
     podInput->defineEstimationSettings( reintegrateOnFirstIteration, //reintegrate on first iteration
-                                        true, //reintegrate variational equations
+                                        false, //reintegrate variational equations
                                         true, //save information matrix
                                         true, //print output
                                         true ); //save state history
@@ -866,6 +866,9 @@ int main( )
     std::cout<<"propagating covariance matrix..."<<std::endl;
 
     Eigen::MatrixXd initialCovarianceMatrix = podOutput->getUnnormalizedCovarianceMatrix( );
+    Eigen::VectorXd initialCovarianceMatrixDiagonal = initialCovarianceMatrix.diagonal( );
+    std::cout<<"initialCovarianceMatrixDiagonal: "<<std::endl<<initialCovarianceMatrixDiagonal.transpose()<<std::endl;
+    std::cout<<"Minimum entry: "<<initialCovarianceMatrixDiagonal.minCoeff()<<std::endl;
 
     std::map< double, Eigen::MatrixXd > propagatedCovariance;
     propagateCovariance(propagatedCovariance, initialCovarianceMatrix,
