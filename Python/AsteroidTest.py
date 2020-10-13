@@ -54,7 +54,7 @@ a_Mer = 57.91E9 #m, nasa fact sheet
 circ_merc = pi*a_Mer
 radToArcsec = 3600.0*180.0/pi
 
-p_J2_rad = precessionDueToJ2(2.25E-7)
+p_J2_rad = precessionDueToJ2(2.25E-9)
 p_J2_arcsec = p_J2_rad*radToArcsec
 
 mu_Ceres = 62.78E9  # m3/s2, Kuchynka & Folkner 2013

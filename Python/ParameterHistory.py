@@ -65,21 +65,23 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
             postruth = np.linalg.norm(truth[j:j+3])
             veltruth = np.linalg.norm(truth[j+3:j+6])
 
-            pos = data[j:j+3]
-            vel = data[j+3:j+6]
+            pos = data[j:j+3,:]
+            vel = data[j+3:j+6,:]
             posnorm = np.linalg.norm(pos,axis=0) - postruth
             velnorm = np.linalg.norm(vel,axis=0) - veltruth
 
             plt.subplot(subplotrows,subplotcolumns,k)
-            plt.yscale('symlog')
+            plt.yscale('log')
             plt.axhline(y=0.0, color='orange', linewidth=0.75, linestyle='--')
-            plt.plot(posnorm)
+            plt.plot(np.abs(posnorm))
+            plt.grid()
             plt.ylabel('norm(r) body'+ str(i+1))
 
             plt.subplot(subplotrows,subplotcolumns,k+1)
-            plt.yscale('symlog')
+            plt.yscale('log')
             plt.axhline(y=0.0, color='orange', linewidth=0.75, linestyle='--')
-            plt.plot(velnorm)
+            plt.plot(np.abs(velnorm))
+            plt.grid()
             plt.ylabel('norm(V) body'+ str(i+1))
 
         # Estimatable parameter history
@@ -91,8 +93,9 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
 
             plt.subplot(subplotrows,subplotcolumns,k)
             plt.axhline(y=0.0,color='orange',linewidth=0.75, linestyle='--')
-            plt.plot(par)
-            plt.yscale('symlog')
+            plt.plot(np.abs(par))
+            plt.yscale('log')
+            plt.grid()
             plt.ylabel(str(parameters[i]))
 
             if i >= len(parameters)-subplotcolumns:
@@ -137,8 +140,9 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
             k = no_bodies * 2 + 1 + len(parameters) - 6 * no_bodies
             plt.subplot(subplotrows, subplotcolumns, k)
             plt.axhline(y=0.0, color='orange', linewidth=0.75, linestyle='--')
-            plt.plot(nordtvedt)
-            plt.yscale('symlog')
+            plt.plot(np.abs(nordtvedt))
+            plt.yscale('log')
+            plt.grid()
             plt.ylabel("nv_constraint")
 
         plt.tight_layout()
@@ -156,6 +160,8 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
         paperFormalSigmas = []
         ratioFormalSigmas = []
 
+        trueErrorOutput = np.genfromtxt(dir_output + "ObservationTrueEstimationError.dat")
+
         for i in range(6 * no_bodies, len(parameters)):
             p = parameters[i]
             parameters2.append(p)
@@ -167,8 +173,8 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
             else:
                 K = 1.0
 
-            estimatedValues.append(K*(data[i,-1]))
-            trueErrors.append(K*(data[i,-1] - truth[i]))
+            estimatedValues.append(K*(truth[i] + trueErrorOutput[i]))
+            trueErrors.append(K*trueErrorOutput[i])
 
             aps = json_input["sigma_" + p]
             outputFormalSigmas.append(K*parameterFormalSigmas[i])
@@ -179,6 +185,10 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
                 fs = json_input["formalSigma_" + p]
                 paperFormalSigmas.append(fs)
                 ratioFormalSigmas.append(K*parameterFormalSigmas[i]/fs)
+
+            if parameters[i] == "TVGP":
+                TVGPindex = i
+                bestResidualsIndex = np.argmin(np.abs(data[TVGPindex, :] - trueErrorOutput[TVGPindex]  ))
 
         if (("gamma" in parameters) or (json_input["gammaIsAConsiderParameter"])) and ("beta" in parameters) and json_input["useNordtvedtConstraint"]:
 
@@ -235,13 +245,14 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
             factorOfImprovement.append(aps / nordtvedtFormalError)
             aPrioriSigmas.append(aps)
             parameters2.append("NordtvedtEq")
-            estimatedValues.append(nordtvedt[-1])
-            trueErrors.append(nordtvedt[-1])
+            estimatedValues.append(nordtvedt[bestResidualsIndex])
+            trueErrors.append(nordtvedt[bestResidualsIndex])
 
             if useformalsigmas:
                 fs = json_input["formalSigma_Nordtvedt"]
                 paperFormalSigmas.append(fs)
                 ratioFormalSigmas.append(nordtvedtFormalError / fs)
+
 
         if useformalsigmas:
             df = pd.DataFrame(data={"parameter":parameters2,

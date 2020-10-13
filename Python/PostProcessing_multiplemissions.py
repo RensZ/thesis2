@@ -35,10 +35,19 @@ for s in subdirs:
     print(" ")
     print(">>>> FOR INPUTS OF PUBLICATION:", s)
 
-    if s[len(dir_output):] != "Xu2017onlyBepi_reality3_estimation1":
+    onlyThesePlease = ["PaperInputsTest554_reality3_estimation3"]
+    if s[len(dir_output):] not in onlyThesePlease:
         continue
 
-    if s[len(dir_output):] == "Fienga2019_reality1_estimation1_testCeres":
+    if s[len(dir_output):] == "PaperInputs_reality1_estimation1_testWithoutAngularMomentum":
+        ps = "PaperInputs"
+        reality = 1
+        estimation = 1
+    elif s[len(dir_output):] == "PaperInputs_reality1_estimation1_testWithoutConsideringMu":
+        ps = "PaperInputs"
+        reality = 1
+        estimation = 1
+    elif s[len(dir_output):] == "Fienga2019_reality1_estimation1_testCeres":
         ps = "Fienga2019"
         reality = 1
         estimation = 1
@@ -61,6 +70,7 @@ for s in subdirs:
         ps = "Xu2017"
         reality = 3
         estimation = 3
+        continue
     else:
         ps = s[len(dir_output):-21]
         reality = int(s[-13])
@@ -160,6 +170,11 @@ for s in subdirs:
     #### OUTPUTS ####
     #################
 
+    # Plot parameter history
+    print("---- making plots of parameter estimation history ----")
+    import ParameterHistory
+    ParameterHistory.f(s, dir_plots, parameters, no_bodies, json_input, False)
+
     # Analyse consider covariance due to asteroids
     print("---- analysing consider covariance due to asteroids ----")
     import addedFormalErrorDueToAsteroids
@@ -174,6 +189,8 @@ for s in subdirs:
     print("---- checking observation weights ----")
     import CheckWeights
     CheckWeights.f(s, dir_plots)
+
+    close('all')
 
     # Check consistency asteroid application and main application
     from os.path import isdir
@@ -208,11 +225,6 @@ for s in subdirs:
     print("---- making plots of propagated bodies ----")
     import PropagatedBodies
     PropagatedBodies.f(s, dir_plots, bodies[0], no_arcs)
-
-    # Plot parameter history
-    print("---- making plots of parameter estimation history ----")
-    import ParameterHistory
-    ParameterHistory.f(s, dir_plots, parameters, no_bodies, json_input, False)
 
     # Plot residuals over time
     print("---- making plot of the observation residuals and propagated errors ----")

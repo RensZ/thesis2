@@ -12,7 +12,7 @@
 
     "sunJ2": 2.25E-7,
     "sunJ4": 0.0,
-    "sunJ2_A": 0.0,
+    "sunJ2_A": 0.5625E-7,
     "sunJ4_A": 0.0,
 
     "sunAngularMomentum": 190.0E39,

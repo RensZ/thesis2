@@ -682,23 +682,24 @@ Eigen::MatrixXd calculateConsiderCovarianceOfAsteroids(
                 Hc_j = Hc_j_raw.block(65703,0,35508,1);
             }
             else{
-                if (asteroidNumbers(j) == 1){std::cout<<"unknown what observations are used, manually searching em all"<<std::endl;}
-                for(unsigned int i=0; i<baseTimeList.size(); i++){
-                    bool loop = true;
-                    unsigned int k = 0;
-                    while(loop){
-                        if (observationTimesOfPartials(k) == baseTimeList.at(i)){
-                            Hc_j(i,0) = Hc_j_raw(k,0);
-                            loop = false;
-                        }
-                        else{
-                            if (k>baseTimeList.size()){
-                                loop = false;
-                            }
-                            k++;
-                        }
-                    }
-                }
+                if (asteroidNumbers(j) == 1){std::cout<<"unknown what observations are used, returning zero matrix"<<std::endl;}
+                return Eigen::MatrixXd::Zero(P.rows(),P.cols());
+//                for(unsigned int i=0; i<baseTimeList.size(); i++){
+//                    bool loop = true;
+//                    unsigned int k = 0;
+//                    while(loop){
+//                        if (observationTimesOfPartials(k) == baseTimeList.at(i)){
+//                            Hc_j(i,0) = Hc_j_raw(k,0);
+//                            loop = false;
+//                        }
+//                        else{
+//                            if (k>baseTimeList.size()){
+//                                loop = false;
+//                            }
+//                            k++;
+//                        }
+//                    }
+//                }
             }
         } else{
             if (asteroidNumbers(j) == 1){std::cout<<"Hj and Hc are of equal length"<<std::endl;}
@@ -916,4 +917,24 @@ std::map< unsigned int, std::pair< double, double > > readAsteroidsFile (
 
     return asteroidsMap;
 }
+
+std::map<double,double> castLongDoubleDoubleMapToDoubleDoubleMap(
+        std::map<long double, double> inputMap){
+
+    std::map<double,double> outputMap;
+
+    std::map<long double,double>::iterator it = inputMap.begin();
+    while (it != inputMap.end()){
+        outputMap[static_cast<double>(it->first)] = it->second;
+        it++;
+    }
+
+    if (inputMap.size() != outputMap.size()){
+        throw std::runtime_error("ERROR, input and output maps unequal in function castLongDoubleDoubleMapToDoubleDoubleMap");
+    }
+
+    return outputMap;
+}
+
+
 

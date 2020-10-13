@@ -18,7 +18,7 @@
 
 #include "json.hpp"
 
-// custom functions wr itten for the main application are placed here to save space:
+// custom functions written for the main application are placed here to save space:
 #include "tudatApplications/thesis/MyApplications/customFunctions.h"
 
 
@@ -103,21 +103,33 @@ int main( )
     const bool testDifferentSolarMinimum = false;
     const double differentSolarMinimum = 0.5;
     const bool testWithoutEstimatingJ2 = false;
-    if (testCeres || onlyUseFirst4Asteroids || testWithoutFlybys || testDifferentSolarMinimum || testWithoutEstimatingJ2){
-        observationReductionFactor = 2.0;
-    }
+    const bool testWithoutAngularMomentum = false;
+    const bool testWithoutConsideringMu = false;
+    const bool testAmplitudePartial = false;
+    const bool testGammaPartial = false;
+
 
     // for final section results
-    bool runForVariousAmplitudes = true;
-    std::vector< double > amplitudesToRunFor;
+    bool runForVariousAmplitudes = false;
+    bool runForVariousAmplitudesDelta = false;
+    bool runForVariousJ4Values = false;
+
+    Eigen::VectorXd valuesToRunFor;
     if (runForVariousAmplitudes){
-        amplitudesToRunFor.push_back(2.5E-7);  amplitudesToRunFor.push_back(1.0E-7);
-        amplitudesToRunFor.push_back(7.5E-8);  amplitudesToRunFor.push_back(5.0E-8);  amplitudesToRunFor.push_back(2.5E-8);  amplitudesToRunFor.push_back(1.0E-8);
-        amplitudesToRunFor.push_back(7.5E-9);
-        amplitudesToRunFor.push_back(5.0E-9);  amplitudesToRunFor.push_back(2.5E-9);  amplitudesToRunFor.push_back(1.0E-9);
-        amplitudesToRunFor.push_back(7.5E-10); amplitudesToRunFor.push_back(5.0E-10); amplitudesToRunFor.push_back(2.5E-10); amplitudesToRunFor.push_back(1.0E-10);
+        valuesToRunFor = input_output::readMatrixFromFile("/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/AmplitudeInputs.txt");
+        std::cout<<"runnning for amplitudes: "<<valuesToRunFor.transpose()<<std::endl;
+    } else if (runForVariousAmplitudesDelta){
+        valuesToRunFor = input_output::readMatrixFromFile("/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/AmplitudeInputs2.txt");
+        std::cout<<"runnning for amplitude deltas: "<<valuesToRunFor.transpose()<<std::endl;
+    } else if (runForVariousJ4Values){
+        valuesToRunFor = input_output::readMatrixFromFile("/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/J4Inputs.txt");
+        std::cout<<"runnning for J4 values: "<<valuesToRunFor.transpose()<<std::endl;
+    } else if (testAmplitudePartial || testGammaPartial){
+        valuesToRunFor = Eigen::VectorXd::Zero(3);
+        valuesToRunFor(0) = -0.1;
+        valuesToRunFor(2) = 0.1;
     } else{
-        amplitudesToRunFor.push_back(TUDAT_NAN);
+        valuesToRunFor = Eigen::VectorXd::Zero(1);
     }
 
     // integrator & propagator settings
@@ -171,30 +183,46 @@ int main( )
 
 //    filenames.push_back("inputs_multiplemissions_Xu2017onlyMess.json");
 //    filenames.push_back("inputs_multiplemissions_Xu2017onlyBepi.json");
-    filenames.push_back("inputs_multiplemissions_Xu2017.json");
+//    filenames.push_back("inputs_multiplemissions_Xu2017.json");
 
 //    filenames.push_back("inputs_multiplemissions_Fienga2019.json");
 //    filenames.push_back("inputs_multiplemissions_Park2017.json");
 //    filenames.push_back("inputs_multiplemissions_Antia2008.json");
 
-//    filenames.push_back("inputs_multiplemissions_PaperInputs.json");
+//    filenames.push_back("inputs_multiplemissions_PaperInputsonlyMess.json");
+//    filenames.push_back("inputs_multiplemissions_PaperInputsonlyBepi.json");
+    filenames.push_back("inputs_multiplemissions_PaperInputs.json");
+
 //    filenames.push_back("inputs_multiplemissions_PaperInputsWithBetterGamma.json");
+//    filenames.push_back("inputs_multiplemissions_PaperInputsWithBetterGammaV2.json");
+
+//    filenames.push_back("inputs_multiplemissions_PaperInputsTest554.json");
+//    filenames.push_back("inputs_multiplemissions_PaperInputsBepi2020.json");
+//    filenames.push_back("inputs_multiplemissions_PaperInputsLowJ2Test.json");
+//    filenames.push_back("inputs_multiplemissions_PaperInputsLowerJ2Test.json");
+//    filenames.push_back("inputs_multiplemissions_PaperInputs15cm.json");
+//    filenames.push_back("inputs_multiplemissions_PaperInputsWithoutLT.json");
+//    filenames.push_back("inputs_multiplemissions_PaperInputsNoAlphas.json");
 //    filenames.push_back("inputs_multiplemissions_ImperiInputs.json");
 //    filenames.push_back("inputs_multiplemissions_AttemptWithMu.json");
 
     // scenario pairs
     std::vector< std::pair<int,int> > scenarioPairs;
-//    scenarioPairs.push_back(std::make_pair(3,3));
 //    scenarioPairs.push_back(std::make_pair(1,1));
-    scenarioPairs.push_back(std::make_pair(3,1));
+    scenarioPairs.push_back(std::make_pair(3,3));
+//    scenarioPairs.push_back(std::make_pair(3,1));
 //    scenarioPairs.push_back(std::make_pair(1,3));
 //    scenarioPairs.push_back(std::make_pair(2,2));
 //    scenarioPairs.push_back(std::make_pair(4,4));
 
 
-    for (unsigned int a = 13; a<amplitudesToRunFor.size(); a++){
+    for (unsigned int a = 0; a<valuesToRunFor.size(); a++){
         for (unsigned int s = 0; s<scenarioPairs.size(); s++){
             for (unsigned int f = 0; f<filenames.size(); f++){
+
+//                if( a==12 && f<2 ){
+//                    continue;
+//                }
 
                 std::string input_filename = filenames.at(f);
                 std::cout<<"---- RUNNING SIMULATION FOR INPUTS WITH FILENAME: "<<input_filename<<" ----"<<std::endl;
@@ -208,14 +236,13 @@ int main( )
                 // Scenario
                 const int realityScenario = scenarioPairs.at(s).first;
                 const int estimationScenario = scenarioPairs.at(s).second;
-                std::cout<<"---- AND SCENARIOS:"<<std::endl;
                 std::cout<<"---- reality scenario: "<<printScenario(realityScenario)<<std::endl;
                 std::cout<<"---- estimation scenario: "<<printScenario(estimationScenario)<<std::endl;
-                std::cout<<"---- amplitude: "<<amplitudesToRunFor.at(a)<<" (entry "<<a<<")"<<std::endl;
+                std::cout<<"---- amplitude: "<<valuesToRunFor(a)<<" (entry "<<a<<")"<<std::endl;
 
-                if (estimationScenario == 3 || realityScenario == 3){
-                    maximumNumberOfIterations = 10; //for the wonky amplitude errors
-                }
+//                if (estimationScenario == 3 || realityScenario == 3){
+//                    maximumNumberOfIterations = 10; //for the wonky amplitude errors
+//                }
                 if (input_filename == "inputs_multiplemissions_AttemptWithMu.json"){
                     SunGMIsAConsiderParameter = false;
                 }
@@ -252,6 +279,12 @@ int main( )
                 }
                 if (testWithoutEstimatingJ2){outputSubFolder += "_testWithoutEstimatingJ2";}
                 if (runForVariousAmplitudes){outputSubFolder += "_amp"+std::to_string(a);}
+                if (testWithoutAngularMomentum){outputSubFolder += "_testWithoutAngularMomentum";}
+                if (testWithoutConsideringMu){outputSubFolder += "_testWithoutConsideringMu";}
+                if (runForVariousAmplitudesDelta){outputSubFolder += "_runForVariousAmplitudesDelta";}
+                if (runForVariousJ4Values){outputSubFolder += "runForVariousJ4Values";}
+                if (testAmplitudePartial){outputSubFolder += "_testAmplitudePartial"+std::to_string(a);}
+                if (testGammaPartial){outputSubFolder += "_testGammaPartial"+std::to_string(a);}
 
                 // Acceleration settings
                 const bool calculateSchwarzschildCorrection = json_input["calculateSchwarzschildCorrection"];
@@ -277,7 +310,7 @@ int main( )
                 const double sigmaUnnormalisedSunJ2 = 1.0E-7; //json_input["sigma_J2_Sun"];
                 const double sigmaSunJ2 = sigmaUnnormalisedSunJ2 / calculateLegendreGeodesyNormalizationFactor(2,0); // High numerical errors with more accurate apriori values?!
                 const double unnormalisedSunJ4 = json_input["sunJ4"];
-                const double sunJ4 = unnormalisedSunJ4 / calculateLegendreGeodesyNormalizationFactor(4,0);
+                double sunJ4 = unnormalisedSunJ4 / calculateLegendreGeodesyNormalizationFactor(4,0);
                 const double unnormalisedSigmaSunJ4 = 1.0E-7; //json_input["sigma_J4_Sun"];
                 const double sigmaSunJ4 = unnormalisedSigmaSunJ4 / calculateLegendreGeodesyNormalizationFactor(4,0);
 
@@ -287,7 +320,7 @@ int main( )
 
                 const bool estimateSunAngularMomentum = json_input["estimateSunAngularMomentum"];
                 bool considerSunAngularMomentum = false;
-                if (estimateSunAngularMomentum == false){ considerSunAngularMomentum = true; };
+                if (estimateSunAngularMomentum == false && testWithoutAngularMomentum == false){ considerSunAngularMomentum = true; };
                 const bool estimatePPNalphas = json_input["estimatePPNalphas"];
 
                 bool considerPPNalphas = false;
@@ -368,10 +401,21 @@ int main( )
                 // settings time variable gravitational moments
                 double J2amplitudeUnnormalized;
                 if (runForVariousAmplitudes){
-                    J2amplitudeUnnormalized = amplitudesToRunFor.at(a);
+                    J2amplitudeUnnormalized = valuesToRunFor(a);
+                } else if (runForVariousAmplitudesDelta){
+                    double J2amplitudeUnnormalizedJson = json_input["sunJ2_A"];
+                    J2amplitudeUnnormalized = J2amplitudeUnnormalizedJson - valuesToRunFor(a);
+                } else if (testAmplitudePartial){
+                    double J2amplitudeUnnormalizedJson = json_input["sunJ2_A"];
+                    J2amplitudeUnnormalized = J2amplitudeUnnormalizedJson*(1.0 + valuesToRunFor(a));
                 } else{
                     J2amplitudeUnnormalized = json_input["sunJ2_A"];
                 }
+
+                if (runForVariousJ4Values){
+                    sunJ4 = valuesToRunFor(a) / calculateLegendreGeodesyNormalizationFactor(4,0);
+                }
+
                 double J2amplitude = J2amplitudeUnnormalized / calculateLegendreGeodesyNormalizationFactor(2,0);
             //        double J2amplitude = 0.005E-7 / calculateLegendreGeodesyNormalizationFactor(2,0); // currently from Antia et al 2008
                 double J2period = solarCycleDuration;
@@ -688,7 +732,11 @@ int main( )
                 }
 
                 // Setting all PPN parameters to GR values (if multiple simulations are done in sequence, estmiated parameters are not reset automatically)
-                relativity::ppnParameterSet->setParameterGamma(1.0);
+                if (testGammaPartial){
+                    relativity::ppnParameterSet->setParameterGamma(1.0+valuesToRunFor(a));
+                } else{
+                    relativity::ppnParameterSet->setParameterGamma(1.0);
+                }
                 relativity::ppnParameterSet->setParameterBeta(1.0);
                 relativity::ppnParameterSet->setParameterAlpha1(0.0);
                 relativity::ppnParameterSet->setParameterAlpha2(0.0);
@@ -756,56 +804,59 @@ int main( )
                 /////////////////////////////
 
                 std::vector< std::shared_ptr< SingleDependentVariableSaveSettings > > dependentVariablesList;
-                for( unsigned int i = 0; i < totalNumberOfBodies; i++ ){
-                    if (!(bodyNames.at( i ) == "Sun") && !(bodyNames.at( i ) == "Mercury")){
+
+                if (runForVariousAmplitudes == false && runForVariousAmplitudesDelta == false && runForVariousJ4Values == false){
+                    for( unsigned int i = 0; i < totalNumberOfBodies; i++ ){
+                        if (!(bodyNames.at( i ) == "Sun") && !(bodyNames.at( i ) == "Mercury")){
+                            dependentVariablesList.push_back(
+                                      std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                                            central_gravity, "Mercury" , bodyNames.at( i ) ) );
+                        }
+                    }
+
+                    dependentVariablesList.push_back(
+                                std::make_shared< SphericalHarmonicAccelerationTermsDependentVariableSaveSettings >(
+                                "Mercury", "Sun", maximumDegreeSunGravitationalMomentInReality, 0 ) );
+
+                    if (calculateSchwarzschildCorrection){
                         dependentVariablesList.push_back(
                                   std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                                        central_gravity, "Mercury" , bodyNames.at( i ) ) );
+                                        relativistic_correction_acceleration, "Mercury" , "Sun", 0, -1, 1 ) );
+                        dependentVariablesList.push_back(
+                                  std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                                        relativistic_correction_acceleration, "Mercury" , "Sun", 0, -1, 2 ) );
                     }
-                }
 
-                dependentVariablesList.push_back(
-                            std::make_shared< SphericalHarmonicAccelerationTermsDependentVariableSaveSettings >(
-                            "Mercury", "Sun", maximumDegreeSunGravitationalMomentInReality, 0 ) );
+                    if (calculateLenseThirringCorrection){
+                        dependentVariablesList.push_back(
+                                  std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                                        relativistic_correction_acceleration, "Mercury" , "Sun", 0, -1, 3 ) );
+                    }
 
-                if (calculateSchwarzschildCorrection){
+                    if (calculateDeSitterCorrection){
+                        dependentVariablesList.push_back(
+                                  std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
+                                        relativistic_correction_acceleration, "Mercury" , "Sun", 0, -1, 4 ) );
+                    }
+
+                    if (includeSEPViolationAcceleration){
                     dependentVariablesList.push_back(
                               std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                                    relativistic_correction_acceleration, "Mercury" , "Sun", 0, -1, 1 ) );
+                                    sep_violation_acceleration, "Mercury" , "Sun" ) );
+                    }
+
+                    if (includeTVGPAcceleration){
                     dependentVariablesList.push_back(
                               std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                                    relativistic_correction_acceleration, "Mercury" , "Sun", 0, -1, 2 ) );
-                }
+                                    time_varying_gravitational_parameter_acceleration, "Mercury" , "Sun" ) );
+                    }
 
-                if (calculateLenseThirringCorrection){
+                    // sep position correction
+                    if (includeSEPViolationAcceleration){
                     dependentVariablesList.push_back(
                               std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                                    relativistic_correction_acceleration, "Mercury" , "Sun", 0, -1, 3 ) );
-                }
-
-                if (calculateDeSitterCorrection){
-                    dependentVariablesList.push_back(
-                              std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                                    relativistic_correction_acceleration, "Mercury" , "Sun", 0, -1, 4 ) );
-                }
-
-                if (includeSEPViolationAcceleration){
-                dependentVariablesList.push_back(
-                          std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                                sep_violation_acceleration, "Mercury" , "Sun" ) );
-                }
-
-                if (includeTVGPAcceleration){
-                dependentVariablesList.push_back(
-                          std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                                time_varying_gravitational_parameter_acceleration, "Mercury" , "Sun" ) );
-                }
-
-                // sep position correction
-                if (includeSEPViolationAcceleration){
-                dependentVariablesList.push_back(
-                          std::make_shared< SingleAccelerationDependentVariableSaveSettings >(
-                                sep_violation_acceleration, "Mercury" , "Sun", 0, -1, 1 ) );
+                                    sep_violation_acceleration, "Mercury" , "Sun", 0, -1, 1 ) );
+                    }
                 }
 
                 // Create object with list of dependent variables
@@ -975,6 +1026,19 @@ int main( )
 
     //            }
 
+                if( runForVariousAmplitudesDelta || runForVariousJ4Values ){
+                    input_output::writeDataMapToTextFile(
+                                onlyEveryXthValueFromDataMap( allBodiesPropagationHistory[ 0 ], onlyEveryXthValue),
+                                "StatePropagationHistory" + std::to_string(a) + ".dat",
+                                outputSubFolder,
+                                "",
+                                std::numeric_limits< long double >::digits10,
+                                std::numeric_limits< long double >::digits10,
+                                "," );
+
+                    continue;
+                }
+
                 if (runForVariousAmplitudes == false){
                     for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
                     {
@@ -988,6 +1052,8 @@ int main( )
                                         std::numeric_limits< long double >::digits10,
                                         std::numeric_limits< long double >::digits10,
                                         "," );
+
+
 
                             input_output::writeDataMapToTextFile(
                                         onlyEveryXthValueFromDataMap( spiceStatesAtPropagationTimes[ i ], onlyEveryXthValue),
@@ -1020,115 +1086,118 @@ int main( )
                 //// BACKWARD PROPAGATION ////
                 ////////////////////////////
 
-                std::cout << "performing backward propagation..." << std::endl;
+                if (runForVariousAmplitudes == false){
 
-    //            std::shared_ptr< AdamsBashforthMoultonSettings< double > > backwardIntegratorSettings =
-    //                    std::make_shared< AdamsBashforthMoultonSettings< double > > (
-    //                        finalSimulationTime, -1.0*initialTimeStep,
-    //                        -1.0*minimumStepSize, -1.0*maximumStepSize,
-    //                        relativeErrorTolerence, absoluteErrorTolerence,
-    //                        minimumOrder, maximumOrder);
+                    std::cout << "performing backward propagation..." << std::endl;
 
-                std::shared_ptr< PropagationTimeTerminationSettings > backwardTerminationSettings;
-                std::shared_ptr< PropagatorSettings< long double > > backwardPropagatorSettings;
+        //            std::shared_ptr< AdamsBashforthMoultonSettings< double > > backwardIntegratorSettings =
+        //                    std::make_shared< AdamsBashforthMoultonSettings< double > > (
+        //                        finalSimulationTime, -1.0*initialTimeStep,
+        //                        -1.0*minimumStepSize, -1.0*maximumStepSize,
+        //                        relativeErrorTolerence, absoluteErrorTolerence,
+        //                        minimumOrder, maximumOrder);
 
-                std::vector< std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> > > allBodiesBackwardPropagationHistory;
-                allBodiesBackwardPropagationHistory.resize( bodiesToPropagate.size() );
+                    std::shared_ptr< PropagationTimeTerminationSettings > backwardTerminationSettings;
+                    std::shared_ptr< PropagatorSettings< long double > > backwardPropagatorSettings;
 
-    //            if (useMultipleMercuryArcs){
+                    std::vector< std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> > > allBodiesBackwardPropagationHistory;
+                    allBodiesBackwardPropagationHistory.resize( bodiesToPropagate.size() );
 
-    //                std::vector< std::shared_ptr< SingleArcPropagatorSettings< double > > > backwardPropagatorSettingsList;
+        //            if (useMultipleMercuryArcs){
 
-    //                for (unsigned int m=0; m<numberOfMissions; m++){
+        //                std::vector< std::shared_ptr< SingleArcPropagatorSettings< double > > > backwardPropagatorSettingsList;
 
-    //                    backwardTerminationSettings = std::make_shared< propagators::PropagationTimeTerminationSettings >(
-    //                                initialTimeVector.at(m), true );
+        //                for (unsigned int m=0; m<numberOfMissions; m++){
 
-    //                    backwardPropagatorSettingsList.push_back(
-    //                                std::make_shared< TranslationalStatePropagatorSettings< double > >(
-    //                                    centralBodies, accelerationModelMap, bodiesToPropagate,
-    //                                    arcFinalStates.at(m), backwardTerminationSettings, propagator ) );
-    //                }
+        //                    backwardTerminationSettings = std::make_shared< propagators::PropagationTimeTerminationSettings >(
+        //                                initialTimeVector.at(m), true );
 
-    //                // Create propagator settings
-    //                backwardPropagatorSettings = std::make_shared< MultiArcPropagatorSettings< double > >( backwardPropagatorSettingsList );
+        //                    backwardPropagatorSettingsList.push_back(
+        //                                std::make_shared< TranslationalStatePropagatorSettings< double > >(
+        //                                    centralBodies, accelerationModelMap, bodiesToPropagate,
+        //                                    arcFinalStates.at(m), backwardTerminationSettings, propagator ) );
+        //                }
 
-
-    //                MultiArcDynamicsSimulator <> backwardDynamicsSimulator (bodyMap,
-    //                                                                backwardIntegratorSettings,
-    //                                                                backwardPropagatorSettings,
-    //                                                                finalTimeVector,
-    //                                                                true,false,true);
-
-    //                std::vector< std::map< double, Eigen::VectorXd > > backwardIntegrationResult = backwardDynamicsSimulator.getEquationsOfMotionNumericalSolution( );
-
-    //                for( unsigned int m = 0; m < numberOfMissions; m++ ){
-
-    //                    std::map< double, Eigen::VectorXd > intermediateIntegrationResult = backwardIntegrationResult.at( m );
-
-    //                    // Retrieve numerically integrated state for each body.
-    //                    for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateIntegrationResult.begin( );
-    //                         stateIterator != intermediateIntegrationResult.end( ); stateIterator++ )
-    //                    {
-    //                        for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
-    //                        {
-    //                            allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
-    //                            spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
-    //                                    getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),centreOfPropagation,"ECLIPJ2000","None",stateIterator->first);
-
-    //                        }
-    //                    }
-
-    //                }
-
-    //            } else{
-
-                    backwardTerminationSettings = std::make_shared< propagators::PropagationTimeTerminationSettings >( initialSimulationTime, true );
-
-                    Eigen::Matrix<long double, Eigen::Dynamic, 1> systemFinalState = integrationResult.at(finalSimulationTime);
-
-                    backwardPropagatorSettings = std::make_shared< TranslationalStatePropagatorSettings< long double > >
-                            ( centralBodies, accelerationModelMap, bodiesToPropagate,
-                              systemFinalState, backwardTerminationSettings, propagator);
+        //                // Create propagator settings
+        //                backwardPropagatorSettings = std::make_shared< MultiArcPropagatorSettings< double > >( backwardPropagatorSettingsList );
 
 
-                    SingleArcDynamicsSimulator <long double> backwardDynamicsSimulator
-                            (bodyMap,backwardIntegratorSettings,backwardPropagatorSettings,true,false,true);
-                    std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> > backwardIntegrationResult
-                            = backwardDynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+        //                MultiArcDynamicsSimulator <> backwardDynamicsSimulator (bodyMap,
+        //                                                                backwardIntegratorSettings,
+        //                                                                backwardPropagatorSettings,
+        //                                                                finalTimeVector,
+        //                                                                true,false,true);
 
-                    // Retrieve numerically integrated state for each body.
-                    for( std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> >::const_iterator stateIterator = backwardIntegrationResult.begin( );
-                         stateIterator != backwardIntegrationResult.end( ); stateIterator++ )
-                    {
+        //                std::vector< std::map< double, Eigen::VectorXd > > backwardIntegrationResult = backwardDynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+
+        //                for( unsigned int m = 0; m < numberOfMissions; m++ ){
+
+        //                    std::map< double, Eigen::VectorXd > intermediateIntegrationResult = backwardIntegrationResult.at( m );
+
+        //                    // Retrieve numerically integrated state for each body.
+        //                    for( std::map< double, Eigen::VectorXd >::const_iterator stateIterator = intermediateIntegrationResult.begin( );
+        //                         stateIterator != intermediateIntegrationResult.end( ); stateIterator++ )
+        //                    {
+        //                        for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
+        //                        {
+        //                            allBodiesPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
+        //                            spiceStatesAtPropagationTimes[ i ][ stateIterator->first ] =
+        //                                    getBodyCartesianStateAtEpoch(bodiesToPropagate.at( i ),centreOfPropagation,"ECLIPJ2000","None",stateIterator->first);
+
+        //                        }
+        //                    }
+
+        //                }
+
+        //            } else{
+
+                        backwardTerminationSettings = std::make_shared< propagators::PropagationTimeTerminationSettings >( initialSimulationTime, true );
+
+                        Eigen::Matrix<long double, Eigen::Dynamic, 1> systemFinalState = integrationResult.at(finalSimulationTime);
+
+                        backwardPropagatorSettings = std::make_shared< TranslationalStatePropagatorSettings< long double > >
+                                ( centralBodies, accelerationModelMap, bodiesToPropagate,
+                                  systemFinalState, backwardTerminationSettings, propagator);
+
+
+                        SingleArcDynamicsSimulator <long double> backwardDynamicsSimulator
+                                (bodyMap,backwardIntegratorSettings,backwardPropagatorSettings,true,false,true);
+                        std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> > backwardIntegrationResult
+                                = backwardDynamicsSimulator.getEquationsOfMotionNumericalSolution( );
+
+                        // Retrieve numerically integrated state for each body.
+                        for( std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> >::const_iterator stateIterator = backwardIntegrationResult.begin( );
+                             stateIterator != backwardIntegrationResult.end( ); stateIterator++ )
+                        {
+                            for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
+                            {
+                                allBodiesBackwardPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
+
+                            }
+                        }
+
+        //            }
+
+                    if (runForVariousAmplitudes == false){
                         for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
                         {
-                            allBodiesBackwardPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
+                            // Write propagation history to file.
+                            input_output::writeDataMapToTextFile(
+                                        onlyEveryXthValueFromDataMap( allBodiesBackwardPropagationHistory[ i ], onlyEveryXthValue),
+                                        "StatePropagationHistory" + bodiesToPropagate.at( i ) + "Backwards.dat",
+                                        outputSubFolder,
+                                        "",
+                                        std::numeric_limits< long double >::digits10,
+                                        std::numeric_limits< long double >::digits10,
+                                        "," );
 
                         }
                     }
 
-    //            }
+                    // clear memory
+                    allBodiesBackwardPropagationHistory.clear();
 
-                if (runForVariousAmplitudes == false){
-                    for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
-                    {
-                        // Write propagation history to file.
-                        input_output::writeDataMapToTextFile(
-                                    onlyEveryXthValueFromDataMap( allBodiesBackwardPropagationHistory[ i ], onlyEveryXthValue),
-                                    "StatePropagationHistory" + bodiesToPropagate.at( i ) + "Backwards.dat",
-                                    outputSubFolder,
-                                    "",
-                                    std::numeric_limits< long double >::digits10,
-                                    std::numeric_limits< long double >::digits10,
-                                    "," );
-
-                    }
                 }
-
-                // clear memory
-                allBodiesBackwardPropagationHistory.clear();
-
 
 
                 ////////////////////////////////
@@ -1533,6 +1602,9 @@ int main( )
                             measurementSimulationInput,
                             orbitDeterminationManager.getObservationSimulators( ) );
                             //,noiseFunctions);
+                Eigen::VectorXd saveMeasurements(baseTimeList.size());
+
+                PodInputDataType observationsAndTimesWithoutError = observationsAndTimes;
 
                 // similar container, but the "observation" will be the noise value instead of the actual observation
                 PodInputDataType observationWeightsAndTimes = observationsAndTimes;
@@ -1630,6 +1702,7 @@ int main( )
 
                                     Eigen::Vector4d saveCurrentSample = {satErrorLevel, rangeNoiseLevel, totalErrorLevel, static_cast<double>(rangeErrorSample)};
                                     saveErrorSamples.insert(std::make_pair(observationTime, saveCurrentSample));
+                                    saveMeasurements(i) = static_cast<double>(allObservations(i));
                                 }
 
                                 singleObservableIterator->second.first = newObservations;
@@ -1645,6 +1718,7 @@ int main( )
                     input_output::writeDataMapToTextFile(
                                 saveErrorSamples, "saveErrorSamples.dat", outputSubFolder, "",
                                 std::numeric_limits< double >::digits10, std::numeric_limits< double >::digits10, "," );
+                    input_output::writeDataMapToTextFile( interpolatedErrorMatrix, "interpolatedErrorMatrix.dat", outputSubFolder );
                 }
                 saveErrorSamples.clear();
 
@@ -1674,8 +1748,12 @@ int main( )
                     parameterPerturbation(nordtvedtParameterIndex) = 1.0E-10;
                 }
 
-                initialParameterEstimate += parameterPerturbation;
-
+                if (testAmplitudePartial || testGammaPartial){
+                    maximumNumberOfIterations = 1;
+                    observationsAndTimes = observationsAndTimesWithoutError;
+                } else{
+                    initialParameterEstimate += parameterPerturbation;
+                }
 
                 // if J2 is estimated as a static parameter, reset amplitude to zero such that the reality scenario can never interfere
                 if (estimationScenario < 3){
@@ -1776,12 +1854,11 @@ int main( )
                     dependentVariablesHistoryFinalIteration = dependentVariablesHistoryFinalIterationAllArcs.at(0);
                 }
 
-                if (runForVariousAmplitudes == false){
+                if (runForVariousAmplitudes == false && testAmplitudePartial == false && testGammaPartial == false){
                     input_output::writeDataMapToTextFile(
                                 onlyEveryXthValueFromDataMap(dependentVariablesHistoryFinalIteration, onlyEveryXthValue), "DependentVariablesHistoryFinalIteration.dat",
                                 outputSubFolder, "", std::numeric_limits< double >::digits10, std::numeric_limits< double >::digits10, "," );
                 }
-
 
                 /////////////////////////////
                 //// CONSIDER PARAMETERS ////
@@ -1795,6 +1872,12 @@ int main( )
                 Eigen::MatrixXd considerCovarianceMatrixIncludingAsteroids;
                 unsigned int maxcovtype = 1;
 
+                if (testAmplitudePartial || testGammaPartial){
+                    input_output::writeMatrixToFile( unnormalizedPartialDerivatives, "test_unnormalizedPartialDerivatives.dat", 16, outputSubFolder );
+                    input_output::writeMatrixToFile( saveMeasurements, "ObservationMeasurements.dat", 16, outputSubFolder );
+                    continue;
+                }
+
                 // clear memory
                 podOutput = nullptr;
 
@@ -1802,6 +1885,13 @@ int main( )
                 if (gammaIsAConsiderParameter || considerPPNalphas || considerSunAngularMomentum || SunGMIsAConsiderParameter){
 
                     std::cout<< "calculating covariance due to consider parameters..."<< std::endl;
+
+                    // Reset relativity parameters such that accelerations are correct
+                    relativity::ppnParameterSet->setParameterGamma(1.0);
+                    relativity::ppnParameterSet->setParameterBeta(1.0);
+                    relativity::ppnParameterSet->setParameterAlpha1(0.0);
+                    relativity::ppnParameterSet->setParameterAlpha2(0.0);
+                    relativity::ppnParameterSet->setNordtvedtParameter(0.0);
 
                     // In order to get the partial derivatives of consider parameters wrt observations, run an estimation of the consider parameters
                     std::vector< std::shared_ptr < EstimatableParameterSettings > > considerParameterNames;
@@ -1848,7 +1938,7 @@ int main( )
                                              ("global_metric", ppn_parameter_alpha2 ) );
                     considerVarianceVector.push_back(sigmaAlpha2*sigmaAlpha2);
 
-                    if (SunGMIsAConsiderParameter){
+                    if (SunGMIsAConsiderParameter && testWithoutConsideringMu == false){
                         considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                                  ("Sun", gravitational_parameter));
                         considerVarianceVector.push_back(sigmaSunGM*sigmaSunGM);
@@ -1883,16 +1973,25 @@ int main( )
 
                     std::shared_ptr< PodInput< long double, double > > podInputConsiderParameters =
                             std::make_shared< PodInput< long double, double > >(
-                                observationsAndTimes, initialConsiderParameterEstimate.rows( ),
+                                observationsAndTimesWithoutError, initialConsiderParameterEstimate.rows( ),
                                 considerParameterAprioriCovariance.inverse(),
                                 initialConsiderParameterEstimate - truthConsiderParameters );
                     podInputConsiderParameters->defineEstimationSettings( true, false, true, true );
-                    if (includeSpacecraftPositionError == true){
-                        podInputConsiderParameters->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
-                    }
+//                    if (includeSpacecraftPositionError == true){
+//                        podInputConsiderParameters->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
+//                    }
 
                     std::shared_ptr< PodOutput< long double > > podOutputConsiderParameters = orbitDeterminationManagerConsiderParameters.estimateParameters(
-                                podInputConsiderParameters, std::make_shared< EstimationConvergenceChecker >( 1 ) );
+                                podInputConsiderParameters, std::make_shared< EstimationConvergenceChecker >( 2 ) );
+
+                    // Print true estimation error, limited mostly by numerical error
+                    Eigen::VectorXd considerEstimationError = (podOutputConsiderParameters->parameterEstimate_ - truthConsiderParameters).cast<double>();
+                    Eigen::VectorXd considerFormalError = podOutputConsiderParameters->getFormalErrorVector( ).cast<double>();
+
+                    std::cout << "True estimation error is:   " << std::endl << ( considerEstimationError ).transpose( ) << std::endl;
+                    std::cout << "Formal estimation error is: " << std::endl << ( considerFormalError ).transpose( )<< std::endl;
+                    std::cout << "True to form estimation error ratio is: " << std::endl <<
+                                 ( considerEstimationError.cwiseQuotient(  considerFormalError ) ).transpose( ) << std::endl;
 
                     Eigen::MatrixXd partialDerivativesOfConsiderParameters = // H_c
                             (podOutputConsiderParameters->getUnnormalizedPartialDerivatives()).rightCols(
@@ -2051,7 +2150,7 @@ int main( )
                     input_output::writeMatrixToFile( observationWeightDiagonal, "ObservationWeightDiagonal.dat", 16, outputSubFolder );
                 }
 
-            //        input_output::writeMatrixToFile( unnormalizedPartialDerivatives, "test_unnormalizedPartialDerivatives.dat", 16, outputSubFolder );
+
             //        input_output::writeMatrixToFile( partialDerivativesOfConsiderParameters, "test_partialDerivativesOfConsiderParameters.dat", 16, outputSubFolder );
 
             //        input_output::writeMatrixToFile( podOutput->normalizedInformationMatrix_, "EstimationInformationMatrix.dat", 16, outputSubFolder );
@@ -2061,9 +2160,6 @@ int main( )
             //        input_output::writeMatrixToFile( podOutput->getUnnormalizedCovarianceMatrix( ), "UnnormalizedCovariance.dat", 16, outputSubFolder );
 
                 // observations
-                if (runForVariousAmplitudes == false){
-                    input_output::writeDataMapToTextFile( interpolatedErrorMatrix, "interpolatedErrorMatrix.dat", outputSubFolder );
-                }
     //            input_output::writeMatrixToFile( getConcatenatedMeasurementVector( podInput->getObservationsAndTimes( ) ), "ObservationMeasurements.dat", 16, outputSubFolder );
     //            input_output::writeMatrixToFile( utilities::convertStlVectorToEigenVector( getConcatenatedTimeVector( podInput->getObservationsAndTimes( ) ) ),
     //                                             "ObservationTimes.dat", 16, outputSubFolder );

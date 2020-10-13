@@ -1,0 +1,25 @@
+{
+    "vehicle": "BepiColombo",
+
+    "initialTime": [2014, 9, 30, 0, 0, 0],
+    "finalTime": [2020, 3, 16, 0, 0, 0],
+
+    "observationInitialTime": [2019, 3, 15, 0, 0, 0],
+    "observationFinalTime": [2020, 3, 15, 0, 0, 0],
+    "observationTimeStep": 300.0,
+    "trackingArcDuration": 28800.0,
+    "maximumNumberOfTrackingDays": 1.0E6,
+    "flybyObject": [
+        2014, 10, 1, 0, 0, 0,
+        2015, 6, 23, 0, 0, 0,
+        2016, 6, 20, 0, 0, 0,
+        2017, 9, 5, 0, 0, 0,
+        2017, 12, 2, 0, 0, 0,
+        2018, 1, 9, 0, 0, 0
+    ],
+
+    "noiseAtMinAngle": 0.30,
+    "noiseAtMaxAngle": 0.30,
+    "maxMSEAngleDeg": 180.0
+
+}

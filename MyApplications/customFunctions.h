@@ -128,4 +128,7 @@ double satelliteErrorLevel( const double observationTime,
 std::map< unsigned int, std::pair< double, double > > readAsteroidsFile (
         std::string filename, std::string delimiter);
 
+std::map<double,double> castLongDoubleDoubleMapToDoubleDoubleMap(
+        std::map<long double, double> inputMap);
+
 #endif // CUSTOMFUNCTIONS_H

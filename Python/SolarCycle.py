@@ -36,17 +36,17 @@ BepiEnd = datetime.datetime(2027,5,1)
 
 
 # lets plot
-fig = plt.figure(figsize=(12,4))
+fig = plt.figure(figsize=(10,3))
 plt.plot(dates24, ssn24)
 plt.plot(dates25, ssn25)
 plt.legend(["Cycle 24", "Cycle 25 prediction"])
 
-plt.hlines(np.min(ssn24)-0.5, MessStart, MessEnd, colors='red', linewidth=3)
-plt.hlines(np.min(ssn24)-0.5, BepiStart, BepiEnd, colors='red', linewidth=3)
-plt.text(MessStart+datetime.timedelta(4.0*30.0),np.min(ssn24)+2,"MESSENGER in orbit",color="red")
-plt.text(BepiStart-datetime.timedelta(11.0*30.0),np.min(ssn24)+2,"BepiColombo in orbit",color="red")
+plt.hlines(np.min(ssn24)-0, MessStart, MessEnd, colors='red', linewidth=5)
+plt.hlines(np.min(ssn24)-0, BepiStart, BepiEnd, colors='red', linewidth=5)
+plt.text(MessStart-datetime.timedelta(1.0*30.0),np.min(ssn24)+3,"MESSENGER in orbit",color="red")
+plt.text(BepiStart-datetime.timedelta(15.0*30.0),np.min(ssn24)+3,"BepiColombo in orbit",color="red")
 
-plt.ylabel("montly smoothed sunspot number")
+plt.ylabel("monthly smoothed sunspot number")
 plt.ylim(bottom=np.min(ssn24)-1)
 plt.grid()
 plt.tight_layout()

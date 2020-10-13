@@ -1,7 +1,6 @@
 Paper,Year,Method,J2value,J2sigma,J4value,J4sigma
 Antia et al 2007,2007,Heliophysics,2.22E-07,9E-10,-3.97E-09,-9E-11
 Fivian et al 2008,2008,Heliophysics,1.65E-07,9.73E-08,0,0
-Emilio 2005,2005,Heliophysics,3.21E-05,2.08E-05,0,0
 Pitjeva 2005,2005,Planetary orbits,1.9E-07,3E-05,0,0
 Park et al 2017,2017,Planetary orbits,2.25E-07,9E-09,0,0
 Verma et al 2014,2014,Planetary orbits,2.4E-07,2E-08,0,0
@@ -12,11 +11,9 @@ Fienga et al 2019,2019,Planetary orbits,2.01E-07,1E-09,0,0
 Fienga et al 2015,2015,Planetary orbits,2.3E-07,2.5E-08,0,0
 Fienga et al 2009,2009,Planetary orbits,1.82E-07,4.9E-08,0,0
 Pitjeva & Pitjev 2014,2014,Planetary orbits,2.22E-07,2.3E-08,0,0
-Mecheri et al 2009,2009,Heliophysics,2.22E-07,0,0,0
 Mecheri et al 2009,2009,Heliophysics,2.21E-07,0,-4.46E-09,0
-Mecheri et al 2009,2009,Heliophysics,2.2E-07,0,-5.6E-09,0
-Mecheri et al 2009,2009,Heliophysics,2.2E-07,0,-4.81E-09,0
 Pijpers 1998,1998,Heliophysics,2.18E-07,6E-09,0,0
+Godier & Rozelot 1999,1999,Heliophysics,1.6E-07,4E-09,0,0
 Armstrong & Kuhn 1999,1999,Heliophysics,2.22E-07,0,-3.84E-09,0
 Roxburgh 2001,2001,Heliophysics,2.21E-07,0,-4.45E-09,0
 Pitjeva & Pavlov 2017,2017,Planetary orbits,2.37E-07,0,0,0
