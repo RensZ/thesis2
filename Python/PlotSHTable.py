@@ -10,17 +10,22 @@ dir_plots = '/home/rens/Documents/PostProcessing_plots/'
 from os import scandir, mkdir, path
 files = [f.path for f in scandir(dir_SHtable)]
 
+baseData = np.genfromtxt(dir_SHtable + "CosCoeffTable_Amp2.515576E-8_Per3.471336E8_Ph-6.686172.dat", delimiter=",")
+
+date = []
+for time in baseData[:, 0]:
+    date.append(datetime.datetime(2000, 1, 1, 12, 0) + datetime.timedelta(seconds=time))
+
 fig = plt.figure(figsize=(12,6))
+legend = []
 for f in files:
+    if f is not dir_SHtable+"CosCoeffTable_Amp2.515576E-8_Per3.471336E8_Ph-6.686172":
 
-    data = np.genfromtxt(f, delimiter=",")
+        data = np.genfromtxt(f, delimiter=",")[:,1]
+        plt.plot(date,data-baseData[:,1],linewidth=0.75)
+        legend.append(f[-50:])
 
-    date = []
-    for time in data[:,0]:
-        date.append(datetime.datetime(2000, 1, 1, 12, 0) + datetime.timedelta(seconds=time))
-
-    plt.plot(date,data[:,1],linewidth=0.75)
-
+plt.legend(legend)
 plt.grid()
 plt.tight_layout()
 plt.savefig(dir_plots+"SHtable.png")

@@ -213,24 +213,79 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
                 betaAlpha2Covariance = CovMatrix[indexbeta,indexalpha2]
                 alpha1Alpha2Covariance = CovMatrix[indexalpha1,indexalpha2]
 
-                nordtvedtFormalVariance = (4.0*betaFormalError)**2 \
-                                            +gammaFormalError**2 \
-                                            +alpha1FormalError**2 \
-                                            +((2.0/3.0)*alpha2FormalError)**2 \
-                                            -2.0*4.0*gammaBetaCovariance \
-                                            -2.0*4.0*betaAlpha1Covariance \
-                                            -2.0*4.0*(2.0/3.0)*betaAlpha2Covariance \
-                                            +2.0*gammaAlpha1Covariance \
-                                            +2.0*(2.0/3.0)*gammaAlpha2Covariance \
-                                            +2.0*(2.0/3.0)*alpha1Alpha2Covariance
+                nordtvedtFormalVariance = gammaFormalError**2 \
+                                            + (4.0*betaFormalError)**2 \
+                                            + alpha1FormalError**2 \
+                                            + ((2.0/3.0)*alpha2FormalError)**2 \
+                                            + 2.0*(-1.0)*4.0*gammaBetaCovariance \
+                                            + 2.0 * (-1.0) * (-1.0) * gammaAlpha1Covariance \
+                                            + 2.0 * (-1.0) * (-2.0 / 3.0) * gammaAlpha2Covariance \
+                                            + 2.0*4.0*(-1.0)*betaAlpha1Covariance \
+                                            + 2.0*4.0*(-2.0/3.0)*betaAlpha2Covariance \
+                                            + 2.0*(-1.0)*(-2.0/3.0)*alpha1Alpha2Covariance
+
+            elif json_input["ppnAlphasAreConsiderParameters"]:
+                print("   alphas are considered parameters")
+
+                if json_input["outputSubFolderName"] == "Schettino2015":
+                    correlationEstimationWithAlphas = np.genfromtxt(
+                        "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Output/Schettino2015_alphas/EstimationCorrelations.dat")
+                elif json_input["outputSubFolderName"] == "Imperi2018_nvtrue":
+                    correlationEstimationWithAlphas = np.genfromtxt(
+                        "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Output/Imperi2018_nvtrue_flybys_alphas/EstimationCorrelations.dat")
+                elif json_input["outputSubFolderName"] == "Imperi2018_nvfalse":
+                    correlationEstimationWithAlphas = np.genfromtxt(
+                        "/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Output/Imperi2018_nvfalse_flybys_alphas/EstimationCorrelations.dat")
+                else:
+                    print("ERROR? ", json_input["outputSubFolderName"])
+
+                alpha1FormalError = json_input["sigma_alpha1"]
+                alpha2FormalError = json_input["sigma_alpha2"]
+
+                gammaAlpha1Covariance = 0.0 # correlationEstimationWithAlphas[6,8]*gammaFormalError*alpha1FormalError
+                gammaAlpha2Covariance = 0.0 # correlationEstimationWithAlphas[6,9]*gammaFormalError*alpha2FormalError
+                betaAlpha1Covariance = 0.0 # correlationEstimationWithAlphas[7,8]*betaFormalError*alpha1FormalError
+                betaAlpha2Covariance = 0.0 # correlationEstimationWithAlphas[7,9]*betaFormalError*alpha2FormalError
+                alpha1Alpha2Covariance = 0.0 # correlationEstimationWithAlphas[8,9]*alpha1FormalError*alpha2FormalError
+
+                print(gammaFormalError**2, (4.0*betaFormalError)**2, alpha1FormalError**2, ((2.0/3.0)*alpha2FormalError)**2 ,
+                      -8.0*gammaBetaCovariance, 2.0*gammaAlpha1Covariance, (4.0/3.0)*gammaAlpha2Covariance,
+                      -8.0*betaAlpha1Covariance, (-16.0/3.0)*betaAlpha2Covariance, (4.0/3.0)*alpha1Alpha2Covariance)
+
+                nordtvedtFormalVariance = gammaFormalError**2 \
+                                            + (4.0*betaFormalError)**2 \
+                                            + alpha1FormalError**2 \
+                                            + ((2.0/3.0)*alpha2FormalError)**2 \
+                                            + 2.0*(-1.0)*4.0*gammaBetaCovariance \
+                                            + 2.0 * (-1.0) * (-1.0) * gammaAlpha1Covariance \
+                                            + 2.0 * (-1.0) * (-2.0 / 3.0) * gammaAlpha2Covariance \
+                                            + 2.0*4.0*(-1.0)*betaAlpha1Covariance \
+                                            + 2.0*4.0*(-2.0/3.0)*betaAlpha2Covariance \
+                                            + 2.0*(-1.0)*(-2.0/3.0)*alpha1Alpha2Covariance
             # elif json_input["ppnAlphasAreConsiderParameters"]:
             #     print("   alphas are considered parameters")
+            #
+            #     covarianceOutputConsiderEstimation = np.genfromtxt(dir_output + "CovarianceOutputConsiderCovarianceEstimation.dat")
+            #     gammaAlpha1Covariance = covarianceOutputConsiderEstimation[7,8]
+            #     gammaAlpha2Covariance = covarianceOutputConsiderEstimation[7,9]
+            #     betaAlpha1Covariance = covarianceOutputConsiderEstimation[6,8]
+            #     betaAlpha2Covariance = covarianceOutputConsiderEstimation[6,9]
+            #     alpha1Alpha2Covariance = covarianceOutputConsiderEstimation[8,9]
+            #
+            #     alpha1FormalError = json_input["sigma_alpha1"]
+            #     alpha2FormalError = json_input["sigma_alpha2"]
+            #
             #     nordtvedtFormalVariance = (4.0*betaFormalError)**2 \
-            #                               +gammaFormalError**2 \
-            #                               -2.0*4.0*gammaBetaCovariance
-            #     print("   nordtvedt formal error without alpha:", np.sqrt(nordtvedtFormalVariance))
-            #     nordtvedtFormalVariance += json_input["sigma_alpha1"]**2 + (2.0/3.0)*json_input["sigma_alpha2"]**2 #covariance between alpha's and others ignored.
-            #     print("   nordtvedt formal error with alpha:", np.sqrt(nordtvedtFormalVariance))
+            #                                 +gammaFormalError**2 \
+            #                                 +alpha1FormalError**2 \
+            #                                 +((2.0/3.0)*alpha2FormalError)**2 \
+            #                                 -2.0*4.0*gammaBetaCovariance \
+            #                                 -2.0*4.0*betaAlpha1Covariance \
+            #                                 -2.0*4.0*(2.0/3.0)*betaAlpha2Covariance \
+            #                                 +2.0*gammaAlpha1Covariance \
+            #                                 +2.0*(2.0/3.0)*gammaAlpha2Covariance \
+            #                                 +2.0*(2.0/3.0)*alpha1Alpha2Covariance
+
             else:
                 print("   alphas are neglected")
                 nordtvedtFormalVariance = (4.0*betaFormalError)**2 \
@@ -248,6 +303,7 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
             estimatedValues.append(nordtvedt[bestResidualsIndex])
             trueErrors.append(nordtvedt[bestResidualsIndex])
 
+
             if useformalsigmas:
                 fs = json_input["formalSigma_Nordtvedt"]
                 paperFormalSigmas.append(fs)
@@ -255,13 +311,32 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
 
 
         if useformalsigmas:
-            df = pd.DataFrame(data={"parameter":parameters2,
-                                    "apriori er.":aPrioriSigmas,
-                                    # "est. value:":estimatedValues,
-                                    "formal er.":outputFormalSigmas,
-                                    "f/a improvement":factorOfImprovement,
-                                    "paper formal er.":paperFormalSigmas,
-                                    "f/p ratio":ratioFormalSigmas})
+            if consider > 0:
+                originalTrueToFormalRatio = np.asarray(trueToFormalRatio)
+                percentageIncreaseFormalErrors = 100.0 * (np.asarray(outputFormalSigmas) - originalFormalError) / originalFormalError
+                df = pd.DataFrame(data={"parameter":parameters2,
+                                        "apriori er.":aPrioriSigmas,
+                                        "true er.":trueErrors,
+                                        "formal er.": outputFormalSigmas,
+                                        "t/f ratio": trueToFormalRatio,
+                                        # "est. value:":estimatedValues,
+                                        "f/a improvement":factorOfImprovement,
+                                        "paper formal er.":paperFormalSigmas,
+                                        "f/p ratio":ratioFormalSigmas})
+                #df["incr. due to C.C."].map(lambda x: '{0:.2f}'.format(x))
+            else:
+                originalFormalError = np.asarray(outputFormalSigmas)
+                trueToFormalRatio = np.abs(np.asarray(trueErrors) / np.asarray(outputFormalSigmas))
+                df = pd.DataFrame(data={"parameter":parameters2,
+                                        "apriori er.":aPrioriSigmas,
+                                        "true er.":trueErrors,
+                                        "formal er.": outputFormalSigmas,
+                                        "t/f ratio":trueToFormalRatio,
+                                        # "est. value:":estimatedValues,
+                                        "f/a improvement":factorOfImprovement,
+                                        "paper formal er.":paperFormalSigmas,
+                                        "f/p ratio":ratioFormalSigmas})
+
             df['f/p ratio'] = df['f/p ratio'].map(lambda x: '{0:.3f}'.format(x))
 
         else:
@@ -272,17 +347,16 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
                                     "formal er.":outputFormalSigmas,
                                     "f/a improvement":factorOfImprovement})
 
-        if consider>0:
-            percentageIncreaseFormalErrors = 100.0*(np.asarray(outputFormalSigmas)-originalFormalError)/originalFormalError
-            df["incr. due to C.C."] = percentageIncreaseFormalErrors
-            df["incr. due to C.C."].map(lambda x: '{0:.2f}'.format(x))
-            df["t/f ratio"] = originalTrueToFormalRatio
-        else:
-            originalFormalError = np.asarray(outputFormalSigmas)
-            trueToFormalRatio = np.abs(np.asarray(trueErrors) / np.asarray(outputFormalSigmas))
-            df["true er."] = trueErrors
-            df["t/f ratio"] = trueToFormalRatio
-            originalTrueToFormalRatio = np.asarray(trueToFormalRatio)
+        # if consider>0:
+        #     percentageIncreaseFormalErrors = 100.0*(np.asarray(outputFormalSigmas)-originalFormalError)/originalFormalError
+        #     df["incr. due to C.C."] = percentageIncreaseFormalErrors
+        #     df["incr. due to C.C."].map(lambda x: '{0:.2f}'.format(x))
+        #     df["t/f ratio"] = originalTrueToFormalRatio
+        # else:
+        #
+        #     df["true er."] = trueErrors
+        #     df["t/f ratio"] = trueToFormalRatio
+
 
         df['f/a improvement'] = df['f/a improvement'].map(lambda x: '{0:.2f}'.format(x))
         df['t/f ratio'] = df['t/f ratio'].map(lambda x: '{0:.2f}'.format(x))

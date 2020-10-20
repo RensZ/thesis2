@@ -70,7 +70,7 @@ int main( )
     unsigned int maximumDegreeSunGravitationalMomentVariation = 2;
 
     // Parameter estimation settings
-    const unsigned int maximumNumberOfIterations = 6;
+    const unsigned int maximumNumberOfIterations = 5;
     const double sigmaPosition = 1000.0; //educated guess
     const double sigmaVelocity = 1.0; //educated guess
     const bool ignoreNordtvedtConstraintInEstimation = true;
@@ -123,16 +123,17 @@ int main( )
 
     // Load json input
     std::vector< std::string > filenames;
-    filenames.push_back("inputs_Schettino2015_alphas.json"); // 2
-    filenames.push_back("inputs_Imperi2018_nvtrue_flybys_alphas.json"); // 4
-    filenames.push_back("inputs_Imperi2018_nvfalse_flybys_alphas.json"); // 6
     filenames.push_back("inputs_Genova2018.json"); // 0
     filenames.push_back("inputs_Schettino2015.json"); // 1
-//    filenames.push_back("inputs_Imperi2018_nvtrue_flybys.json"); // 2
-//    filenames.push_back("inputs_Imperi2018_nvfalse_flybys.json"); // 3
     filenames.push_back("inputs_Imperi2018_nvtrue.json"); // 4
     filenames.push_back("inputs_Imperi2018_nvfalse.json"); // 5
 
+    filenames.push_back("inputs_Schettino2015_alphas.json"); // 2
+    filenames.push_back("inputs_Imperi2018_nvtrue_flybys_alphas.json"); // 4
+    filenames.push_back("inputs_Imperi2018_nvfalse_flybys_alphas.json"); // 6
+
+//    filenames.push_back("inputs_Imperi2018_nvtrue_flybys.json"); // 2
+//    filenames.push_back("inputs_Imperi2018_nvfalse_flybys.json"); // 3
 
 //    filenames.push_back("inputs_Genova2018_estimateAngularMomentum.json"); // 7
 //    filenames.push_back("inputs_Genova2018_considerAngularMomentum.json"); // 8
@@ -242,6 +243,10 @@ int main( )
         if (testGMSunAsConsiderParameter){
             outputSubFolder += "_testGMSunAsConsiderParameter";
         }
+        if (ignoreNordtvedtConstraintInEstimation == false){
+            outputSubFolder += "_enforceNordtvedtConstraint";
+        }
+
 
         // settings time variable gravitational moments
         double J2amplitude = sunJ2/2.0;
@@ -1356,7 +1361,15 @@ int main( )
                 }
             }
 
-            if ( gammaIsAConsiderParameter == true ){
+//            // add gamma and beta regardless, because we need a covariance between the PPN parameters to calculate the formal variance of eta
+//            if ( ppnAlphasAreConsiderParameters){
+//                considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+//                                         ("global_metric", ppn_parameter_beta ) );
+//                considerVarianceVector.push_back(sigmaBeta*sigmaBeta);
+//            }
+
+//            if ( ppnAlphasAreConsiderParameters || gammaIsAConsiderParameter ){
+            if ( gammaIsAConsiderParameter ){
                 considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
                                          ("global_metric", ppn_parameter_gamma ) );
                 considerVarianceVector.push_back(sigmaGamma*sigmaGamma);
@@ -1422,12 +1435,28 @@ int main( )
                         truthConsiderParameters.size()-6*numberOfNumericalBodies);
 
             // calculate covariance matrix including contribution from consider parameters
+            unsigned int startInt;
+//            if ( ppnAlphasAreConsiderParameters && gammaIsAConsiderParameter == false){
+//                startInt = 8;
+//            } else if ( ppnAlphasAreConsiderParameters && gammaIsAConsiderParameter){
+//                startInt = 7;
+//            } else{
+                startInt = 6;
+//            }
+
             considerCovarianceMatrix = calculateConsiderCovarianceMatrix(
                         initialCovarianceMatrix, observationWeightDiagonal,
-                        considerParameterAprioriCovariance.block(6,6,considerParameterAprioriCovariance.rows()-6, considerParameterAprioriCovariance.cols()-6),
+                        considerParameterAprioriCovariance.block(startInt,startInt,considerParameterAprioriCovariance.rows()-startInt, considerParameterAprioriCovariance.cols()-startInt),
                         unnormalizedPartialDerivatives, partialDerivativesOfConsiderParameters,
                         outputSubFolder);
 
+//            // save covariance of this estimation run
+//            if ( ppnAlphasAreConsiderParameters ){
+//                Eigen::MatrixXd covarianceOutputConsiderCovarianceEstimation
+//                        = podOutputConsiderParameters->getUnnormalizedCovarianceMatrix( );
+//                input_output::writeMatrixToFile( covarianceOutputConsiderCovarianceEstimation,
+//                                                 "CovarianceOutputConsiderCovarianceEstimation.dat", 16, outputSubFolder );
+//            }
 
             // get consider correlation matrix
             Eigen::VectorXd formalErrorWithConsiderParameters = considerCovarianceMatrix.diagonal( ).cwiseSqrt( );
@@ -1570,7 +1599,7 @@ int main( )
 //        input_output::writeMatrixToFile( partialDerivativesOfConsiderParameters, "test_partialDerivativesOfConsiderParameters.dat", 16, outputSubFolder );
 
 //        input_output::writeMatrixToFile( podOutput->normalizedInformationMatrix_, "EstimationInformationMatrix.dat", 16, outputSubFolder );
-//        input_output::writeMatrixToFile( podOutput->informationMatrixTransformationDiagonal_, "EstimationInformationMatrixNormalization.dat", 16, outputSubFolder );
+        input_output::writeMatrixToFile( podOutput->informationMatrixTransformationDiagonal_, "EstimationInformationMatrixNormalization.dat", 16, outputSubFolder );
 //        input_output::writeMatrixToFile( podInput->getInverseOfAprioriCovariance( ), "InverseAPrioriCovariance.dat", 16, outputSubFolder );
 //        input_output::writeMatrixToFile( podOutput->inverseNormalizedCovarianceMatrix_, "InverseNormalizedCovariance.dat", 16, outputSubFolder );
 //        input_output::writeMatrixToFile( podOutput->getUnnormalizedCovarianceMatrix( ), "UnnormalizedCovariance.dat", 16, outputSubFolder );

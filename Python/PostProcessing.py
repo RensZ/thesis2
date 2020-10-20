@@ -6,17 +6,21 @@ Purpose: wrapper file for all the post-processing of thesis_v1.cpp
 """
 
 from os import mkdir, path
+from matplotlib.pyplot import close
 
 ################
 #### INPUTS ####
 ################
 
 publication_string = [# "Genova2018_testGMSunAsConsiderParameter",
-                      "Genova2018",
+                      "Schettino2015_enforceNordtvedtConstraint",
+                      "Imperi2018_nvtrue_enforceNordtvedtConstraint",
+                      "Imperi2018_nvtrue_flybys_alphas_enforceNordtvedtConstraint",
+                      "Genova2018_enforceNordtvedtConstraint",
+                      "Schettino2015",
                       "Imperi2018_nvtrue",
                       "Imperi2018_nvfalse",
-                      # "Schettino2015_testGMSunAsConsiderParameter",
-                      "Schettino2015",
+                      "Genova2018",
                       "Schettino2015_alphas",
                       "Imperi2018_nvtrue_flybys_alphas",
                       "Imperi2018_nvfalse_flybys_alphas",
@@ -51,6 +55,20 @@ for ps in publication_string:
     else:
         no_bodies = 1
         ps_json = ps
+
+    enforceNordtvedtConstraint = False
+    if ps == "Schettino2015_enforceNordtvedtConstraint":
+        ps_json = "Schettino2015"
+        enforceNordtvedtConstraint = True
+    if ps == "Imperi2018_nvtrue_enforceNordtvedtConstraint":
+        ps_json = "Imperi2018_nvtrue"
+        enforceNordtvedtConstraint = True
+    if ps == "Imperi2018_nvtrue_flybys_alphas_enforceNordtvedtConstraint":
+        ps_json = "Imperi2018_nvtrue_flybys_alphas"
+        enforceNordtvedtConstraint = True
+    if ps == "Genova2018_enforceNordtvedtConstraint":
+        ps_json = "Genova2018"
+        enforceNordtvedtConstraint = True
 
     if ps == "Genova2018_testGamma" or ps == "Genova2018_testCeres" or ps == "Genova2018_testGMSunAsConsiderParameter":
         ps_json = "Genova2018"
@@ -113,7 +131,7 @@ for ps in publication_string:
 
     if json_input["includeSEPViolationAcceleration"]:
         dependent_variables.append("Sun_SEP")
-        if not json_input["useNordtvedtConstraint"]: #comment this line if nordtvedt is enforced in the estimation
+        if json_input["useNordtvedtConstraint"] == False or enforceNordtvedtConstraint == True: #comment this line if nordtvedt is enforced in the estimation
             parameters.append("Nordtvedt")
 
 
@@ -185,6 +203,8 @@ for ps in publication_string:
     import CheckWeights
     CheckWeights.f(dir_cpp_output, dir_plots)
 
+    close('all')
+
     # Plot integration error
     print("---- making plots of the integration errors wrt SPICE and backwards integration ----" )
     import IntegrationErrorWrtSPICE
@@ -199,6 +219,8 @@ for ps in publication_string:
     print("---- making plots of parameter estimation history ----")
     import ParameterHistory
     ParameterHistory.f(dir_cpp_output, dir_plots, parameters, no_bodies, json_input, True)
+
+    close('all')
 
     # Make correlation heat map
     print("---- making heat map of parameter correlations ----")
@@ -217,6 +239,6 @@ for ps in publication_string:
     import InterpolatedErrors
     InterpolatedErrors.f(dir_cpp_output, dir_plots, bodies[0], no_arcs, vehicle)
 
-    from matplotlib.pyplot import close
+
     close('all')
 

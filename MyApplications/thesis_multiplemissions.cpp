@@ -84,6 +84,7 @@ int main( )
     const bool estimateJ4Period = false;
     const bool estimateJ4Phase = false;
     bool SunGMIsAConsiderParameter = true;
+    const bool useCentralDifferencePartialsForAmplitude = true;
 
     // Parameter estimation settings
     unsigned int maximumNumberOfIterations = 5;
@@ -125,9 +126,8 @@ int main( )
         valuesToRunFor = input_output::readMatrixFromFile("/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/J4Inputs.txt");
         std::cout<<"runnning for J4 values: "<<valuesToRunFor.transpose()<<std::endl;
     } else if (testAmplitudePartial || testGammaPartial){
-        valuesToRunFor = Eigen::VectorXd::Zero(3);
-        valuesToRunFor(0) = -0.1;
-        valuesToRunFor(2) = 0.1;
+        valuesToRunFor = input_output::readMatrixFromFile("/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/AmplitudeInputs3.txt");
+        std::cout<<"runnning for amplitude deltas: "<<valuesToRunFor.transpose()<<std::endl;
     } else{
         valuesToRunFor = Eigen::VectorXd::Zero(1);
     }
@@ -220,7 +220,7 @@ int main( )
         for (unsigned int s = 0; s<scenarioPairs.size(); s++){
             for (unsigned int f = 0; f<filenames.size(); f++){
 
-//                if( a==12 && f<2 ){
+//                if( a<7 ){
 //                    continue;
 //                }
 
@@ -627,6 +627,7 @@ int main( )
                     }
                     relativity::variableJ2Interface->setPeriod(periodsSunGravitationalMomentsVariation(2));
                     relativity::variableJ2Interface->setPhase(phasesSunGravitationalMomentsVariation(2));
+//                    relativity::variableJ2Interface->setMeanJ2(valuesSunGravitationalMoments(2));
 
                     std::function< double() > amplitudeFunctionJ2 =
                             std::bind( &relativity::VariableJ2Interface::getAmplitude, relativity::variableJ2Interface );
@@ -1200,6 +1201,7 @@ int main( )
                 }
 
 
+
                 ////////////////////////////////
                 //// CREATE GROUND STATIONS ////
                 ////////////////////////////////
@@ -1722,6 +1724,12 @@ int main( )
                 }
                 saveErrorSamples.clear();
 
+
+                if ((testAmplitudePartial || testGammaPartial) && a>0){
+                    input_output::writeMatrixToFile( saveMeasurements, "ObservationMeasurements.dat", 16, outputSubFolder );
+                    continue;
+                }
+
                 /////////////////////////////
                 //// ESTIMATE PARAMETERS ////
                 /////////////////////////////
@@ -1795,7 +1803,8 @@ int main( )
                 podInput->defineEstimationSettings( true,
                                                     reintegrateVariationalEquations,
                                                     true, true, true, true,
-                                                    enforceNordtvedtConstraintInEstimation );
+                                                    enforceNordtvedtConstraintInEstimation,
+                                                    useCentralDifferencePartialsForAmplitude );
                 if (includeSpacecraftPositionError == true){
                     podInput->manuallySetObservationWeightMatrix(observationWeightsAndTimes);
                 }
@@ -1917,11 +1926,16 @@ int main( )
                         }
     //                }
 
-                    if ( gammaIsAConsiderParameter == true ){
-                        considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
-                                                 ("global_metric", ppn_parameter_gamma ) );
-                        considerVarianceVector.push_back(sigmaGamma*sigmaGamma);
-                    }
+                    // add gamma and beta regardless, because we need a covariance between the PPN parameters to calculate the formal variance of eta
+//                    considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+//                                             ("global_metric", ppn_parameter_beta ) );
+//                    considerVarianceVector.push_back(sigmaBeta*sigmaBeta);
+
+                if ( gammaIsAConsiderParameter == true ){
+                    considerParameterNames.push_back(std::make_shared<EstimatableParameterSettings >
+                                             ("global_metric", ppn_parameter_gamma ) );
+                    considerVarianceVector.push_back(sigmaGamma*sigmaGamma);
+                }
 
                     std::cout<<calculateLenseThirringCorrection<<considerSunAngularMomentum<<std::endl;
                     if ( calculateLenseThirringCorrection && considerSunAngularMomentum ){
@@ -1998,11 +2012,25 @@ int main( )
                                 truthConsiderParameters.size()-6*numberOfNumericalBodies);
 
                     // calculate covariance matrix including contribution from consider parameters
-                    considerCovarianceMatrix = calculateConsiderCovarianceMatrix(
-                                initialCovarianceMatrix, observationWeightDiagonal,
-                                considerParameterAprioriCovariance.block(6,6,considerParameterAprioriCovariance.rows()-6, considerParameterAprioriCovariance.cols()-6),
-                                unnormalizedPartialDerivatives, partialDerivativesOfConsiderParameters,
-                                outputSubFolder);
+//                    if (gammaIsAConsiderParameter){
+//                        considerCovarianceMatrix = calculateConsiderCovarianceMatrix(
+//                                    initialCovarianceMatrix, observationWeightDiagonal,
+//                                    considerParameterAprioriCovariance.block(7,7,considerParameterAprioriCovariance.rows()-7, considerParameterAprioriCovariance.cols()-7),
+//                                    unnormalizedPartialDerivatives, partialDerivativesOfConsiderParameters,
+//                                    outputSubFolder);
+//                    } else{
+                        considerCovarianceMatrix = calculateConsiderCovarianceMatrix(
+                                    initialCovarianceMatrix, observationWeightDiagonal,
+                                    considerParameterAprioriCovariance.block(6,6,considerParameterAprioriCovariance.rows()-6, considerParameterAprioriCovariance.cols()-6),
+                                    unnormalizedPartialDerivatives, partialDerivativesOfConsiderParameters,
+                                    outputSubFolder);
+//                    }
+
+                    // save covariance of this estimation run
+                    Eigen::MatrixXd covarianceOutputConsiderCovarianceEstimation
+                            = podOutputConsiderParameters->getUnnormalizedCovarianceMatrix( );
+                    input_output::writeMatrixToFile( covarianceOutputConsiderCovarianceEstimation,
+                                                     "CovarianceOutputConsiderCovarianceEstimation.dat", 16, outputSubFolder );
 
                     // get consider correlation matrix
                     Eigen::VectorXd formalErrorWithConsiderParameters = considerCovarianceMatrix.diagonal( ).cwiseSqrt( );

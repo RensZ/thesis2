@@ -35,7 +35,7 @@ for s in subdirs:
     print(" ")
     print(">>>> FOR INPUTS OF PUBLICATION:", s)
 
-    onlyThesePlease = ["PaperInputsTest554_reality3_estimation3"]
+    onlyThesePlease = ["PaperInputs_reality3_estimation3"]
     if s[len(dir_output):] not in onlyThesePlease:
         continue
 
