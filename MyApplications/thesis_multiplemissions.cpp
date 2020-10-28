@@ -84,7 +84,7 @@ int main( )
     const bool estimateJ4Period = false;
     const bool estimateJ4Phase = false;
     bool SunGMIsAConsiderParameter = true;
-    const bool useCentralDifferencePartialsForAmplitude = true;
+    const bool useCentralDifferencePartialsForAmplitude = false;
 
     // Parameter estimation settings
     unsigned int maximumNumberOfIterations = 5;
@@ -108,12 +108,14 @@ int main( )
     const bool testWithoutConsideringMu = false;
     const bool testAmplitudePartial = false;
     const bool testGammaPartial = false;
+    const bool testReverseIntegration = false;
 
 
     // for final section results
     bool runForVariousAmplitudes = false;
     bool runForVariousAmplitudesDelta = false;
     bool runForVariousJ4Values = false;
+    bool changeWithFormalError = true; //gamma, beta, eta, J2, dotGM/GM
 
     Eigen::VectorXd valuesToRunFor;
     if (runForVariousAmplitudes){
@@ -128,6 +130,9 @@ int main( )
     } else if (testAmplitudePartial || testGammaPartial){
         valuesToRunFor = input_output::readMatrixFromFile("/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/AmplitudeInputs3.txt");
         std::cout<<"runnning for amplitude deltas: "<<valuesToRunFor.transpose()<<std::endl;
+    } else if (changeWithFormalError){
+        valuesToRunFor = input_output::readMatrixFromFile("/home/rens/tudatBundle/tudatApplications/thesis/MyApplications/Input/changeWithFormalError.txt");
+        std::cout<<"changing parameters with following values to check integration: "<<valuesToRunFor.transpose()<<std::endl;
     } else{
         valuesToRunFor = Eigen::VectorXd::Zero(1);
     }
@@ -208,8 +213,8 @@ int main( )
 
     // scenario pairs
     std::vector< std::pair<int,int> > scenarioPairs;
-//    scenarioPairs.push_back(std::make_pair(1,1));
-    scenarioPairs.push_back(std::make_pair(3,3));
+    scenarioPairs.push_back(std::make_pair(1,1));
+//    scenarioPairs.push_back(std::make_pair(3,3));
 //    scenarioPairs.push_back(std::make_pair(3,1));
 //    scenarioPairs.push_back(std::make_pair(1,3));
 //    scenarioPairs.push_back(std::make_pair(2,2));
@@ -220,7 +225,7 @@ int main( )
         for (unsigned int s = 0; s<scenarioPairs.size(); s++){
             for (unsigned int f = 0; f<filenames.size(); f++){
 
-//                if( a<7 ){
+//                if( ( a<18 ) || (a==18 && f<2) ){
 //                    continue;
 //                }
 
@@ -240,9 +245,9 @@ int main( )
                 std::cout<<"---- estimation scenario: "<<printScenario(estimationScenario)<<std::endl;
                 std::cout<<"---- amplitude: "<<valuesToRunFor(a)<<" (entry "<<a<<")"<<std::endl;
 
-//                if (estimationScenario == 3 || realityScenario == 3){
-//                    maximumNumberOfIterations = 10; //for the wonky amplitude errors
-//                }
+                if (estimationScenario == 3 || realityScenario == 3){
+                    maximumNumberOfIterations = 10; //for the wonky amplitude errors
+                }
                 if (input_filename == "inputs_multiplemissions_AttemptWithMu.json"){
                     SunGMIsAConsiderParameter = false;
                 }
@@ -278,11 +283,14 @@ int main( )
                     solarMinimumEpoch += 0.5*solarCycleDuration;
                 }
                 if (testWithoutEstimatingJ2){outputSubFolder += "_testWithoutEstimatingJ2";}
-                if (runForVariousAmplitudes){outputSubFolder += "_amp"+std::to_string(a);}
                 if (testWithoutAngularMomentum){outputSubFolder += "_testWithoutAngularMomentum";}
                 if (testWithoutConsideringMu){outputSubFolder += "_testWithoutConsideringMu";}
                 if (runForVariousAmplitudesDelta){outputSubFolder += "_runForVariousAmplitudesDelta";}
                 if (runForVariousJ4Values){outputSubFolder += "runForVariousJ4Values";}
+                if (changeWithFormalError){outputSubFolder += "changeWithFormalError";}
+                if (testReverseIntegration){outputSubFolder += "_testReverseIntegration";}
+
+                if (runForVariousAmplitudes){outputSubFolder += "_amp"+std::to_string(a);}
                 if (testAmplitudePartial){outputSubFolder += "_testAmplitudePartial"+std::to_string(a);}
                 if (testGammaPartial){outputSubFolder += "_testGammaPartial"+std::to_string(a);}
 
@@ -295,7 +303,8 @@ int main( )
                 // Retrieve input parameters including uncertainties and apriori values
                 const double sunAngularMomentum = json_input["sunAngularMomentum"];
                 const double sunGravitationalParameter = json_input["sunGravitationalParameter"];
-                const double timeVaryingGravitationalParameter = json_input["timeVaryingGravitationalParameter"];
+                double timeVaryingGravitationalParameter = json_input["timeVaryingGravitationalParameter"];
+                if (changeWithFormalError && a==4){timeVaryingGravitationalParameter += valuesToRunFor(a);}
                 const double sigmaSunAngularMomentum = json_input["sigma_S_Sun"];
                 const double sigmaGamma = json_input["sigma_gamma"];
                 const double sigmaBeta = json_input["sigma_beta"];
@@ -306,7 +315,8 @@ int main( )
                 const double sigmaTVGP = json_input["sigma_TVGP"];
 
                 const double unnormalisedSunJ2 = json_input["sunJ2"];
-                const double sunJ2 = unnormalisedSunJ2 / calculateLegendreGeodesyNormalizationFactor(2,0);
+                double extraSunJ2 = 0.0; if (changeWithFormalError && a==3){extraSunJ2 = valuesToRunFor(a);}
+                const double sunJ2 = (unnormalisedSunJ2 + extraSunJ2) / calculateLegendreGeodesyNormalizationFactor(2,0);
                 const double sigmaUnnormalisedSunJ2 = 1.0E-7; //json_input["sigma_J2_Sun"];
                 const double sigmaSunJ2 = sigmaUnnormalisedSunJ2 / calculateLegendreGeodesyNormalizationFactor(2,0); // High numerical errors with more accurate apriori values?!
                 const double unnormalisedSunJ4 = json_input["sunJ4"];
@@ -743,6 +753,16 @@ int main( )
                 relativity::ppnParameterSet->setParameterAlpha2(0.0);
                 relativity::ppnParameterSet->setNordtvedtParameter(0.0);
 
+                if (changeWithFormalError){
+                    if (a == 0){
+                        relativity::ppnParameterSet->setParameterGamma(1.0+valuesToRunFor(a));
+                    } else if (a == 1) {
+                        relativity::ppnParameterSet->setParameterBeta(1.0+valuesToRunFor(a));
+                    } else if (a == 2) {
+                        relativity::ppnParameterSet->setNordtvedtParameter(valuesToRunFor(a));
+                    }
+                }
+
         //        std::shared_ptr< ephemerides::RotationalEphemeris > sunRotationalEphemeris
         //                = bodyMap.at("Sun")->getRotationalEphemeris();
         //        Eigen::Matrix3d localSunFrameToGlobalFrame =
@@ -903,18 +923,25 @@ int main( )
 
     //            } else{
 
-                    // Get initial state of bodies to be propagated
+                // Define propagator settings.
+                std::shared_ptr< PropagationTimeTerminationSettings > terminationSettings;
+                if (testReverseIntegration){
+                    systemInitialState = getInitialStatesOfBodies(
+                                bodiesToPropagate, centralBodies, bodyMap, finalSimulationTime )
+                                    .cast<long double>();
+                    terminationSettings =
+                         std::make_shared< propagators::PropagationTimeTerminationSettings >( initialSimulationTime, true );
+                } else{
                     systemInitialState = getInitialStatesOfBodies(
                                 bodiesToPropagate, centralBodies, bodyMap, initialSimulationTime )
                                     .cast<long double>();
-
-                    // Define propagator settings.
-                    std::shared_ptr< PropagationTimeTerminationSettings > terminationSettings =
+                     terminationSettings =
                           std::make_shared< propagators::PropagationTimeTerminationSettings >( finalSimulationTime, true );
+                }
 
-                    propagatorSettings = std::make_shared< TranslationalStatePropagatorSettings< long double > >
-                            ( centralBodies, accelerationModelMap, bodiesToPropagate,
-                              systemInitialState, terminationSettings, propagator, dependentVariablesToSave);
+                propagatorSettings = std::make_shared< TranslationalStatePropagatorSettings< long double > >
+                        ( centralBodies, accelerationModelMap, bodiesToPropagate,
+                          systemInitialState, terminationSettings, propagator, dependentVariablesToSave);
 
     //            }
 
@@ -932,6 +959,12 @@ int main( )
                             RungeKuttaCoefficients::CoefficientSets::rungeKuttaFehlberg78,
                             -1.0*minimumStepSize, -1.0*maximumStepSize,
                             relativeErrorTolerence, absoluteErrorTolerence);
+
+                if (testReverseIntegration){
+                   std::shared_ptr< IntegratorSettings< double> > dummyIntegratorSettings = integratorSettings;
+                   integratorSettings = backwardIntegratorSettings;
+                   backwardIntegratorSettings = dummyIntegratorSettings;
+                }
 
             //    std::shared_ptr< IntegratorSettings< > > integratorSettings =
             //            std::make_shared< IntegratorSettings< > >
@@ -1027,7 +1060,7 @@ int main( )
 
     //            }
 
-                if( runForVariousAmplitudesDelta || runForVariousJ4Values ){
+                if( runForVariousAmplitudesDelta || runForVariousJ4Values || changeWithFormalError ){
                     input_output::writeDataMapToTextFile(
                                 onlyEveryXthValueFromDataMap( allBodiesPropagationHistory[ 0 ], onlyEveryXthValue),
                                 "StatePropagationHistory" + std::to_string(a) + ".dat",
@@ -1152,30 +1185,37 @@ int main( )
 
         //            } else{
 
-                        backwardTerminationSettings = std::make_shared< propagators::PropagationTimeTerminationSettings >( initialSimulationTime, true );
+                    Eigen::Matrix<long double, Eigen::Dynamic, 1> systemFinalState;
 
-                        Eigen::Matrix<long double, Eigen::Dynamic, 1> systemFinalState = integrationResult.at(finalSimulationTime);
-
+                    if (testReverseIntegration){
+                        backwardTerminationSettings = std::make_shared< propagators::PropagationTimeTerminationSettings >( finalSimulationTime, true );
+                        systemFinalState = integrationResult.at(initialSimulationTime);
                         backwardPropagatorSettings = std::make_shared< TranslationalStatePropagatorSettings< long double > >
                                 ( centralBodies, accelerationModelMap, bodiesToPropagate,
                                   systemFinalState, backwardTerminationSettings, propagator);
+                    } else{
+                        backwardTerminationSettings = std::make_shared< propagators::PropagationTimeTerminationSettings >( initialSimulationTime, true );
+                        systemFinalState = integrationResult.at(finalSimulationTime);
+                        backwardPropagatorSettings = std::make_shared< TranslationalStatePropagatorSettings< long double > >
+                                ( centralBodies, accelerationModelMap, bodiesToPropagate,
+                                  systemFinalState, backwardTerminationSettings, propagator);
+                    }
 
+                    SingleArcDynamicsSimulator <long double> backwardDynamicsSimulator
+                            (bodyMap,backwardIntegratorSettings,backwardPropagatorSettings,true,false,true);
+                    std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> > backwardIntegrationResult
+                            = backwardDynamicsSimulator.getEquationsOfMotionNumericalSolution( );
 
-                        SingleArcDynamicsSimulator <long double> backwardDynamicsSimulator
-                                (bodyMap,backwardIntegratorSettings,backwardPropagatorSettings,true,false,true);
-                        std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> > backwardIntegrationResult
-                                = backwardDynamicsSimulator.getEquationsOfMotionNumericalSolution( );
-
-                        // Retrieve numerically integrated state for each body.
-                        for( std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> >::const_iterator stateIterator = backwardIntegrationResult.begin( );
-                             stateIterator != backwardIntegrationResult.end( ); stateIterator++ )
+                    // Retrieve numerically integrated state for each body.
+                    for( std::map< double, Eigen::Matrix<long double, Eigen::Dynamic, 1> >::const_iterator stateIterator = backwardIntegrationResult.begin( );
+                         stateIterator != backwardIntegrationResult.end( ); stateIterator++ )
+                    {
+                        for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
                         {
-                            for( unsigned int i = 0; i < bodiesToPropagate.size(); i++ )
-                            {
-                                allBodiesBackwardPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
+                            allBodiesBackwardPropagationHistory[ i ][ stateIterator->first ] = stateIterator->second.segment( i * 6, 6 );
 
-                            }
                         }
+                    }
 
         //            }
 

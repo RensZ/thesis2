@@ -35,11 +35,37 @@ for s in subdirs:
     print(" ")
     print(">>>> FOR INPUTS OF PUBLICATION:", s)
 
-    onlyThesePlease = ["PaperInputs_reality3_estimation3"]
+    onlyThesePlease = ["PaperInputsWithBetterGamma_reality3_estimation3_testReverseIntegration",
+                       "PaperInputs_reality3_estimation3_testReverseIntegration",
+                       "PaperInputsonlyMess_reality3_estimation3_testReverseIntegration",
+                       "PaperInputsonlyBepi_reality3_estimation3_testReverseIntegration"]
+
     if s[len(dir_output):] not in onlyThesePlease:
         continue
 
-    if s[len(dir_output):] == "PaperInputs_reality1_estimation1_testWithoutAngularMomentum":
+    if s[len(dir_output):] == "PaperInputs_reality1_estimation1_testReverseIntegration":
+        ps = "PaperInputs"
+        reality = 1
+        estimation = 1
+    elif s[len(dir_output):] == "PaperInputs_reality3_estimation3_testReverseIntegration":
+        ps = "PaperInputs"
+        reality = 3
+        estimation = 3
+    elif s[len(dir_output):] == "PaperInputsonlyMess_reality3_estimation3_testReverseIntegration":
+        ps = "PaperInputsonlyMess"
+        reality = 3
+        estimation = 3
+    elif s[len(dir_output):] == "PaperInputsonlyBepi_reality3_estimation3_testReverseIntegration":
+        ps = "PaperInputsonlyBepi"
+        reality = 3
+        estimation = 3
+    elif s[len(dir_output):] == "PaperInputsWithBetterGamma_reality3_estimation3_testReverseIntegration":
+        ps = "PaperInputsWithBetterGamma"
+        reality = 3
+        estimation = 3
+    elif s[len(dir_output):] == "PaperInputs_reality3_estimation3_testGammaPartial1":
+        continue
+    elif s[len(dir_output):] == "PaperInputs_reality1_estimation1_testWithoutAngularMomentum":
         ps = "PaperInputs"
         reality = 1
         estimation = 1

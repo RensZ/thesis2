@@ -5,7 +5,7 @@ def f(dir_output, dir_plots):
     import matplotlib.pyplot as plt
 
     #get data
-    weightDiagonal = np.genfromtxt(dir_output+"ObservationWeightDiagonal.dat")
+    weightDiagonal = 1.0/np.sqrt(np.genfromtxt(dir_output+"ObservationWeightDiagonal.dat"))
     interpolatedErrorMatrix = np.genfromtxt(dir_output+"interpolatedErrorMatrix.dat")
     observationTime = interpolatedErrorMatrix[:,0]
     actualError = np.linalg.norm(interpolatedErrorMatrix[:,1:], axis=1)

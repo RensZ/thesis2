@@ -29,7 +29,7 @@
     "sigma_S_Sun": 1.5E39,
     "sigma_gamma": 2.3E-5,
     "sigma_beta": 1.1E-4,
-    "sigma_alpha1": 1.9E-5,
+    "sigma_alpha1": 4.0E-6,
     "sigma_alpha2": 8.0E-10,
     "sigma_Nordtvedt": 3.6E-4,
     "sigma_mu_Sun": 0.01E9,

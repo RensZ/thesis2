@@ -554,9 +554,9 @@ std::map< double, Eigen::MatrixXd > tabulatedSphericalHarmonicsCoefficientCorrec
     std::string periodString = "_Per" + std::to_string(period*(1E-8)) + "E8";
     std::string phaseString = "_Ph" + std::to_string(phase);
 
-    using namespace tudat::input_output;
-    writeDataMapToTextFile( coefficientCorrections, "CosCoeffTable"+amplitudeString+periodString+phaseString+".dat",
-                                          outputPath, "", std::numeric_limits< double >::digits10, std::numeric_limits< double >::digits10, "," );
+//    using namespace tudat::input_output;
+//    writeDataMapToTextFile( coefficientCorrections, "CosCoeffTable"+amplitudeString+periodString+phaseString+".dat",
+//                                          outputPath, "", std::numeric_limits< double >::digits10, std::numeric_limits< double >::digits10, "," );
 
     return coefficientCorrections;
 

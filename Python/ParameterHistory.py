@@ -340,12 +340,27 @@ def f(dir_output, dir_plots, parameters, no_bodies, json_input, useformalsigmas)
             df['f/p ratio'] = df['f/p ratio'].map(lambda x: '{0:.3f}'.format(x))
 
         else:
-            df = pd.DataFrame(data={"parameter":parameters2,
-                                    "apriori er.":aPrioriSigmas,
-                                    # "est. value:": estimatedValues,
-                                    "true er.":trueErrors,
-                                    "formal er.":outputFormalSigmas,
-                                    "f/a improvement":factorOfImprovement})
+            if consider > 0:
+                originalTrueToFormalRatio = np.asarray(trueToFormalRatio)
+                percentageIncreaseFormalErrors = 100.0 * (np.asarray(outputFormalSigmas) - originalFormalError) / originalFormalError
+                df = pd.DataFrame(data={"parameter":parameters2,
+                                        "apriori er.":aPrioriSigmas,
+                                        "true er.":trueErrors,
+                                        "formal er.": outputFormalSigmas,
+                                        "t/f ratio": trueToFormalRatio,
+                                        # "est. value:":estimatedValues,
+                                        "f/a improvement":factorOfImprovement})
+                #df["incr. due to C.C."].map(lambda x: '{0:.2f}'.format(x))
+            else:
+                originalFormalError = np.asarray(outputFormalSigmas)
+                trueToFormalRatio = np.abs(np.asarray(trueErrors) / np.asarray(outputFormalSigmas))
+                df = pd.DataFrame(data={"parameter":parameters2,
+                                        "apriori er.":aPrioriSigmas,
+                                        "true er.":trueErrors,
+                                        "formal er.": outputFormalSigmas,
+                                        "t/f ratio":trueToFormalRatio,
+                                        # "est. value:":estimatedValues,
+                                        "f/a improvement":factorOfImprovement})
 
         # if consider>0:
         #     percentageIncreaseFormalErrors = 100.0*(np.asarray(outputFormalSigmas)-originalFormalError)/originalFormalError
