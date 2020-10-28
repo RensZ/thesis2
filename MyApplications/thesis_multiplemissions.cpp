@@ -110,12 +110,11 @@ int main( )
     const bool testGammaPartial = false;
     const bool testReverseIntegration = false;
 
-
-    // for final section results
+    // for final subsection of results in paper, all bools should be false for actual runs
     bool runForVariousAmplitudes = false;
     bool runForVariousAmplitudesDelta = false;
     bool runForVariousJ4Values = false;
-    bool changeWithFormalError = true; //gamma, beta, eta, J2, dotGM/GM
+    bool changeWithFormalError = false; //gamma, beta, eta, J2, dotGM/GM
 
     Eigen::VectorXd valuesToRunFor;
     if (runForVariousAmplitudes){
