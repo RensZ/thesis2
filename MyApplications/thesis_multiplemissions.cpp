@@ -213,8 +213,8 @@ int main( )
     // scenario pairs
     std::vector< std::pair<int,int> > scenarioPairs;
     scenarioPairs.push_back(std::make_pair(1,1));
-//    scenarioPairs.push_back(std::make_pair(3,3));
-//    scenarioPairs.push_back(std::make_pair(3,1));
+    scenarioPairs.push_back(std::make_pair(3,3));
+    scenarioPairs.push_back(std::make_pair(3,1));
 //    scenarioPairs.push_back(std::make_pair(1,3));
 //    scenarioPairs.push_back(std::make_pair(2,2));
 //    scenarioPairs.push_back(std::make_pair(4,4));
